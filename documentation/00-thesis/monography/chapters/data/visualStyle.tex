@@ -166,11 +166,13 @@
 %
 % Só se aplica a colunas numéricas: um rótulo de texto com ponto ("p.ex.")
 % viraria vírgula sem erro algum. Uma célula sem ponto ("—", "10/15") passa
-% inalterada.
+% inalterada. O hífen de um número negativo vira sinal de menos (\textminus):
+% "-0.0009" -> −0{,}0009, e não o traço curto do hífen.
 \ExplSyntaxOn
 \NewDocumentCommand{\dec}{m}{
 	\tl_set:No \l_tmpa_tl {#1}
 	\tl_replace_all:Nnn \l_tmpa_tl {.} {{,}}
+	\tl_replace_all:Nnn \l_tmpa_tl {-} {\textminus}
 	\tl_use:N \l_tmpa_tl
 }
 \ExplSyntaxOff

@@ -844,3 +844,8 @@ afirmações a ajustar; os C, forma.
   - FURLAN 2026 "Artigo em revisão" com caminhos do repositório na referência (conferir o estado);
   - caixa sem chaves ("eeg", "Cn-celeb", "broca’s", "russian");
   - Tayebi Arasteh fora do padrão de caixa.
+
+**Situação:** C corrigido em 2026-11-17 (commit do grupo C), com três pendências:
+- **MASTRANGELO 2019** (`Tatum2019NormalAwakeAdultEEG2`): a busca não confirmou um capítulo de Mastrangelo, Scelsa e Pisani com o título "Normal Awake Adult EEG" (Mastrangelo aparece nos capítulos neonatais, "Normal Neonatal EEG", págs. 177–202). Só os separadores de autor foram corrigidos; o autor confere título, autores e capítulo no livro.
+- **Fig. 48**: a imagem (sem fonte editável) traz "0.5" e "Packet-wavelet"; a legenda agora explica o par de filtros e o ponto decimal da figura.
+- Só o autor: Comissão Examinadora, data, dedicatória, agradecimentos, epígrafe, ficha catalográfica.

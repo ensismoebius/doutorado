@@ -1,4 +1,4 @@
-\begin{lstlisting}[language=C++, caption={Implementação em C++ da simulação completa do potencial de ação de um LIF: $I_{in}=1$, $V_{thresh} = 2$ is threshold}, label={lst:membranepotentialfull}]
+\begin{lstlisting}[language=C++, caption={Implementação em C++ da simulação completa do potencial de membrana de um LIF, com limiar $V_{thresh} = 2$; a corrente $I_{in}$ é um argumento (na \autoref{fig:membranepotentialfull}, $I_{in} = 0{,}5$ entre os instantes 51 e 70)}, label={lst:membranepotentialfull}]
 double lif(double V_mem, double dt = 1, double I_in = 1, double R = 5, double C = 1, double V_thresh = 2, bool reset_zero = true) {
 	
 	double tau = R * C;
