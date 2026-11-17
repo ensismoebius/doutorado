@@ -81,6 +81,7 @@ Usage:
         --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \\
         --identity-pilot results/thesis/pilot/pilot_verdict.json \\
         --identity-margin results/thesis/identity_margin/identity_margin_verdict.json \\
+        --world-analysis results/thesis/world_analysis \\
         --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex [--list]
 """
 
@@ -132,7 +133,17 @@ class Numbers:
 
     def num(self, key: str, value: float, digits: int = 4) -> None:
         en = f"{value:.{digits}f}"
+        if float(en) == 0:
+            en = en.lstrip("-")          # a value that rounds to 0 prints as 0, never -0
         self.put(key, en.replace(".", "{,}"), en)
+
+    def pvalue(self, key: str, value: float, digits: int = 3) -> None:
+        """A p-value: below the printed resolution it reads "< 0,001", not "0,000"."""
+        floor = 10 ** -digits
+        if value < floor:
+            self.put(key, f"$<${floor:.{digits}f}".replace(".", "{,}"), f"$<${floor:.{digits}f}")
+        else:
+            self.num(key, value, digits)
 
     def count(self, key: str, value: int) -> None:
         self.put(key, str(value))
@@ -668,6 +679,60 @@ def identity_margin(n: Numbers, path: pathlib.Path) -> None:
         n.num(f"margin.explore.nojs.{key}.hi", d["ci95"][1])
 
 
+WORLD_BASES = {"coretto2017": "co", "biomex2021": "bx"}
+WORLD_LEVELS = ["rough-j05", "rough-j1", "rough-j2", "rough-j4", "rough-j7",
+                "tremor-d2", "tremor-d4", "tremor-d10", "jump-r05", "jump-r1", "jump-r2",
+                "aphonic-r05", "aphonic-r1", "aphonic-r2"]
+
+
+def world_analysis(n: Numbers, out_dir: pathlib.Path) -> None:
+    """The WORLD grid (08_thesis_world_analysis.py): Part A (margin, confirmatory) per base and
+    level, Part B (EER, descriptive) summarized, and the exploratory block."""
+    import json
+    margin, eer = out_dir / "world_margin.json", out_dir / "world_eer.csv"
+    for f in (margin, eer):
+        if not f.is_file():
+            fail(f"{f} is missing; run scripts/pipeline/thesis/08_thesis_world_analysis.py")
+    r = json.loads(margin.read_text(encoding="utf-8"))
+    for base, b in WORLD_BASES.items():
+        lv = r[base]["levels"]
+        if sorted(lv) != sorted(WORLD_LEVELS):
+            fail(f"{margin}: {base} has levels {sorted(lv)}")
+        for name in WORLD_LEVELS:
+            d, k = lv[name], f"world.{b}.{name}"
+            n.num(f"{k}.mean", d["mean"])
+            n.num(f"{k}.lo", d["ci95"][0])
+            n.num(f"{k}.hi", d["ci95"][1])
+            n.pvalue(f"{k}.pholm", d["p_holm"])
+            n.num(f"{k}.pholm.value", d["p_holm"], 6)
+            n.count(f"{k}.sig", int(d["significant"]))
+        n.count(f"world.{b}.speakers", lv[WORLD_LEVELS[0]]["speakers"])
+        n.count(f"world.{b}.utterances", r[base]["utterances"])
+        n.count(f"world.{b}.sig", sum(lv[x]["significant"] for x in WORLD_LEVELS))
+        n.count(f"world.{b}.sig.down", sum(lv[x]["significant"] and lv[x]["mean"] < 0
+                                           for x in WORLD_LEVELS))
+        n.count(f"world.{b}.sig.up", sum(lv[x]["significant"] and lv[x]["mean"] > 0
+                                         for x in WORLD_LEVELS))
+        n.num(f"world.{b}.control.margin", r[base]["control_margin_mean"])
+        e = r[base]["exploratory"]
+        n.num(f"world.{b}.clean.margin", e["clean_margin_mean"])
+        c = e["control_minus_clean"]
+        n.num(f"world.{b}.controlclean.mean", c["mean"])
+        n.num(f"world.{b}.controlclean.lo", c["ci95"][0])
+        n.num(f"world.{b}.controlclean.hi", c["ci95"][1])
+        n.count(f"world.{b}.controlclean.below", c["speakers_below_zero"])
+        n.num(f"world.{b}.control.share.pct",
+              100 * r[base]["control_margin_mean"] / e["clean_margin_mean"], 0)
+    n.count("world.replicates", sum(r["replicates"].values()))
+    n.count("world.levels", len(WORLD_LEVELS))
+    with open(eer, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    n.count("world.eer.n", len(rows))
+    n.count("world.eer.sig", sum(row["significant"] == "1" for row in rows))
+    n.num("world.eer.absmax", max(abs(float(row["delta"])) for row in rows), 3)
+    n.num("world.eer.pholm.min", min(float(row["p_holm"]) for row in rows), 3)
+
+
 # What the prose of chapters 4 (abstract), 8, 9 and 10 states in words. Each entry: the
 # sentence (as the thesis says it), and a condition on the keys; v(key) is the value as a
 # number, t(key) as text. Keep the two in step: change a sentence, change its claim.
@@ -874,6 +939,34 @@ CLAIMS = [
      "distinguishable from 0",
      lambda v, t: all(v(f"margin.explore.nojs.{a}.lo") < 0 < v(f"margin.explore.nojs.{a}.hi")
                       for a in ("control", "whisper"))),
+    ("ch9 WORLD: on Coretto every rough level and tremor 10 % lower the margin beyond "
+     "resynthesis, the three aphonic levels raise it, tremor 2-4 % and pitch jumps do not differ",
+     lambda v, t: all(v(f"world.co.{x}.sig") == 1 and v(f"world.co.{x}.mean") < 0
+                      for x in ("rough-j05", "rough-j1", "rough-j2", "rough-j4", "rough-j7",
+                                "tremor-d10"))
+     and all(v(f"world.co.{x}.sig") == 1 and v(f"world.co.{x}.mean") > 0
+             for x in ("aphonic-r05", "aphonic-r1", "aphonic-r2"))
+     and all(v(f"world.co.{x}.sig") == 0
+             for x in ("tremor-d2", "tremor-d4", "jump-r05", "jump-r1", "jump-r2"))),
+    ("ch9 WORLD: the rough effect grows from 0.5 % to 2 % jitter and then stays flat, and the "
+     "aphonic effect grows with the rate of the gaps",
+     lambda v, t: v("world.co.rough-j05.mean") > v("world.co.rough-j1.mean")
+     > v("world.co.rough-j2.mean")
+     and abs(v("world.co.rough-j7.mean") - v("world.co.rough-j2.mean")) < 0.003
+     and v("world.co.aphonic-r05.mean") < v("world.co.aphonic-r1.mean")
+     < v("world.co.aphonic-r2.mean")),
+    ("ch9 WORLD: even the strongest rough level moves the margin less than the mildest whisper "
+     "moves it from the clean voice",
+     lambda v, t: min(v(f"world.co.rough-{j}.mean") for j in ("j05", "j1", "j2", "j4", "j7"))
+     > v("margin.whisper.mean")),
+    ("ch9 WORLD: on BIOMEX-DB no level differs from the control, so none replicates",
+     lambda v, t: v("world.bx.sig") == 0 and v("world.replicates") == 0),
+    ("ch9 WORLD: no EER comparison is significant, and none moves the EER by 0.02",
+     lambda v, t: v("world.eer.sig") == 0 and v("world.eer.absmax") < 0.02),
+    ("ch9 WORLD (exploratory): on BIOMEX-DB too the control lowers the margin (interval below "
+     "0) and leaves under a fifth of the clean margin, against a quarter or more on Coretto",
+     lambda v, t: v("world.bx.controlclean.hi") < 0 and v("world.bx.control.share.pct") < 20
+     and v("world.co.control.share.pct") >= 24),
     ("ch9 Q4: seen phrases give the lower EER in most sources, none significantly",
      lambda v, t: v("p01.text.seen_better") > v("p01.text.sources") / 2
      and v("siggroup.text.significant") == 0 and v("siggroup.text.nominal") == 0),
@@ -902,7 +995,7 @@ def main() -> int:
     for arg in ("--phase00-profiles", "--phase00-results", "--phase01-profiles",
                 "--phase01-results", "--biomex-profiles", "--biomex-results",
                 "--ae-input-reference", "--base-facts", "--dysphonia-calibration",
-                "--identity-pilot", "--identity-margin", "--out"):
+                "--identity-pilot", "--identity-margin", "--world-analysis", "--out"):
         ap.add_argument(arg, required=True)
     ap.add_argument("--list", action="store_true", help="also print every key and value")
     args = ap.parse_args()
@@ -918,6 +1011,7 @@ def main() -> int:
     dysphonia_calibration(n, pathlib.Path(args.dysphonia_calibration))
     identity_pilot(n, pathlib.Path(args.identity_pilot))
     identity_margin(n, pathlib.Path(args.identity_margin))
+    world_analysis(n, pathlib.Path(args.world_analysis))
     check_claims(n)
 
     lines = ["% GENERATED by software/nn/scripts/pipeline/thesis/thesis_build_text_numbers.py.",

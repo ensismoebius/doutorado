@@ -480,6 +480,84 @@
 	}
 	\vspace{\TableGap}
 
+	\subsection{Disfonia por edição da fonte}
+	\label{sec:resultadosWorld}
+
+	\par O sussurro troca a fonte da voz; os perfis do vocoder WORLD a editam: a irregularidade
+	de ciclo a ciclo (rugosidade), o tremor e as quebras de sonoridade
+	(\autoref{sec:disfoniaSimulada}). Como a própria ressíntese já afasta a voz do seu locutor,
+	cada nível é comparado com o controle, que só analisa e ressintetiza. A Tabela~\ref{tab:worldMargin}
+	traz a pergunta confirmatória: quanto cada nível muda a margem de verificação por locução
+	(semelhança com o próprio locutor menos a do impostor mais parecido, na mesma palavra) além
+	do que a ressíntese já muda. A unidade é a média de cada locutor
+	(\tn{world.co.speakers} na base de \citeonline{10.1117/12.2255697},
+	\tn{world.bx.speakers} na BIOMEX-DB); valores negativos afastam a voz do seu locutor.
+
+	\par \textbf{Na base de Coretto, a rugosidade, o tremor forte e as quebras afônicas mudam a
+	identidade além da ressíntese.} \tn{world.co.sig} dos \tn{world.levels} níveis diferem do
+	controle. Os cinco níveis de rugosidade reduzem a margem; o efeito cresce de 0,5 a 2\,\% de
+	\textit{jitter} e depois para em torno de $\tn{world.co.rough-j2.mean}$. O tremor só
+	reduz a margem a 10\,\% ($\tn{world.co.tremor-d10.mean}$), e os saltos de altura não a
+	alteram. Os trechos afônicos, ao contrário, \emph{aumentam} a margem em relação ao controle,
+	tanto mais quanto mais frequentes (até $\tn{world.co.aphonic-r2.mean}$). Esse sinal é relativo
+	ao controle, que reduziu a margem em $\tn{world.co.controlclean.mean}$ em relação à voz
+	original: uma hipótese, não testada, é que cada trecho afônico substitui ciclos que a
+	ressíntese distorceria. Mesmo o efeito mais forte da rugosidade é menor que o do sussurro mais
+	leve sobre a voz limpa ($\tn{margin.whisper.mean}$).
+
+	\par \textbf{Na BIOMEX-DB, nenhum nível difere do controle}, e portanto nenhum se replica.
+	Uma análise exploratória, feita depois do resultado, mostra que lá a ressíntese também afasta
+	a voz do seu locutor ($\tn{world.bx.controlclean.mean}$, de $\tn{world.bx.controlclean.lo}$ a
+	$\tn{world.bx.controlclean.hi}$; \tn{world.bx.controlclean.below} de
+	\tn{world.bx.speakers} locutores) e deixa apenas \tn{world.bx.control.share.pct}\,\% da
+	margem da voz limpa, contra \tn{world.co.control.share.pct}\,\% na base de Coretto. Com tão
+	pouca margem restante, um efeito de piso é plausível, mas não foi testado.
+
+	\par \textbf{No \ac{EER}, nada muda além da ressíntese.} Nenhuma das \tn{world.eer.n}
+	comparações entre um nível e o controle da sua célula é significativa
+	($p_{\text{Holm}} \ge \tn{world.eer.pholm.min}$), e nenhuma diferença passa de
+	\tn{world.eer.absmax}. As edições da fonte que mudam a margem por locução na base de Coretto
+	não chegam a mudar a taxa de erro do sistema. Como na \autoref{sec:disfoniaSimulada}, os níveis
+	são descritos pelo valor acústico medido, e não por uma severidade percebida: nenhum ouvinte os
+	avaliou.
+
+	\par\medskip
+	{\small
+	\tableZebraStripe
+	\setlength{\tabcolsep}{3pt}
+	\begin{longtable}{@{}lrcrrcr@{}}
+		\caption[Disfonia por edição da fonte: margem de verificação]{Variação da margem de verificação por locução de cada nível em relação ao controle de ressíntese, na fonte de voz (média dos locutores, intervalo de confiança de 95\,\% pelo teste $t$, $p$ corrigido por Holm sobre os \tn{world.levels} níveis de cada base)} \label{tab:worldMargin} \\
+		\tableHeaderRow \textbf{Nível} & \multicolumn{3}{c}{\textbf{Coretto}} & \multicolumn{3}{c}{\textbf{BIOMEX-DB}} \\
+		\tableHeaderRow & \textbf{$\Delta$} & \textbf{IC 95\,\%} & \textbf{$p_{\text{Holm}}$} & \textbf{$\Delta$} & \textbf{IC 95\,\%} & \textbf{$p_{\text{Holm}}$} \\
+		\endfirsthead
+		\tableHeaderRow \textbf{Nível} & \multicolumn{3}{c}{\textbf{Coretto}} & \multicolumn{3}{c}{\textbf{BIOMEX-DB}} \\
+		\tableHeaderRow & \textbf{$\Delta$} & \textbf{IC 95\,\%} & \textbf{$p_{\text{Holm}}$} & \textbf{$\Delta$} & \textbf{IC 95\,\%} & \textbf{$p_{\text{Holm}}$} \\
+		\endhead
+		\endfoot
+		\bottomrule
+		\endlastfoot
+		\multicolumn{7}{@{}l}{\textbf{Rugosidade (\textit{jitter}, \textit{shimmer})}} \\
+		\quad 0,5\,\%, 0,5\,dB & $\tn{world.co.rough-j05.mean}$ & $[\tn{world.co.rough-j05.lo};\ \tn{world.co.rough-j05.hi}]$ & \tn{world.co.rough-j05.pholm} & $\tn{world.bx.rough-j05.mean}$ & $[\tn{world.bx.rough-j05.lo};\ \tn{world.bx.rough-j05.hi}]$ & \tn{world.bx.rough-j05.pholm} \\
+		\quad 1\,\%, 1\,dB & $\tn{world.co.rough-j1.mean}$ & $[\tn{world.co.rough-j1.lo};\ \tn{world.co.rough-j1.hi}]$ & \tn{world.co.rough-j1.pholm} & $\tn{world.bx.rough-j1.mean}$ & $[\tn{world.bx.rough-j1.lo};\ \tn{world.bx.rough-j1.hi}]$ & \tn{world.bx.rough-j1.pholm} \\
+		\quad 2\,\%, 1,5\,dB & $\tn{world.co.rough-j2.mean}$ & $[\tn{world.co.rough-j2.lo};\ \tn{world.co.rough-j2.hi}]$ & \tn{world.co.rough-j2.pholm} & $\tn{world.bx.rough-j2.mean}$ & $[\tn{world.bx.rough-j2.lo};\ \tn{world.bx.rough-j2.hi}]$ & \tn{world.bx.rough-j2.pholm} \\
+		\quad 4\,\%, 1,5\,dB & $\tn{world.co.rough-j4.mean}$ & $[\tn{world.co.rough-j4.lo};\ \tn{world.co.rough-j4.hi}]$ & \tn{world.co.rough-j4.pholm} & $\tn{world.bx.rough-j4.mean}$ & $[\tn{world.bx.rough-j4.lo};\ \tn{world.bx.rough-j4.hi}]$ & \tn{world.bx.rough-j4.pholm} \\
+		\quad 7\,\%, 1,5\,dB & $\tn{world.co.rough-j7.mean}$ & $[\tn{world.co.rough-j7.lo};\ \tn{world.co.rough-j7.hi}]$ & \tn{world.co.rough-j7.pholm} & $\tn{world.bx.rough-j7.mean}$ & $[\tn{world.bx.rough-j7.lo};\ \tn{world.bx.rough-j7.hi}]$ & \tn{world.bx.rough-j7.pholm} \\
+		\multicolumn{7}{@{}l}{\textbf{Tremor (amplitude da oscilação do F0)}} \\
+		\quad 2\,\% & $\tn{world.co.tremor-d2.mean}$ & $[\tn{world.co.tremor-d2.lo};\ \tn{world.co.tremor-d2.hi}]$ & \tn{world.co.tremor-d2.pholm} & $\tn{world.bx.tremor-d2.mean}$ & $[\tn{world.bx.tremor-d2.lo};\ \tn{world.bx.tremor-d2.hi}]$ & \tn{world.bx.tremor-d2.pholm} \\
+		\quad 4\,\% & $\tn{world.co.tremor-d4.mean}$ & $[\tn{world.co.tremor-d4.lo};\ \tn{world.co.tremor-d4.hi}]$ & \tn{world.co.tremor-d4.pholm} & $\tn{world.bx.tremor-d4.mean}$ & $[\tn{world.bx.tremor-d4.lo};\ \tn{world.bx.tremor-d4.hi}]$ & \tn{world.bx.tremor-d4.pholm} \\
+		\quad 10\,\% & $\tn{world.co.tremor-d10.mean}$ & $[\tn{world.co.tremor-d10.lo};\ \tn{world.co.tremor-d10.hi}]$ & \tn{world.co.tremor-d10.pholm} & $\tn{world.bx.tremor-d10.mean}$ & $[\tn{world.bx.tremor-d10.lo};\ \tn{world.bx.tremor-d10.hi}]$ & \tn{world.bx.tremor-d10.pholm} \\
+		\multicolumn{7}{@{}l}{\textbf{Saltos de altura (por segundo)}} \\
+		\quad 0,5/s & $\tn{world.co.jump-r05.mean}$ & $[\tn{world.co.jump-r05.lo};\ \tn{world.co.jump-r05.hi}]$ & \tn{world.co.jump-r05.pholm} & $\tn{world.bx.jump-r05.mean}$ & $[\tn{world.bx.jump-r05.lo};\ \tn{world.bx.jump-r05.hi}]$ & \tn{world.bx.jump-r05.pholm} \\
+		\quad 1/s & $\tn{world.co.jump-r1.mean}$ & $[\tn{world.co.jump-r1.lo};\ \tn{world.co.jump-r1.hi}]$ & \tn{world.co.jump-r1.pholm} & $\tn{world.bx.jump-r1.mean}$ & $[\tn{world.bx.jump-r1.lo};\ \tn{world.bx.jump-r1.hi}]$ & \tn{world.bx.jump-r1.pholm} \\
+		\quad 2/s & $\tn{world.co.jump-r2.mean}$ & $[\tn{world.co.jump-r2.lo};\ \tn{world.co.jump-r2.hi}]$ & \tn{world.co.jump-r2.pholm} & $\tn{world.bx.jump-r2.mean}$ & $[\tn{world.bx.jump-r2.lo};\ \tn{world.bx.jump-r2.hi}]$ & \tn{world.bx.jump-r2.pholm} \\
+		\multicolumn{7}{@{}l}{\textbf{Trechos afônicos (por segundo)}} \\
+		\quad 0,5/s & $\tn{world.co.aphonic-r05.mean}$ & $[\tn{world.co.aphonic-r05.lo};\ \tn{world.co.aphonic-r05.hi}]$ & \tn{world.co.aphonic-r05.pholm} & $\tn{world.bx.aphonic-r05.mean}$ & $[\tn{world.bx.aphonic-r05.lo};\ \tn{world.bx.aphonic-r05.hi}]$ & \tn{world.bx.aphonic-r05.pholm} \\
+		\quad 1/s & $\tn{world.co.aphonic-r1.mean}$ & $[\tn{world.co.aphonic-r1.lo};\ \tn{world.co.aphonic-r1.hi}]$ & \tn{world.co.aphonic-r1.pholm} & $\tn{world.bx.aphonic-r1.mean}$ & $[\tn{world.bx.aphonic-r1.lo};\ \tn{world.bx.aphonic-r1.hi}]$ & \tn{world.bx.aphonic-r1.pholm} \\
+		\quad 2/s & $\tn{world.co.aphonic-r2.mean}$ & $[\tn{world.co.aphonic-r2.lo};\ \tn{world.co.aphonic-r2.hi}]$ & \tn{world.co.aphonic-r2.pholm} & $\tn{world.bx.aphonic-r2.mean}$ & $[\tn{world.bx.aphonic-r2.lo};\ \tn{world.bx.aphonic-r2.hi}]$ & \tn{world.bx.aphonic-r2.pholm} \\
+	\end{longtable}%
+	}
+	\vspace{\TableGap}
+
 	\subsection{Extratores comparados pelo classificador}
 
 	\par A Fase~00 compara extratores sem treinar classificador algum. A

@@ -75,7 +75,12 @@
 		que é o comportamento que motivou o trabalho. A evidência é fraca: a
 		piora da voz não é significativa, as fusões se mantêm porque já dependiam
 		pouco da voz, e o sussurro sintético modela apenas a perda de
-		periodicidade.
+		periodicidade. As edições da fonte pelo vocoder WORLD, que cobrem a
+		rugosidade, o tremor e as quebras de sonoridade, mudam a margem de
+		verificação por locução na base de Coretto além do que a própria
+		ressíntese muda (a rugosidade a reduz, os trechos afônicos a aumentam),
+		mas não mudam o \ac{EER} em fonte alguma e não se replicam na BIOMEX-DB
+		(\autoref{sec:resultadosWorld}).
 
 		\par \textbf{Ver ou não a frase no treino muda pouco}: o \ac{EER} médio
 		passa de $\tn{p01.text.mean.seen}$ (frases vistas) a
@@ -172,8 +177,11 @@
 			vem de outra tentativa do mesmo locutor e do mesmo enunciado. A fusão
 			com fala imaginada combina, portanto, dois momentos distintos;
 			\item \textbf{A disfonia é simulada}, por um modelo de voz sussurrada
-			que remove a periodicidade e preserva os formantes. Nenhum locutor
-			disfônico foi avaliado;
+			que remove a periodicidade e preserva os formantes, e por edições da
+			fonte no vocoder WORLD. Os níveis dessas edições são acústicos, não
+			perceptivos: nenhum ouvinte os avaliou. A ressíntese do WORLD, sozinha,
+			já afasta a voz do seu locutor, e cada nível só pode ser lido contra
+			ela. Nenhum locutor disfônico foi avaliado;
 			\item \textbf{O extrator é escolhido com todos os locutores}, inclusive
 			os de teste da Fase~01. O viés é nulo no \ac{EEG}, onde a escolha é a
 			mesma em todas as dobras, e existe na voz;

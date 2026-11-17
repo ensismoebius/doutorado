@@ -35,6 +35,12 @@ Part B, DESCRIPTIVE: the EER of every cell of the grid (both bases, every source
     Holm over the 28 comparisons of one (base, source). Reported, not used for any claim of
     "changes identity": the identity pilot showed its interval to be ~0.07 EER wide.
 
+RESULT (2026-11-17): Coretto, 9 of 14 levels change the margin beyond resynthesis (rough all five,
+tremor 10 %, aphonic gaps all three, the last ones upwards); BIOMEX-DB, none; no level
+replicates; no EER comparison of Part B is significant. The "exploratory" block of
+world_margin.json (each base's clean margin, and control minus clean, the powered test's measure
+on both bases) was added after that result and changes nothing in it.
+
 Run from software/nn, after the grid and the feature runs:
     python3 scripts/pipeline/thesis/08_thesis_world_analysis.py \\
         --features results/thesis/world_margin \\
@@ -184,8 +190,15 @@ def margin_part(features: pathlib.Path) -> dict:
         for lv, ph in holm(ps).items():
             rows[lv]["p_holm"] = ph
             rows[lv]["significant"] = ph < ALPHA
+        m_clean = margins(meta, clean_z, clean_z)
+        explore = t_test(list(speaker_means(meta, m_control - m_clean).values()))
         result[base] = {"utterances": len(meta), "levels": rows,
-                        "control_margin_mean": float(m_control.mean())}
+                        "control_margin_mean": float(m_control.mean()),
+                        "exploratory": {
+                            "note": "after the result; not part of the rule",
+                            "clean_margin_mean": float(m_clean.mean()),
+                            "clean_margin_positive_share": float(np.mean(m_clean > 0)),
+                            "control_minus_clean": explore}}
     co, bx = result["coretto2017"]["levels"], result["biomex2021"]["levels"]
     result["replicates"] = {lv: bool(co[lv]["significant"] and bx[lv]["significant"]
                                      and math.copysign(1, co[lv]["mean"])

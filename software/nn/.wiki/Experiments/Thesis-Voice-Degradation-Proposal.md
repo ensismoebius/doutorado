@@ -390,6 +390,35 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
    towards its speaker beyond what WORLD resynthesis does, by this much", per base, with the
    measured acoustic value of L (calibration) beside it, never a perceived severity (decision 3).
 
+   **Result (2026-11-17; arrays 5328285 world + 5328575 bxworld, 150 + 90 profiles, no failure;
+   `results/thesis/world_analysis/`, thesis ch. 9 `sec:resultadosWorld`, table `tab:worldMargin`).**
+   Level − control on the per-utterance margin, speaker means, Holm over 14 per base:
+
+   | Level | Coretto Δ (15 speakers) | Holm p | BIOMEX-DB Δ (45 speakers) | Holm p |
+   |---|---|---|---|---|
+   | rough 0.5 % / 0.5 dB | −0.0020 | 0.030 | +0.0001 | 1 |
+   | rough 1 % / 1 dB | −0.0068 | 0.003 | +0.0006 | 1 |
+   | rough 2 % / 1.5 dB | −0.0182 | <0.001 | −0.0012 | 1 |
+   | rough 4 % / 1.5 dB | −0.0184 | <0.001 | −0.0001 | 1 |
+   | rough 7 % / 1.5 dB | −0.0173 | <0.001 | +0.0001 | 1 |
+   | tremor 2 / 4 / 10 % | 0.0000 / −0.0014 / **−0.0143** | 1 / 0.599 / 0.021 | −0.0013 / −0.0010 / −0.0035 | 1 / 1 / 0.186 |
+   | pitch jumps 0.5 / 1 / 2 per s | +0.0001 / +0.0007 / +0.0027 | 1 / 1 / 0.082 | +0.0018 / +0.0018 / +0.0028 | 1 / 1 / 0.746 |
+   | aphonic gaps 0.5 / 1 / 2 per s | **+0.0087 / +0.0142 / +0.0275** | all <0.001 | −0.0056 / −0.0056 / −0.0095 | 1 / 1 / 0.645 |
+
+   * Coretto: 9 of 14 levels change identity beyond resynthesis. Roughness lowers the margin,
+     growing from 0.5 to 2 % jitter, then flat (~−0.018: the same saturation near 2 % that the
+     listening literature reports, see § 2). Only the strongest tremor matters. Aphonic gaps
+     *raise* the margin relative to the control (a relative sign: the control itself lowered the
+     margin by −0.098; untested hypothesis: each gap replaces cycles resynthesis would distort).
+     The strongest roughness effect is smaller than the mildest whisper on the clean voice (−0.027).
+   * BIOMEX-DB: no level significant, so **no level replicates**.
+   * Part B (EER): 0 of 224 comparisons significant (min Holm p 0.605), max |Δ EER| 0.016.
+   * *Exploratory, after the result* (the `exploratory` block of `world_margin.json`; changes
+     nothing in the verdict): BIOMEX-DB's control moves the voice away from its speaker too
+     (control − clean −0.0648 [−0.0762, −0.0534], 43 / 45 speakers below 0) and leaves 13 % of
+     the clean margin (0.0745 → 0.0097), against 25 % on Coretto (0.127 → 0.032). A floor effect
+     on BIOMEX-DB is plausible, not tested.
+
 ## 5. Cost and risk (not measured)
 
 - Runtime of WORLD analysis per utterance, and the memory of the 1 ms frame matrices on

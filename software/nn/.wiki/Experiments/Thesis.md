@@ -215,7 +215,18 @@ from `calibration.json`). Run on GridUnesp as `THESIS_PHASE=world` / `bxworld`. 
 per-utterance margin, level minus control, source voice, Holm over 14 per base, replication on
 BIOMEX-DB; descriptive: the EER of every cell (`08_thesis_world_analysis.py`).
 
-**Status.** Generators, key, tests, calibration, pilot and powered test exist; the six pilot
+**WORLD grid result (2026-11-17; arrays 5328285 + 5328575, no failure; thesis ch. 9
+`sec:resultadosWorld`; full table in the proposal §4.5).** Coretto: 9 of 14 levels change the
+per-utterance margin beyond resynthesis: roughness lowers it at every level (−0.0020 at 0.5 %
+jitter, flat near −0.018 from 2 %), tremor only at 10 % (−0.0143), aphonic gaps raise it
+relative to the control (+0.009 / +0.014 / +0.028), pitch jumps do nothing. BIOMEX-DB: no level
+significant, so none replicates. EER: 0 of 224 comparisons significant, max |Δ| 0.016.
+Exploratory: BIOMEX-DB's control keeps only 13 % of the clean margin (Coretto 25 %), so a floor
+effect there is plausible, not tested. `08_thesis_world_analysis.py` writes
+`results/thesis/world_analysis/{world_margin.json, world_eer.csv, sig_*.csv}`; the number builder
+reads it with `--world-analysis` (keys `world.*`).
+
+**Status.** Generators, key, tests, calibration, pilot, powered test and the WORLD grid are done; the six pilot
 profiles are `profiles/pilot/`. Nothing here claims a perceptual validation: no listener panel was available.
 
 ### 5. How stable is the Phase 00 winner?
@@ -384,6 +395,7 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \
   --identity-pilot results/thesis/pilot/pilot_verdict.json \
   --identity-margin results/thesis/identity_margin/identity_margin_verdict.json \
+  --world-analysis results/thesis/world_analysis \
   --out ../../documentation/00-thesis/monography/tables/thesis_numbers.tex   # --list prints the keys
 ```
 
