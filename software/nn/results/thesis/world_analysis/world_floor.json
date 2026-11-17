@@ -1,0 +1,33 @@
+{
+  "coretto2017": {
+    "r": 0.7091564366639,
+    "r_room_a_effect_b": 0.7856898388886414,
+    "r_room_b_effect_a": 0.6326230344391587,
+    "p": 0.000989990100098999,
+    "permutations": 100000,
+    "seed": 20261117,
+    "speakers": 15,
+    "slope_mean": 0.07210891751059462,
+    "room_mean": 0.010605321070996784,
+    "effect_mean": -0.012411114757407879,
+    "utterances_a": 1019,
+    "utterances_b": 955,
+    "role": "descriptive"
+  },
+  "biomex2021": {
+    "r": 0.13519255774410782,
+    "r_room_a_effect_b": 0.11308986134593493,
+    "r_room_b_effect_a": 0.15729525414228068,
+    "p": 0.21784782152178478,
+    "permutations": 100000,
+    "seed": 20261117,
+    "speakers": 45,
+    "slope_mean": 0.009555107247324751,
+    "room_mean": -0.005274157559900932,
+    "effect_mean": 0.000321806328080829,
+    "utterances_a": 3194,
+    "utterances_b": 3100,
+    "role": "confirmatory",
+    "verdict": "not supported"
+  }
+}

@@ -511,7 +511,23 @@
 	$\tn{world.bx.controlclean.hi}$; \tn{world.bx.controlclean.below} de
 	\tn{world.bx.speakers} locutores) e deixa apenas \tn{world.bx.control.share.pct}\,\% da
 	margem da voz limpa, contra \tn{world.co.control.share.pct}\,\% na base de Coretto. Com tão
-	pouca margem restante, um efeito de piso é plausível, mas não foi testado.
+	pouca margem restante, um efeito de piso parecia plausível: a edição não teria mais para onde
+	afastar a voz.
+
+	\par \textbf{O teste não sustenta o efeito de piso.} Ele foi feito depois do resultado, com a
+	regra fixada antes de rodar. Se o piso explicasse o resultado nulo, os locutores da BIOMEX-DB
+	que guardam mais margem depois da ressíntese mostrariam o maior efeito da rugosidade
+	(a média dos cinco níveis). Margem e efeito vêm de metades disjuntas das locuções de cada
+	locutor e palavra: medidos nas mesmas locuções, o ruído da margem do controle entraria nos dois
+	com sinais opostos e tornaria a correlação negativa por regressão à média, justamente o sinal
+	previsto. A correlação entre os \tn{world.floor.bx.speakers} locutores, testada por
+	permutação (\tn{world.floor.permutations} permutações), é $r = \tn{world.floor.bx.r}$
+	($p = \tn{world.floor.bx.p}$), sem significância e sem o sinal previsto. Na base de Coretto,
+	apenas descritivamente (\tn{world.floor.co.speakers} locutores), a relação é forte e também
+	tem o sinal oposto ($r = \tn{world.floor.co.r}$): lá a rugosidade afasta mais os locutores que
+	guardam pouca margem. Com \tn{world.floor.bx.speakers} locutores, o teste só tem poder de
+	80\,\% para correlações a partir de \tn{world.floor.bx.power.r}; um piso mais fraco não está
+	excluído, e o resultado nulo da BIOMEX-DB continua sem explicação.
 
 	\par \textbf{No \ac{EER}, nada muda além da ressíntese.} Nenhuma das \tn{world.eer.n}
 	comparações entre um nível e o controle da sua célula é significativa

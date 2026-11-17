@@ -47,6 +47,11 @@ on 2026-11-17, after seeing the grid result and the exploratory 13 % / 25 %).
     exclude a weaker floor.
     Coretto (15 speakers) gets the same numbers, DESCRIPTIVE ONLY (no verdict).
 
+RESULT (2026-11-17, run after the rule was committed in 1fd75d377): BIOMEX-DB r = +0.14
+(A->B +0.11, B->A +0.16), p = 0.218 -> floor NOT SUPPORTED, and r has the sign opposite to the
+prediction. Coretto (descriptive): r = +0.71, p < 0.001, also opposite: there roughness lowers the
+margin most for the speakers who keep little of it.
+
 Run from software/nn:
     python3 scripts/pipeline/thesis/09_thesis_world_floor.py \\
         --features results/thesis/world_margin --out results/thesis/world_analysis/world_floor.json

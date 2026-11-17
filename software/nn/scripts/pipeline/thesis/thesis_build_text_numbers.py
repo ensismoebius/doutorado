@@ -88,6 +88,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import math
 import csv
 import importlib.util
 import pathlib
@@ -687,12 +688,34 @@ WORLD_LEVELS = ["rough-j05", "rough-j1", "rough-j2", "rough-j4", "rough-j7",
 
 def world_analysis(n: Numbers, out_dir: pathlib.Path) -> None:
     """The WORLD grid (08_thesis_world_analysis.py): Part A (margin, confirmatory) per base and
-    level, Part B (EER, descriptive) summarized, and the exploratory block."""
+    level, Part B (EER, descriptive) summarized, the exploratory block, and the floor test
+    (09_thesis_world_floor.py, world_floor.json)."""
     import json
     margin, eer = out_dir / "world_margin.json", out_dir / "world_eer.csv"
     for f in (margin, eer):
         if not f.is_file():
             fail(f"{f} is missing; run scripts/pipeline/thesis/08_thesis_world_analysis.py")
+    floor = out_dir / "world_floor.json"
+    if not floor.is_file():
+        fail(f"{floor} is missing; run scripts/pipeline/thesis/09_thesis_world_floor.py")
+    fl = json.loads(floor.read_text(encoding="utf-8"))
+    if fl["biomex2021"]["role"] != "confirmatory" or fl["coretto2017"]["role"] != "descriptive":
+        fail(f"{floor}: the roles of the bases are not the rule's")
+    for base, b in WORLD_BASES.items():
+        d = fl[base]
+        n.num(f"world.floor.{b}.r", d["r"], 2)
+        n.num(f"world.floor.{b}.r.ab", d["r_room_a_effect_b"], 2)
+        n.num(f"world.floor.{b}.r.ba", d["r_room_b_effect_a"], 2)
+        n.pvalue(f"world.floor.{b}.p", d["p"])
+        n.count(f"world.floor.{b}.speakers", d["speakers"])
+    n.count("world.floor.permutations", fl["biomex2021"]["permutations"])
+    # the smallest |r| a two-sided 0.05 test detects with 80 % power at this many speakers
+    # (Fisher z), stated in 09's rule before the run
+    from statistics import NormalDist
+    z = NormalDist().inv_cdf(0.975) + NormalDist().inv_cdf(0.80)
+    n.num("world.floor.bx.power.r", math.tanh(z / math.sqrt(fl["biomex2021"]["speakers"] - 3)), 2)
+    n.count("world.floor.bx.supported", int(fl["biomex2021"]["verdict"] == "supported"))
+    n.count("world.floor.bx.contradicted", int(fl["biomex2021"]["verdict"] == "contradicted"))
     r = json.loads(margin.read_text(encoding="utf-8"))
     for base, b in WORLD_BASES.items():
         lv = r[base]["levels"]
@@ -967,6 +990,11 @@ CLAIMS = [
      "0) and leaves under a fifth of the clean margin, against a quarter or more on Coretto",
      lambda v, t: v("world.bx.controlclean.hi") < 0 and v("world.bx.control.share.pct") < 20
      and v("world.co.control.share.pct") >= 24),
+    ("ch9 WORLD floor test: on BIOMEX-DB it does not support a floor (neither verdict), and on "
+     "Coretto the descriptive relation has the sign opposite to the floor's (r > 0)",
+     lambda v, t: v("world.floor.bx.supported") == 0 and v("world.floor.bx.contradicted") == 0
+     and v("world.floor.bx.r") > 0 and v("world.floor.co.r") > 0
+     and v("world.floor.bx.r") < v("world.floor.bx.power.r")),
     ("ch9 Q4: seen phrases give the lower EER in most sources, none significantly",
      lambda v, t: v("p01.text.seen_better") > v("p01.text.sources") / 2
      and v("siggroup.text.significant") == 0 and v("siggroup.text.nominal") == 0),

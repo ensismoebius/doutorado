@@ -221,8 +221,10 @@ per-utterance margin beyond resynthesis: roughness lowers it at every level (−
 jitter, flat near −0.018 from 2 %), tremor only at 10 % (−0.0143), aphonic gaps raise it
 relative to the control (+0.009 / +0.014 / +0.028), pitch jumps do nothing. BIOMEX-DB: no level
 significant, so none replicates. EER: 0 of 224 comparisons significant, max |Δ| 0.016.
-Exploratory: BIOMEX-DB's control keeps only 13 % of the clean margin (Coretto 25 %), so a floor
-effect there is plausible, not tested. `08_thesis_world_analysis.py` writes
+Exploratory: BIOMEX-DB's control keeps only 13 % of the clean margin (Coretto 25 %). The floor
+test that followed (rule committed first, `09_thesis_world_floor.py`, proposal §4.5 item 6) does
+not support a floor: r = +0.14, p = 0.218 on BIOMEX-DB (Coretto, descriptive: r = +0.71, opposite
+sign too); the BIOMEX-DB null stays unexplained. `08_thesis_world_analysis.py` writes
 `results/thesis/world_analysis/{world_margin.json, world_eer.csv, sig_*.csv}`; the number builder
 reads it with `--world-analysis` (keys `world.*`).
 

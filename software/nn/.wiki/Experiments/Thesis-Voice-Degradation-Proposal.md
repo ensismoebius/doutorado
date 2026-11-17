@@ -445,6 +445,12 @@ raw voice. The whisper mix has no such issue (it keeps the original waveform).
    for |r| ≥ ~0.41 at 45 speakers, so a null does not exclude a weaker floor. Coretto: the same
    numbers, descriptive.
 
+   **Result (2026-11-17, `results/thesis/world_analysis/world_floor.json`):** BIOMEX-DB
+   r = +0.14 (A→B +0.11, B→A +0.16), p = 0.218: floor **not supported**, and r has the sign
+   opposite to the prediction. Coretto (descriptive, 15 speakers): r = +0.71, p < 0.001, also
+   opposite: roughness lowers the margin most for the speakers who keep little of it. The
+   BIOMEX-DB null stays unexplained (thesis ch. 9, ch. 10).
+
 ## 5. Cost and risk (not measured)
 
 - Runtime of WORLD analysis per utterance, and the memory of the 1 ms frame matrices on
