@@ -54,7 +54,7 @@
 		conclusões que ela permite testar, cinco se repetem e duas mudam, ambas na
 		direção de um efeito que \tn{base.coretto.subjects} locutores não tinham
 		poder para detectar: a fusão tardia passa a superar a voz com
-		significância, nos dois modos de texto, e a rede treinada passa a superar o
+		significância, nos dois modos de texto, e a \ac{DSNN} passa a superar o
 		cosseno direto. Nenhuma conclusão se inverte.
 
 		\par \textbf{A rede de pulsos não se justificou, nem por desempenho nem
@@ -129,7 +129,7 @@
 			\item \textbf{Um protocolo com controles que isolam o que cada
 			componente acrescenta}: a rede gêmea não pulsante, que difere da
 			\ac{DSNN} apenas no neurônio; o cosseno direto, que remove a rede; os
-			dois modos de texto com o mesmo conjunto de treino; e a energia de
+			dois modos de texto (frases vistas e não vistas) com o mesmo conjunto de treino; e a energia de
 			inferência estimada a partir dos disparos contados na passagem de
 			teste, em vez de presumida. Foram esses
 			controles que mostraram que a rede de pulsos não contribui de forma
@@ -137,7 +137,7 @@
 			sozinho, não revelaria.
 
 			\item \textbf{O registro de três defeitos silenciosos e de como foram
-			detectados} (os oito defeitos desse tipo encontrados durante o
+			detectados} (os três de maior consequência; os oito defeitos desse tipo encontrados durante o
 			desenvolvimento estão no \autoref{apend:defeitos}). O \ac{EEG} lido da tentativa anterior
 			(\autoref{sec:baseDeSinais}), a entrada sem informação de locutor dos
 			extratores automatizados (\autoref{sec:aeEntrada}) e a
@@ -261,7 +261,7 @@
 			variantes do critério que considerem as características em conjunto, e
 			não uma a uma;
 
-			\item \textbf{Levar o \ac{SNN}-AE ao classificador} e ajustar orçamento
+			\item \textbf{Levar o \ac{SNN}-AE ao classificador} (usar o seu latente como vetor de características da Fase~01, o que esta tese não fez) e ajustar orçamento
 			de treino e capacidade dos \textit{autoencoders}, para decidir se algum
 			modelo não linear supera a \ac{PCA} sobre a mesma entrada.
 		\end{enumerate}

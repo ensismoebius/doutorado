@@ -873,10 +873,10 @@
    transform="translate(-0.165544,670.45586)"
    style="font-variant:normal;font-weight:normal;font-size:21.18968391px;font-family:'DejaVu Sans';-inkscape-font-specification:DejaVuSans;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
    id="text4057"><tspan
-     x="0 12.819758 25.851414 34.157772 47.104668 55.389835 68.421486 79.440125 86.157257 99.591515 112.62317 119.3403 130.35893 136.22849 156.86723 162.73677 168.60631 181.5744 190.28336 196.15291 209.58716 222.55525 235.98952"
+     x="0"
      y="0"
      sodipodi:role="line"
-     id="tspan4055">Vetores de similaridade</tspan></text>
+     id="tspan4055">Amplitudes</tspan></text>
 
 <text
    transform="translate(320.24703,628.52081)"
@@ -926,13 +926,13 @@
    transform="translate(298.53878,714.80302)"
    style="font-variant:normal;font-weight:normal;font-size:29.99999809px;font-family:'DejaVu Sans';-inkscape-font-specification:DejaVuSans;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
    id="text4089"><tspan
-     x="0 15.599999 33.329998"
+     x="0"
      y="0"
      sodipodi:role="line"
-     id="tspan4087">svC</tspan></text>
+     id="tspan4087">aC</tspan></text>
 
 <text
-   transform="translate(352.91378,726.25499)"
+   transform="translate(335.91378,726.25499)"
    style="font-variant:normal;font-weight:normal;font-size:23.99999809px;font-family:'DejaVu Sans';-inkscape-font-specification:DejaVuSans;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
    id="text4093"><tspan
      x="0"
@@ -978,13 +978,13 @@
    transform="translate(512.58311,718.06702)"
    style="font-variant:normal;font-weight:normal;font-size:29.99999809px;font-family:'DejaVu Sans';-inkscape-font-specification:DejaVuSans;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
    id="text4121"><tspan
-     x="0 15.599999 33.329998"
+     x="0"
      y="0"
      sodipodi:role="line"
-     id="tspan4119">svC</tspan></text>
+     id="tspan4119">aC</tspan></text>
 
 <text
-   transform="translate(566.9581,730.14261)"
+   transform="translate(549.9581,730.14261)"
    style="font-variant:normal;font-weight:normal;font-size:28.00000191px;font-family:'DejaVu Sans';-inkscape-font-specification:DejaVuSans;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
    id="text4125"><tspan
      x="0"
@@ -1030,11 +1030,11 @@
    transform="translate(754.06474,713.78134)"
    style="font-variant:normal;font-weight:normal;font-size:29.99999809px;font-family:'DejaVu Sans';-inkscape-font-specification:DejaVuSans;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
    id="text4157"><tspan
-     x="0 15.599999 33.329998"
+     x="0"
      y="0"
      sodipodi:role="line"
-     id="tspan4151">svC</tspan><tspan
-     x="54.375"
+     id="tspan4151">aC</tspan><tspan
+     x="37.375"
      y="10.23306"
      id="tspan4153">n</tspan><tspan
      x="-100.09418 -90.58419 -81.074188"
@@ -1165,10 +1165,10 @@
    id="text4243"
    x="331.84622"
    y="1029.8031"><tspan
-     x="331.84622 350.86621 369.31619 377.62622 396.0762 412.5462 430.90622 449.23621 458.74619 477.76624 496.12622 505.63623 534.8562 553.30621 572.38623 590.71619 603.0462 612.55621 641.77618 660.2262 679.24622 687.55621"
+     x="331.84622"
      y="1029.8031"
      sodipodi:role="line"
-     id="tspan4241">Seleção da menor média = 6,5</tspan></text>
+     id="tspan4241">Seleção da maior média = 10,75</tspan></text>
 
 <g
    id="g4221-0"

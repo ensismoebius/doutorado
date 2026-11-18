@@ -1,5 +1,6 @@
 \begin{lstlisting}[language=C, caption={Fase 01 --- autenticação com o vencedor da Fase 00. O extrator não é mais variado: usa-se apenas a combinação escolhida por sinal.}, label={lst:e05Phase01}]
-/* v_voz, v_eeg: vencedores da Fase 00 (um por sinal)            */
+/* v_voz, v_eeg: vencedores da Fase 00 (um por sinal); as fontes */
+/* fundidas usam o vencedor da voz nas duas partes               */
 /* fonte : VOZ | EEG | FUNDIDA_PRECOCE | FUNDIDA_TARDIA          */
 /* Preenche X (vetores de caracteristicas) e devolve a dimensao. */
 
@@ -16,10 +17,11 @@ int monta_fonte(Amostra a, int fonte,
         int n = concatena(a.audio, a.eeg, s);
         return extrai(s, v_voz, X);         /* uma extracao so   */
     }
-    /* FUNDIDA_TARDIA: extrai cada sinal, concatena os vetores   */
+    /* FUNDIDA_TARDIA: extrai cada sinal com o mesmo extrator,   */
+    /* o vencedor da voz, e concatena os vetores                 */
     double xv[MAX_CARACT], xe[MAX_CARACT];
     int mv = extrai(a.audio, v_voz, xv);
-    int me = extrai(a.eeg,   v_eeg, xe);
+    int me = extrai(a.eeg,   v_voz, xe);
     return concatena_vetores(xv, mv, xe, me, X);
 }
 

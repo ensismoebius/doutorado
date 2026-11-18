@@ -529,15 +529,13 @@
 		\par Vamos considerar um autoencoder esparsificado com uma penalidade de esparsidade adicionada à função de perda para encorajar a esparsidade nas ativações das unidades ocultas.
 
 
-		\par Seja uma camada oculta com valores de ativação \( h = [0{,}9;\ 0{,}1;\ 0{,}8;\ 0{,}05] \).
-
 		\par Segundo \citeonline{ng2011sparse}, o termo de penalidade de esparsidade pode ser definido como a divergência Kullback-Leibler (KL) entre o nível de esparsidade desejado \( \rho \) e $\hat{\rho}_i$, a média da ativação da unidade oculta $i$, somada sobre todas as unidades ocultas:
 
 		\begin{equation}
 			\Omega(h) = \sum_i \left(\rho \log(\rho / \hat{\rho}_i) + (1 - \rho) \log((1 - \rho) / (1 - \hat{\rho}_i))\right)
 		\end{equation}
 
-		\par Seja $\rho = 0{,}2$. Se a média da ativação da unidade oculta $i$ for $\hat{\rho}_i = 0{,}5$, a penalidade de esparsidade dessa unidade, com o logaritmo natural, é:
+		\par Seja $\rho = 0{,}2$, e seja uma unidade oculta $i$ cujas ativações em quatro amostras de treino valem $0{,}9$; $0{,}1$; $0{,}8$ e $0{,}2$, de modo que a sua ativação média é $\hat{\rho}_i = (0{,}9+0{,}1+0{,}8+0{,}2)/4 = 0{,}5$. A penalidade de esparsidade dessa unidade, com o logaritmo natural, é:
 		
 		\begin{equation}
 			\begin{aligned}

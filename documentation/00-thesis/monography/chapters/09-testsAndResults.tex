@@ -125,7 +125,9 @@
 	extrator manual vencedor tem $\tn{p00.voice.winner.dpen}$,
 	$\tn{p00.eegpron.winner.dpen}$ e $\tn{p00.eegimag.winner.dpen}$. A distância
 	entre o manual e o melhor automatizado é de cerca de dez vezes o
-	$\sigma_{\text{loc}}$ de qualquer um deles: pelo critério paraconsistente, a
+	$\sigma_{\text{loc}}$ de qualquer um deles, e $\sigma_{\text{loc}}$ mede
+	justamente quanto $d_{\text{pen}}$ muda quando mudam os locutores observados:
+	pelo critério paraconsistente, a
 	ordem entre as famílias não depende de quais locutores foram observados.
 
 	\par Dentro dos automatizados, três padrões se repetem nos três sinais.
@@ -410,8 +412,10 @@
 	\par A razão desse resultado é aritmética, e não um defeito da medição. A
 	rede gêmea faz uma única passagem; a \ac{DSNN} repete a sua por $T = 16$
 	passos de tempo, e só economiza onde os neurônios ficam em silêncio. Com
-	cerca de $\tn{p01.energy.voice.spikes}$ disparos por amostra em uma rede de
-	duas camadas de 128 neurônios, a atividade não é esparsa o bastante para
+	cerca de $\tn{p01.energy.voice.spikes}$ disparos por amostra, de
+	$\tn{p01.dsnn.spike.slots}$ possíveis (duas camadas pulsantes de 128 neurônios
+	em 16 passos), cerca de $\tn{p01.energy.voice.spike.share}$\,\% dos neurônios
+	disparam a cada passo: a atividade não é esparsa o bastante para
 	compensar os 16 passos. Como o \ac{EER} das duas redes não se distingue
 	(seção anterior), a escolha da rede de pulsos \textbf{não se justifica por
 	energia} nesta arquitetura e neste modelo de custo. O resultado vale para
@@ -447,7 +451,7 @@
 	(\autoref{sec:disfoniaSimulada}), do nível 0 (voz limpa) ao nível 1 (sussurro puro),
 	nos dois cenários: só as sondas degradadas, ou cadastro e sondas.
 
-	\par \textbf{A voz piora; as fusões quase não mudam.} Do nível 0 ao nível 1,
+	\par \textbf{A voz tende a piorar; as fusões quase não mudam.} Do nível 0 ao nível 1,
 	o \ac{EER} da voz sobe $\tn{p01.dysph.voice.probes.rise}$ quando só as sondas
 	são degradadas e $\tn{p01.dysph.voice.test.rise}$ quando o cadastro também é.
 	Nas fusões, a subida não passa de $\tn{p01.dysph.lateimag.test.rise}$. Esse
@@ -659,7 +663,7 @@
 	referência, mesmo pareamento, mesma correção de Holm dentro de cada família),
 	restritos às fontes que a BIOMEX-DB tem, e foram declarados antes de qualquer
 	número da replicação ser lido. A Tabela~\ref{tab:biomexAuth} põe cada célula
-	ao lado da mesma célula da outra base.
+	ao lado da mesma célula da base de Coretto.
 
 	\par \textbf{Os números se repetem.} O \ac{EER} médio da \ac{DSNN} nas
 	\tn{bx.cells} células é $\tn{bx.mean.dsnn}$, contra $\tn{bx.coretto.mean.dsnn}$
@@ -704,8 +708,9 @@
 	\tn{bxsiggroup.ctrl.cosine.significant} delas. Na outra base, nenhuma era: o
 	que lá era ``uma melhora de alguns pontos percentuais que os dados não
 	permitem confirmar'' se confirma com três vezes mais locutores. A energia
-	repete a outra base: a \ac{DSNN} gasta de $\tn{bx.energy.ratio.min}$ a
-	$\tn{bx.energy.ratio.max}$ vezes a energia da gêmea, e em nenhuma célula é a
+	aponta na mesma direção da outra base: a \ac{DSNN} gasta de $\tn{bx.energy.ratio.min}$ a
+	$\tn{bx.energy.ratio.max}$ vezes a energia da gêmea (na base de Coretto, de
+	$\tn{p01.energy.ratio.nj.min}$ a $\tn{p01.energy.ratio.nj.max}$), e em nenhuma célula é a
 	mais econômica.
 
 	\par \textbf{A disfonia simulada e o modo de texto não têm efeito
@@ -723,7 +728,7 @@
 	{\footnotesize\setlength{\tabcolsep}{3pt}
 	\tableZebraStripe
 	\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.15\textwidth}>{\raggedright\arraybackslash}p{0.11\textwidth}rrrrrrr@{}}
-		\caption[Replicação na BIOMEX-DB]{EER na BIOMEX-DB, ao lado da mesma célula da DSNN na outra base (vencedores da Fase~00 congelados; validação plana, características padronizadas). A última coluna é a razão entre a energia de inferência da DSNN e a da rede gêmea} \label{tab:biomexAuth} \\
+		\caption[Replicação na BIOMEX-DB]{EER na BIOMEX-DB, ao lado da mesma célula da DSNN na base de Coretto (vencedores da Fase~00 congelados; validação plana, características padronizadas). A última coluna é a razão entre a energia de inferência da DSNN e a da rede gêmea} \label{tab:biomexAuth} \\
 		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{Coretto} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} & \textbf{Energia} \\
 		\endfirsthead
 		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{Coretto} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} & \textbf{Energia} \\
@@ -914,7 +919,7 @@
 	treino e teste as separa. Dois resultados deste trabalho são compatíveis com
 	essa leitura: um classificador linear identifica o locutor a partir do
 	espectro bruto do \ac{EEG} com acurácia de $\tn{aeinput.eeg.new.all}$
-	(\autoref{tab:aeInput}), sem nenhum aprendizado de representação; e o
+	(\autoref{tab:aeInput}; o acaso daria $\tn{aeinput.chance}$), sem nenhum aprendizado de representação; e o
 	\ac{EER} é praticamente o mesmo quer o locutor fale, quer imagine. Na voz, o
 	problema equivalente é menor, porque a gravação de áudio de um locutor
 	depende menos da montagem.

@@ -879,3 +879,60 @@ Protocolo em `review_antigravity.md`; relatório em `review_antigravity_report.m
 | C6 siglas sem chaves ("Eeg-based") | procede: a regex do grupo C não pegava sigla com hífen | 37 títulos corrigidos (toda palavra com duas ou mais maiúsculas fora de chaves) |
 | C7 $\hat\rho$ sem o índice $i$ | procede | $\hat\rho_i$ |
 | C8 "base CN-Celeb" na coluna de sujeitos | procede | "3000 (base CN-Celeb)", da Tabela 1 de Wang et al. (2023) |
+
+## Terceira leitura: clareza das explicações (big-pickle via opencode, 2026-11-17)
+
+O PDF (commit `a5072e896`) foi extraído em texto, dividido em 8 trechos e cada um foi lido pelo
+modelo `opencode/big-pickle` com um roteiro de clareza (leitor-alvo: banca de computação que não é
+especialista em pulsos, *wavelets*, paraconsistência nem EEG; 9 tipos de problema). Os 126 achados
+foram conferidos contra o texto inteiro e, quando falavam do método, contra o código. A leitura por
+trechos gerou muitos falsos "termo não definido" (EER, AUC, LIF, DTWPT, DSNN, sonda, cadastro, fusão
+precoce/tardia, frases vistas/não vistas são definidos em outro capítulo): esses foram rejeitados.
+
+### Defeitos de conteúdo (o texto dizia algo diferente do executado)
+
+| Achado | O que foi feito |
+|---|---|
+| Cap. 3: "dois blocos residuais" | a lista logo abaixo e o código têm um (`residual:2` = estágio de entrada + 1 bloco): "um bloco residual" |
+| Cap. 3: "Categoria 1 usa as energias de banda diretamente" | são os seis descritores; a Categoria 2 troca só a energia pelo coeficiente cepstral |
+| Cap. 3, fusão tardia: "preserva o extrator próprio de cada fonte"; Algoritmo 3.2 com `v_eeg` na fusão tardia | o gerador de perfis dá às fontes fundidas o vencedor da voz nas duas partes: texto e algoritmo corrigidos (`v_voz`) |
+| Cap. 2: decaimento de peso "pelo mesmo critério de tamanho" | o código decai só parâmetros com mais de uma linha **e** mais de uma coluna (vieses, vetores de uma linha, ficam de fora sem ser $1\times1$); parágrafo reescrito e separado do teste da taxa de aprendizado |
+| Cap. 2: $svC_n$ = maiores − menores | o código (`calculate_alpha`) usa $1-(\text{maior}-\text{menor})$; achado nosso ao conferir a Fig. 10, que além disso escolhia a *menor* média de amplitudes. Texto: amplitude $aC_n$ e $svC_n = 1-aC_n$, $\alpha$ = 1 − maior amplitude média; figura: "Amplitudes", $aC$, "Seleção da maior média = 10,75" |
+| Cap. 2, Fig. 37 (*denoising*): $h=f(x)$ | $h=f(\hat x)$ |
+| Cap. 2, resíduo: "$f$ atua sobre $r$" | as camadas aprendem o resíduo, $r=f(x)$ |
+| Cap. 2, CAR: "média dos sinais em um intervalo de tempo" | média de todos os eletrodos a cada instante |
+| Cap. 2: "localização ... na subseção 2.1.7" | a figura está na 2.1.8: rótulo novo `subsec:sistema1020` |
+| Cap. 2: "um limite, que será mencionado adiante" | nunca era mencionado: $2^n$ amostras admitem $n$ níveis |
+| Cap. 2: filtros $\{1/2, \pm1/2\}$ chamados "normalizados" | são Haar escalados por 1/2, não ortonormais; dito por quê |
+| Cap. 2: $\beta$ do gradiente substituto = $\beta$ do decaimento | o do substituto virou $\kappa$ (com a nota do nome no artigo); nota sobre $\alpha$/$\beta_k$ da tdBN |
+| Apêndice C: vetor $h$ nunca usado | $\hat\rho_i=0{,}5$ calculado a partir de quatro ativações |
+| Tabela de trabalhos: "EER 0,89 %; disfonia 2,40 %, controle 3,12 %" | 0,89 % é com todos os grupos reunidos (Tayebi Arasteh et al., *Sci. Rep.* 2023) |
+
+### Clareza (aceitos)
+
+Cap. 2: objetivo da engenharia paraconsistente na abertura e definição de paraconsistência; onde
+ocorre a sub-amostragem; PCA não é quarta categoria; reconhecimento de fala × verificação de
+locutor; "escala lfcc"; $D_{\text{verdade}}$ e Fase 00 na primeira menção; multirresolução
+explicada e frase dividida; intercalação aproximação/detalhe da Eq. 2.8; $\alpha=1$ só com $\beta$
+baixo; coordenadas $(G_1,G_2)$ × $(\alpha,\beta)$ dos vértices; fala imaginada mobiliza menos os
+córtices motores; amplitude/frequência do EEG "típicas"; Wernicke/Broca e o "Portanto" do
+telencéfalo com a premissa; $\vartheta = V_{th}$ = `V_thresh`; BPTT por extenso na primeira menção
+do corpo (a do sumário consumia o `\ac`); "unidades ativas"; $\alpha=\beta=1$ do latente colapsado
+explicado; remissão a `sec:dPenalizado`; "Dito isso"; "o mesmo efeito"; PRISMA-ScR por extenso.
+Cap. 3: "erro silencioso"; Fase 00 na primeira menção; fator 43 = 44100/1024; as 256 bandas não
+são as 16 sub-bandas. Cap. 4: denominador dos disparos (chaves geradas novas
+`p01.dsnn.spike.slots` = 4096 e `p01.energy.<fonte>.spike.share`, de `layer_spec` e
+`kSnnTimeSteps`, com CLAIM); "a voz tende a piorar"; "outra base" → base de Coretto; a faixa de
+energia das duas bases lado a lado; acaso na acurácia 0,62; o que $\sigma_{\text{loc}}$ mede.
+Cap. 5: "a rede treinada" → DSNN; modos de texto nomeados; "três defeitos" entre os oito; "Levar
+o SNN-AE ao classificador". Introdução: identificação de conjunto fechado; categorias; cosseno
+direto; gêmea (ReLU no lugar do LIF); modos de texto. Resumo/Abstract: o que é a fusão tardia.
+
+### Rejeitados
+
+Termos definidos em outro capítulo (EER/AUC, LIF, DTWPT, DSNN, tdBN, $R$/$C$/$V_{th}$, sonda,
+cadastro, fusões, modos de texto, $G_2$, $d_{\text{pen}}$ — o próprio cap. 4 já liga
+$\bar d$, $D_{\text{verdade}}$ e $D_{1,0}$); ROC por extenso (o leitor-alvo conhece); `daub32`
+(nome do código, na tabela das *wavelets*); bandas α/β/θ (definidas em 2.1.7); DTWT × DTWPT,
+"salto"/"atalho" e frases longas de estilo sem perda de sentido; reordenar a seção 2.1.9 em tabela;
+exemplo numérico extra do plano paraconsistente no cap. 4 (o do cap. 2 já existe).

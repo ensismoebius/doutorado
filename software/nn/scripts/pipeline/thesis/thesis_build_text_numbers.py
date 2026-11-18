@@ -121,6 +121,28 @@ def fail(msg: str) -> None:
     sys.exit(f"[text-numbers] ERROR: {msg}")
 
 
+DSNN_HEADER = HERE.parents[2] / "src" / "experiments" / "thesis" / "lib" / "src" / "ThesisDsnnClassifier.hpp"
+
+
+def dsnn_spike_slots(spec: list[str]) -> int:
+    """Spike slots of one DSNN test sample: every LIF neuron at every time step.
+
+    The DSNN fires in its input stage (Linear(d->W) + LIF) and in each residual block
+    (Linear(W->W) + LIF); 'residual:D' declares depth D = the input stage + D-1 blocks, and
+    the readout (fc_out) has no LIF. So the slots are D x W x T. T is kSnnTimeSteps, read from
+    the C++ so the denominator the thesis prints cannot drift from the network that ran.
+    """
+    first = re.fullmatch(r"linear:(\d+):\w+", spec[0]) if len(spec) == 3 else None
+    depth = re.fullmatch(r"residual:(\d+)", spec[1]) if first else None
+    if not (first and depth and spec[2].startswith("linear:N_speakers:")):
+        fail(f"DSNN layer_spec {spec} is not [linear:W:act, residual:D, linear:N_speakers:act]; "
+             "teach dsnn_spike_slots the new shape before quoting a firing share")
+    steps = re.findall(r"constexpr int kSnnTimeSteps = (\d+);", DSNN_HEADER.read_text(encoding="utf-8"))
+    if len(steps) != 1:
+        fail(f"kSnnTimeSteps is not defined exactly once in {DSNN_HEADER}")
+    return int(depth.group(1)) * int(first.group(1)) * int(steps[0])
+
+
 class Numbers:
     """key -> (text for Portuguese prose, text for English prose)."""
 
@@ -361,15 +383,23 @@ def phase01(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
 
     # Energy: nJ per test sample of the classifier, and the DSNN/ANN ratio under every check.
     ratios: dict[str, list[float]] = {k: [] for k, _ in P01.ENERGY_CHECKS}
+    slots_seen: set[int] = set()
     for s in sources:
         d = grid[(s, "dep", "flat", "std")]["energy"]
         a = sets["ann"][(s, "dep")]["energy"]
         n.num(f"p01.energy.{s}.dsnn.nj", d["nj"], 0)
         n.num(f"p01.energy.{s}.ann.nj", a["nj"], 0)
         n.num(f"p01.energy.{s}.spikes", d["spikes"], 0)
+        slots = dsnn_spike_slots(grid[(s, "dep", "flat", "std")]["profile"]["classifier"]["layer_spec"])
+        slots_seen.add(slots)
+        n.num(f"p01.energy.{s}.spike.share", 100 * d["spikes"] / slots, 0)
         for k, _ in P01.ENERGY_CHECKS:
             ratios[k].append(d[k] / a[k])
             n.num(f"p01.energy.{s}.ratio.{k}", d[k] / a[k], 2)
+    if len(slots_seen) != 1:
+        fail(f"the DSNN cells have different spike capacities {sorted(slots_seen)}; "
+             "the thesis quotes one denominator")
+    n.count("p01.dsnn.spike.slots", slots_seen.pop())
     for k, vals in ratios.items():
         n.num(f"p01.energy.ratio.{k}.min", min(vals), 2)
         n.num(f"p01.energy.ratio.{k}.max", max(vals), 2)
@@ -805,6 +835,8 @@ def manifest_counts(n: Numbers, manifest: pathlib.Path) -> None:
 # number, t(key) as text. Keep the two in step: change a sentence, change its claim.
 S3 = ("voice", "eegpron", "eegimag")
 CLAIMS = [
+    ("ch4: the DSNN fires in about a third of its spike slots, which the text calls not sparse",
+     lambda v, t: 25 <= v("p01.energy.voice.spike.share") <= 45),
     ("ch2/ch5: almost all EEG power (> 95 %) lies in sub-band 0 (0-32 Hz), and practically none "
      "(< 0.1 %) above 64 Hz",
      lambda v, t: v("eegpow.share.0-32") > 95 and v("eegpow.share.64-512") < 0.1),
