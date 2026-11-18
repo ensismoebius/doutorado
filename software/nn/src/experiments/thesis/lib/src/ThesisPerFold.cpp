@@ -77,14 +77,23 @@ auto is_handcrafted(const ThesisConfig& candidate) -> bool
     return candidate.feature_extraction.strategy == "handcrafted";
 }
 
+/// The on-disk cache and the fingerprint of the view it is asked about.
+struct DiskLookup
+{
+    const FeatureDiskCache* cache = nullptr;
+    std::uint64_t fingerprint = 0;
+};
+
 /// The features of candidate i for `modality`, its fitted parts (PCA, autoencoder) fitted on
-/// `fit_rows` only. Handcrafted features fit nothing and come from the per-process cache.
+/// `fit_rows` only. Handcrafted features fit nothing and come from the per-process cache, and,
+/// with `disk`, from the on-disk one (its key: FeatureDiskCache.hpp).
 auto candidate_features(const ThesisDatasetView& view,
     const ThesisConfig& cfg,
     std::size_t i,
     const std::string& modality,
     const std::vector<std::size_t>& fit_rows,
-    std::map<std::pair<std::size_t, std::string>, FeatureSet>& cache) -> FeatureSet
+    std::map<std::pair<std::size_t, std::string>, FeatureSet>& cache,
+    const DiskLookup* disk = nullptr) -> FeatureSet
 {
     const ThesisConfig cand = cfg.candidate_config(i, modality);
     const std::size_t n = view.samples.size();
@@ -92,9 +101,23 @@ auto candidate_features(const ThesisDatasetView& view,
         return only_set(extract_features_fitted_on(view, cand, fit_rows, nullptr), n, i);
     const auto key = std::make_pair(i, modality);
     auto it = cache.find(key);
-    if (it == cache.end())
-        it = cache.emplace(key, only_set(extract_features(view, cand, nullptr), n, i)).first;
-    return it->second;
+    if (it != cache.end()) return it->second;
+    const auto extract = [&]() { return only_set(extract_features(view, cand, nullptr), n, i); };
+    if (disk == nullptr) return cache.emplace(key, extract()).first->second;
+    std::ostringstream disk_key;
+    disk_key << "view=" << std::hex << disk->fingerprint << std::dec << "\nmodality=" << modality
+             << "\nfeature_extraction=" << cand.declared_json()["feature_extraction"].dump();
+    return cache.emplace(key, disk->cache->load_or_compute(disk_key.str(), n, extract))
+        .first->second;
+}
+
+/// The disk lookup of the clean view, or nullptr without a disk cache.
+auto clean_lookup(const ThesisDatasetView& view, CandidateFeatureCache& cache)
+    -> std::optional<DiskLookup>
+{
+    if (cache.disk == nullptr) return std::nullopt;
+    if (!cache.clean_fingerprint) cache.clean_fingerprint = view_fingerprint(view);
+    return DiskLookup{cache.disk, *cache.clean_fingerprint};
 }
 
 /// The degraded twin of the fold's winner features. A fitted extractor (PCA, autoencoder) must
@@ -364,6 +387,32 @@ auto grid_winner(const std::vector<GridPoint>& grid) -> std::size_t
     return best;
 }
 
+auto warm_feature_cache(
+    const ThesisDatasetView& view, const ThesisConfig& cfg, CandidateFeatureCache& cache)
+    -> std::size_t
+{
+    if (!(cfg.classifier.enabled && cfg.selection.enabled))
+        throw std::invalid_argument(
+            "ThesisPerFold: --warm-feature-cache needs a per-fold profile (selection.enabled)");
+    if (cache.disk == nullptr || cache.disk->mode() != FeatureDiskCache::Mode::Write)
+        throw std::invalid_argument(
+            "ThesisPerFold: --warm-feature-cache needs THESIS_FEATURE_CACHE with "
+            "THESIS_FEATURE_CACHE_MODE=write");
+    const auto disk = clean_lookup(view, cache);
+    if (!disk) throw std::logic_error("ThesisPerFold: the disk cache vanished");
+    const DiskLookup lookup = *disk;
+    const std::string& rank_modality = cfg.selection.rank_modality;
+    std::size_t warmed = 0;
+    for (std::size_t i = 0; i < cfg.selection.extractor_candidates.size(); ++i)
+    {
+        if (!is_handcrafted(cfg.candidate_config(i, rank_modality))) continue;
+        // fit_rows are not read for a handcrafted candidate (it fits nothing).
+        (void) candidate_features(view, cfg, i, rank_modality, {}, cache.clean, &lookup);
+        ++warmed;
+    }
+    return warmed;
+}
+
 auto per_fold_label(const ThesisConfig& cfg) -> std::string
 {
     const std::string& modality = cfg.dataset.modality;
@@ -406,9 +455,10 @@ auto run_per_fold(const ThesisDatasetView& view,
         // 1-2. Every candidate on the fold's training rows; the winner by D_pen on them.
         std::vector<FeatureSet> ranked;
         ranked.reserve(n_candidates);
+        const auto disk = clean_lookup(view, cache);
         for (std::size_t i = 0; i < n_candidates; ++i)
-            ranked.push_back(
-                candidate_features(view, cfg, i, rank_modality, rows.train, cache.clean));
+            ranked.push_back(candidate_features(
+                view, cfg, i, rank_modality, rows.train, cache.clean, disk ? &*disk : nullptr));
         sel.extractors = rank_extractors(view.samples, rows.train, ranked);
         sel.extractor_index = extractor_winner(sel.extractors);
 

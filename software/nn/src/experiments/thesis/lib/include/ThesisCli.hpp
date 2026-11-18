@@ -12,15 +12,20 @@ namespace thesis
 {
 
 inline constexpr const char* kThesisUsage =
-    "usage: thesis --config <profile.json> [--repeat <k>]\n"
-    "  --repeat k  run only repetition k (0 <= k < experiment.repeats), with the seed and\n"
-    "              the _rep<k> output names the full run gives it";
+    "usage: thesis --config <profile.json> [--repeat <k> | --warm-feature-cache]\n"
+    "  --repeat k            run only repetition k (0 <= k < experiment.repeats), with the\n"
+    "                        seed and the _rep<k> output names the full run gives it\n"
+    "  --warm-feature-cache  per-fold profile only: extract every handcrafted candidate of\n"
+    "                        its ranked signal into THESIS_FEATURE_CACHE and stop (no fold,\n"
+    "                        no output files; FeatureDiskCache.hpp)";
 
 struct ThesisCli
 {
     std::string config_path;
     /// Set: run only this repetition. Unset: run every repetition, in order.
     std::optional<int> repeat;
+    /// Fill the feature cache and stop (FeatureDiskCache.hpp); excludes --repeat.
+    bool warm_feature_cache = false;
 };
 
 /**
@@ -45,6 +50,12 @@ inline auto parse_cli(int argc, const char* const argv[]) -> ThesisCli
     for (int i = 1; i < argc; ++i)
     {
         const std::string arg = argv[i];
+        if (arg == "--warm-feature-cache")
+        {
+            if (cli.warm_feature_cache) refuse("--warm-feature-cache given twice");
+            cli.warm_feature_cache = true;
+            continue;
+        }
         if (arg != "--config" && arg != "--repeat") refuse("unknown argument \"" + arg + "\"");
         if (i + 1 >= argc) refuse(arg + " needs a value");
         const std::string value = argv[++i];
@@ -65,6 +76,8 @@ inline auto parse_cli(int argc, const char* const argv[]) -> ThesisCli
         }
     }
     if (!have_config) refuse("--config is required");
+    if (cli.warm_feature_cache && cli.repeat.has_value())
+        refuse("--warm-feature-cache runs no repetition; it takes no --repeat");
     return cli;
 }
 

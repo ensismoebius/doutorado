@@ -24,11 +24,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "ClassificationResult.hpp"
+#include "FeatureDiskCache.hpp"
 #include "FoldResult.hpp"
 #include "ThesisConfig.hpp"
 #include "ThesisDataset.hpp"
@@ -87,10 +89,15 @@ auto grid_winner(const std::vector<GridPoint>& grid) -> std::size_t;
 
 /// Handcrafted candidates' features depend on no other sample and on no seed: extracted once
 /// per process and shared by every fold and repetition. Keyed by (candidate, modality).
+/// With `disk` set, the ranked signal's candidates of the clean view also go through the
+/// on-disk cache shared by every process (FeatureDiskCache.hpp). One cache object serves one
+/// clean view (and one degraded view): the process loads them once.
 struct CandidateFeatureCache
 {
     std::map<std::pair<std::size_t, std::string>, FeatureSet> clean;
     std::map<std::pair<std::size_t, std::string>, FeatureSet> degraded;
+    const FeatureDiskCache* disk = nullptr;
+    std::optional<std::uint64_t> clean_fingerprint; // view_fingerprint of the clean view
 };
 
 /// Simulated dysphonia of the test speakers (degradation.enabled): the same samples with the
@@ -111,6 +118,13 @@ auto run_per_fold(const ThesisDatasetView& view,
     const PerFoldDegradation* degradation,
     CandidateFeatureCache& cache,
     uint32_t global_bar_id = 0) -> ClassificationResult;
+
+/// The warm step (thesis --warm-feature-cache): every handcrafted candidate of the ranked
+/// signal extracted from `view` into cache.disk, which must be in Write mode; no fold runs.
+/// Returns how many candidates went through the disk cache.
+auto warm_feature_cache(
+    const ThesisDatasetView& view, const ThesisConfig& cfg, CandidateFeatureCache& cache)
+    -> std::size_t;
 
 /// The label of a per-fold result ("per-fold-voice", "per-fold-eeg", "per-fold-fused-late").
 auto per_fold_label(const ThesisConfig& cfg) -> std::string;

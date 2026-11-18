@@ -13,6 +13,7 @@ set(THESIS_LIB_SOURCES
     lib/src/DegradeVoices.cpp
     lib/src/ParaconsistentSubsets.cpp
     lib/src/ThesisPerFold.cpp
+    lib/src/FeatureDiskCache.cpp
 )
 
 add_library(thesis_lib STATIC ${THESIS_LIB_SOURCES})

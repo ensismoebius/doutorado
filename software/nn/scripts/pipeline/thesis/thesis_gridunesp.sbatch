@@ -14,7 +14,12 @@
 #   (WORLD phases: one whole profile per task; see below)
 # The per-fold protocol (.wiki/Experiments/Thesis-Per-Fold-Protocol.md), same rules:
 #   THESIS_PHASE=perfold   (100 profiles x 3 repetitions)   THESIS_PHASE=pfbiomex (48 x 3)
-#   THESIS_PHASE=pfworld   (150 whole profiles)             THESIS_PHASE=pfbxworld (90)
+#   THESIS_PHASE=pfworld   (150 whole profiles)             THESIS_PHASE=pfbxworld (90 x 3)
+# (pfbxworld is split by repetition: a whole BIOMEX-DB WORLD profile takes ~43 h, measured
+# 2026-11-18 on jobs 5330058 and 5330064, beyond the day of the partition.)
+# Their units READ the handcrafted candidates from the feature cache and refuse a miss: run
+# scripts/pipeline/thesis/thesis_warm_feature_cache.sbatch first, with the same deploy
+# (FeatureDiskCache.hpp; the cache is keyed by this deploy's revision).
 # Only some units (a timed debug run, before the whole phase): THESIS_UNITS lists them by
 # name, comma-separated, and the array then spans exactly those (the mapping is the same rule
 # over the filtered list). Each is a real unit -- same marker -- so a later run of the whole
@@ -178,14 +183,27 @@ source scripts/pipeline/meeting01/_provenance.sh
 # (see the --cpus-per-task comment above).
 REVISION="$(provenance_label SOURCE_REVISION) threads=${OMP_NUM_THREADS}"
 
+# The per-fold phases read the handcrafted candidates from the feature cache the warm step
+# wrote under this deploy's revision, and refuse a miss (FeatureDiskCache.hpp). The thread
+# count is not part of that key: a handcrafted vector is computed from its own sample alone.
+case "$PHASE" in
+  perfold|pfbiomex|pfworld|pfbxworld)
+    export THESIS_FEATURE_CACHE="$PWD/results/thesis/feature_cache"
+    export THESIS_FEATURE_CACHE_REVISION="$(provenance_label SOURCE_REVISION)"
+    export THESIS_FEATURE_CACHE_MODE=read
+    [[ -d "$THESIS_FEATURE_CACHE" ]] ||
+      refuse "$THESIS_FEATURE_CACHE does not exist: run" \
+             "scripts/pipeline/thesis/thesis_warm_feature_cache.sbatch first (see its header)" ;;
+esac
+
 PROFILE_DIR="src/experiments/thesis/profiles/${PHASE}"
 mapfile -t ALL_PROFILES < <(find "$PROFILE_DIR" -maxdepth 1 -name '*.json' | sort)
 (( ${#ALL_PROFILES[@]} > 0 )) || refuse "no profiles in $PWD/$PROFILE_DIR"
 
 # The units (see the header): one line each, "<profile path><TAB><repetition, or - for all>".
 case "$PHASE" in
-  phase00|world|bxworld|pfworld|pfbxworld) SPLIT_REPEATS=0 ;;
-  phase01|biomex|perfold|pfbiomex) SPLIT_REPEATS=1 ;;
+  phase00|world|bxworld|pfworld) SPLIT_REPEATS=0 ;;
+  phase01|biomex|perfold|pfbiomex|pfbxworld) SPLIT_REPEATS=1 ;;
 esac
 UNITS_FILE="$(mktemp)"
 # Through a file, not `mapfile < <(python3 ...)`: a process substitution's exit status is lost,

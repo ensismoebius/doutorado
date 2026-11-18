@@ -20,6 +20,7 @@
 #include <string>
 
 #include "lib/include/DegradeVoices.hpp"
+#include "lib/include/FeatureDiskCache.hpp"
 #include "lib/include/ParaconsistentSubsets.hpp"
 #include "lib/include/ThesisClassifiers.hpp"
 #include "lib/include/ThesisCli.hpp"
@@ -251,6 +252,20 @@ auto main(int argc, char* argv[]) -> int
                   << " repeats=" << cfg.experiment.repeats << " running=[" << repeats.first << ","
                   << repeats.last << ")\n";
 
+        // The on-disk cache of the handcrafted candidates (FeatureDiskCache.hpp): read from the
+        // environment before the (slow) dataset load, so a misconfiguration stops at once. A
+        // fixed-configuration run never reads it, so there it is refused: set, it would read as
+        // used.
+        const std::optional<thesis::FeatureDiskCache> disk_cache =
+            thesis::FeatureDiskCache::from_env();
+        if (disk_cache && !selects)
+            throw std::invalid_argument(
+                "thesis: THESIS_FEATURE_CACHE is set, but this profile does not enable the "
+                "per-fold protocol (selection.enabled), the only run that reads it; unset it");
+        if (cli.warm_feature_cache && !selects)
+            throw std::invalid_argument(
+                "thesis: --warm-feature-cache needs a per-fold profile (selection.enabled)");
+
         // ── 2. Load dataset (once — identical across repeats) ────────────────
         auto view = thesis::load_dataset(cfg.dataset);
         {
@@ -258,6 +273,22 @@ auto main(int argc, char* argv[]) -> int
             oss << "[Thesis] Loaded " << view.samples.size() << " samples from " << view.n_subjects
                 << " subjects, " << view.n_stimuli << " stimuli.";
             nn::progress::ProgressManager::instance().log(oss.str());
+        }
+
+        thesis::CandidateFeatureCache candidate_cache; // shared by every repetition
+        candidate_cache.disk = disk_cache ? &*disk_cache : nullptr;
+
+        // The warm step: the ranked signal's handcrafted candidates into the disk cache, and
+        // nothing else (no degradation, no fold, no output file).
+        if (cli.warm_feature_cache)
+        {
+            const std::size_t n = thesis::warm_feature_cache(view, cfg, candidate_cache);
+            nn::progress::ProgressManager::instance().log(
+                "[Thesis] warm feature cache: " + std::to_string(n) +
+                " handcrafted candidate(s) of " + cfg.selection.rank_modality.get() + " cached");
+            nn::progress::ProgressManager::instance().shutdown();
+            flushProgressAsync();
+            return EXIT_SUCCESS;
         }
 
         // Handcrafted and PCA features are deterministic (no seed involved), so extract
@@ -288,8 +319,6 @@ auto main(int argc, char* argv[]) -> int
             thesis::degrade_voices(view, cfg.degradation);
             degraded_features = thesis::extract_features(view, cfg, /*on_model_trained=*/nullptr);
         }
-        thesis::CandidateFeatureCache candidate_cache; // shared by every repetition
-
         // ── Repeat loop ───────────────────────────────────────────────────────
         for (int rep = repeats.first; rep < repeats.last; ++rep)
         {

@@ -207,6 +207,41 @@ degraded refit check passed on it; 522 s on the workstation for the degraded voi
 The smoke mirror needs 240 samples, not 120: PCA k = 32 is fitted on a fold's training rows,
 about a quarter of the samples there.
 
+**Timed debug run on GridUnesp** (stage (f), 2026-11-18, deploy `74b80587`, one CPU per
+task, the full protocol: no reduction). One unit per kind; its fold 0 includes the one-time
+extraction of the ranked signal's handcrafted candidates.
+
+| Unit | Wall-clock | Peak RSS | Fold 0 | Folds 1-4, each |
+|---|---|---|---|---|
+| `pf01_dsnn_voice_dep.rep0` | 24 981 s | 4.5 GB | 15 564 s | ~2 350 s |
+| `pf01_dysph_voice_test_l100.rep0` | 22 450 s | 6.0 GB | 13 927 s | ~2 100 s |
+| `pf01_ann_voice_dep.rep0` | 14 296 s | 4.5 GB | 12 750 s | ~390 s |
+| `pf01_cosine_voice_dep.rep0` | 13 547 s | 4.5 GB | 12 590 s | ~240 s |
+| `pf01_dsnn_eegpron_dep.rep0` | 10 380 s | 2.1 GB | 2 522 s | ~1 950 s |
+| `pfbx01_dsnn_voice_dep.rep0` | 45 349 s | 5.1 GB | 15 922 s | ~7 400 s |
+| `pf01w_voice_test_rough-j2` (3 repetitions) | ~16.8 h (projected from 13.5 h) | | | ~2 300 s |
+
+Read from the differences: the voice's 138 handcrafted candidates take ~12 350 s per process
+(Coretto; ~8 500 s on BIOMEX-DB), the DSNN grid ~2 100 s per fold (~150 s for the ANN), the
+autoencoder/PCA fits plus the ranking ~240 s per fold. Projected without a cache: ~9 100 CPU·h
+for the four phases, and a whole `pfbxworld` profile ~43 h, beyond the partition's day. The
+dysphonia unit chose exactly what the clean DSNN unit chose in every fold (same clean training
+rows, same seed), as it must.
+
+**Feature cache** (amendment 2026-11-18, author's choice after the debug run;
+`FeatureDiskCache.hpp`). The handcrafted candidates of the ranked signal are computed once per
+data view by a warm array (`thesis_warm_feature_cache.sbatch`, `thesis --warm-feature-cache`;
+11 views: Coretto voice, eegpron, eegimag and the 4 fusions, BIOMEX-DB voice, eegpron and the 2
+pronounced fusions) and read by every unit of the four phases, which refuse a miss. Key:
+deploy revision + fingerprint of every loaded value and label + signal + the candidate's whole
+`feature_extraction` block; the file holds the key and a checksum, and a mismatch is refused.
+Nothing else is cached (PCA and the autoencoders are fitted per fold; the winner's fused or
+degraded features are a few extractions per fold). Verified: a per-fold run gives bit-identical
+choices and EERs with and without the cache (`FeatureDiskCache.PerFoldRunIsTheSameWithAndWithoutIt`,
+and locally on the real Coretto EEG smoke: EER 0.310185 both ways). `pfbxworld` is split by
+repetition. The debug units' markers carry deploy `74b80587`: the phase directories must be
+moved aside before the full run of a new deploy.
+
 **Refused with `selection.enabled`**: `paraconsistent.enabled = true` — the whole-dataset ranking
 needs one extractor for every sample, and here each fold has its own.
 

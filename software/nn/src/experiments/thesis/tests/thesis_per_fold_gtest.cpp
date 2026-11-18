@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -472,5 +473,156 @@ TEST(PerFoldOutput, FixedRunKeepsItsStrategyAndHasNoSelectionFiles)
     EXPECT_THROW(write_selection_csvs(dir, "fx", {r}), std::logic_error) << "no selection";
     r.outer_folds[1].selection = FoldSelection{};
     EXPECT_THROW(write_selection_csvs(dir, "fx", {r}), std::logic_error) << "a mix";
+    std::filesystem::remove_all(dir);
+}
+
+// ── On-disk feature cache (FeatureDiskCache.hpp) ───────────────────────────────────
+namespace
+{
+auto cache_dir(const std::string& name) -> std::string
+{
+    const auto d = std::filesystem::temp_directory_path() / ("thesis_fc_gtest_" + name);
+    std::filesystem::remove_all(d);
+    return d.string();
+}
+
+FeatureSet small_set(double base)
+{
+    return FeatureSet{"hc", {{base, 1.0}, {base + 2.0, 3.0}, {base + 4.0, 5.0}}};
+}
+} // namespace
+
+TEST(FeatureDiskCache, FingerprintSeesEveryValueAndLabel)
+{
+    const auto view = make_view();
+    const auto h = view_fingerprint(view);
+    EXPECT_EQ(view_fingerprint(make_view()), h);
+    auto a = view;
+    a.samples[17].audio.at(500, 0) += 1e-6f;
+    EXPECT_NE(view_fingerprint(a), h) << "one audio value";
+    auto b = view;
+    b.samples[3].text_phrase = "i";
+    EXPECT_NE(view_fingerprint(b), h) << "a phrase";
+    auto c = view;
+    c.samples[3].subject_id = 99;
+    EXPECT_NE(view_fingerprint(c), h) << "a speaker";
+    auto d = view;
+    d.voice_sample_rate = 16000.0;
+    EXPECT_NE(view_fingerprint(d), h) << "the rate";
+}
+
+TEST(FeatureDiskCache, WritesOnceThenReadsTheSameBits)
+{
+    const auto dir = cache_dir("roundtrip");
+    const FeatureDiskCache w(dir, "rev1", FeatureDiskCache::Mode::Write);
+    int computed = 0;
+    const auto compute = [&]()
+    {
+        ++computed;
+        return small_set(0.1);
+    };
+    const auto first = w.load_or_compute("k", 3, compute);
+    const auto second = w.load_or_compute("k", 3, compute);
+    EXPECT_EQ(computed, 1);
+    EXPECT_EQ(first.vectors, second.vectors);
+    EXPECT_EQ(first.label, second.label);
+
+    const FeatureDiskCache r(dir, "rev1", FeatureDiskCache::Mode::Read);
+    EXPECT_EQ(r.load_or_compute("k", 3, compute).vectors, first.vectors);
+    EXPECT_EQ(computed, 1) << "read mode reads";
+    EXPECT_THROW((void) r.load_or_compute("other", 3, compute), std::runtime_error)
+        << "a miss in read mode stops the run";
+    EXPECT_THROW((void) r.load_or_compute("k", 4, compute), std::runtime_error) << "another height";
+
+    // Another code revision is another key: nothing is reused across deploys.
+    const FeatureDiskCache r2(dir, "rev2", FeatureDiskCache::Mode::Read);
+    EXPECT_THROW((void) r2.load_or_compute("k", 3, compute), std::runtime_error);
+    EXPECT_NE(r2.path_for("k"), r.path_for("k"));
+    std::filesystem::remove_all(dir);
+}
+
+TEST(FeatureDiskCache, RefusesACorruptOrForeignFile)
+{
+    const auto dir = cache_dir("corrupt");
+    const FeatureDiskCache w(dir, "rev1", FeatureDiskCache::Mode::Write);
+    (void) w.load_or_compute("k", 3, []() { return small_set(0.1); });
+    const auto path = w.path_for("k");
+
+    // Another key's file under this key's name (a collision): refused, not read.
+    std::filesystem::copy_file(path, w.path_for("j"));
+    EXPECT_THROW(
+        (void) w.load_or_compute("j", 3, []() { return small_set(9.0); }), std::runtime_error);
+
+    // A truncated body.
+    const auto size = std::filesystem::file_size(path);
+    std::filesystem::resize_file(path, size - 12);
+    EXPECT_THROW(
+        (void) w.load_or_compute("k", 3, []() { return small_set(0.1); }), std::runtime_error);
+    std::filesystem::remove_all(dir);
+}
+
+TEST(FeatureDiskCache, EnvironmentIsStrict)
+{
+    const auto dir = cache_dir("env");
+    ::unsetenv("THESIS_FEATURE_CACHE");
+    ::unsetenv("THESIS_FEATURE_CACHE_REVISION");
+    ::unsetenv("THESIS_FEATURE_CACHE_MODE");
+    EXPECT_FALSE(FeatureDiskCache::from_env().has_value());
+    ::setenv("THESIS_FEATURE_CACHE", dir.c_str(), 1);
+    EXPECT_THROW((void) FeatureDiskCache::from_env(), std::invalid_argument) << "no revision";
+    ::setenv("THESIS_FEATURE_CACHE_REVISION", "rev1", 1);
+    EXPECT_THROW((void) FeatureDiskCache::from_env(), std::invalid_argument) << "no mode";
+    ::setenv("THESIS_FEATURE_CACHE_MODE", "readwrite", 1);
+    EXPECT_THROW((void) FeatureDiskCache::from_env(), std::invalid_argument) << "bad mode";
+    ::setenv("THESIS_FEATURE_CACHE_MODE", "read", 1);
+    const auto c = FeatureDiskCache::from_env();
+    ASSERT_TRUE(c.has_value());
+    EXPECT_EQ(c->mode(), FeatureDiskCache::Mode::Read);
+    ::unsetenv("THESIS_FEATURE_CACHE");
+    ::unsetenv("THESIS_FEATURE_CACHE_REVISION");
+    ::unsetenv("THESIS_FEATURE_CACHE_MODE");
+    std::filesystem::remove_all(dir);
+}
+
+TEST(FeatureDiskCache, PerFoldRunIsTheSameWithAndWithoutIt)
+{
+    const auto view = make_view();
+    const auto cfg = per_fold_cfg("cosine"); // 2 PCA + 1 handcrafted candidate
+    const statistics::GenuineImpostorEERScorer scorer(1);
+    CandidateFeatureCache plain;
+    const auto without = run_per_fold(view, cfg, scorer, nullptr, plain);
+
+    const auto dir = cache_dir("perfold");
+    // The warm step writes the handcrafted candidate, and only that one.
+    const FeatureDiskCache w(dir, "rev1", FeatureDiskCache::Mode::Write);
+    CandidateFeatureCache warm;
+    warm.disk = &w;
+    EXPECT_EQ(warm_feature_cache(view, cfg, warm), 1u);
+
+    // A new process (new in-memory cache) in read mode: same choices, same numbers.
+    const FeatureDiskCache r(dir, "rev1", FeatureDiskCache::Mode::Read);
+    CandidateFeatureCache reader;
+    reader.disk = &r;
+    const auto with = run_per_fold(view, cfg, scorer, nullptr, reader);
+    ASSERT_EQ(with.outer_folds.size(), without.outer_folds.size());
+    for (std::size_t f = 0; f < with.outer_folds.size(); ++f)
+    {
+        EXPECT_EQ(with.outer_folds[f].eer, without.outer_folds[f].eer);
+        const auto a = with.outer_folds[f].selection.value_or(FoldSelection{});
+        const auto b = without.outer_folds[f].selection.value_or(FoldSelection{});
+        ASSERT_EQ(a.extractors.size(), b.extractors.size());
+        for (std::size_t i = 0; i < a.extractors.size(); ++i)
+            EXPECT_EQ(a.extractors[i].d_penalized, b.extractors[i].d_penalized);
+    }
+
+    // Read mode cannot warm, and another view is a miss.
+    CandidateFeatureCache refused;
+    refused.disk = &r;
+    EXPECT_THROW((void) warm_feature_cache(view, cfg, refused), std::invalid_argument);
+    auto other = view;
+    other.samples[0].audio.at(10, 0) += 0.5f;
+    CandidateFeatureCache miss;
+    miss.disk = &r;
+    EXPECT_THROW((void) run_per_fold(other, cfg, scorer, nullptr, miss), std::runtime_error);
     std::filesystem::remove_all(dir);
 }
