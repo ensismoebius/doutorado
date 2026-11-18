@@ -12,6 +12,15 @@
 #   THESIS_PHASE=world   sbatch --array=0-149 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 #   THESIS_PHASE=bxworld sbatch --array=0-89  scripts/pipeline/thesis/thesis_gridunesp.sbatch
 #   (WORLD phases: one whole profile per task; see below)
+# The per-fold protocol (.wiki/Experiments/Thesis-Per-Fold-Protocol.md), same rules:
+#   THESIS_PHASE=perfold   (100 profiles x 3 repetitions)   THESIS_PHASE=pfbiomex (48 x 3)
+#   THESIS_PHASE=pfworld   (150 whole profiles)             THESIS_PHASE=pfbxworld (90)
+# Only some units (a timed debug run, before the whole phase): THESIS_UNITS lists them by
+# name, comma-separated, and the array then spans exactly those (the mapping is the same rule
+# over the filtered list). Each is a real unit -- same marker -- so a later run of the whole
+# phase skips it instead of running it again:
+#   THESIS_PHASE=perfold THESIS_UNITS=pf01_dsnn_voice_dep.rep0,pf01_ann_voice_dep.rep0 \
+#     sbatch --array=0-1 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # (one 1-CPU process at a time per task: see --cpus-per-task below for why not threads)
 #   scancel --batch --signal=USR1 <jobid>_<task>   # stop a task early; its results come home
 #
@@ -141,8 +150,9 @@ export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 # ── What this task runs ───────────────────────────────────────────────────────────────────────
 PHASE="${THESIS_PHASE:-}"
 case "$PHASE" in
-  phase00|phase01|biomex|world|bxworld) ;;
-  *) refuse "THESIS_PHASE must be phase00, phase01, biomex, world or bxworld (got '${PHASE}'): THESIS_PHASE=phase00 sbatch --array=0-63 $0" ;;
+  phase00|phase01|biomex|world|bxworld|perfold|pfbiomex|pfworld|pfbxworld) ;;
+  *) refuse "THESIS_PHASE must be phase00, phase01, biomex, world, bxworld, perfold, pfbiomex," \
+            "pfworld or pfbxworld (got '${PHASE}'): THESIS_PHASE=phase00 sbatch --array=0-63 $0" ;;
 esac
 [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]] ||
   refuse "submit as an array (sbatch --array=0-<N-1> ...); see the header of this file"
@@ -174,8 +184,8 @@ mapfile -t ALL_PROFILES < <(find "$PROFILE_DIR" -maxdepth 1 -name '*.json' | sor
 
 # The units (see the header): one line each, "<profile path><TAB><repetition, or - for all>".
 case "$PHASE" in
-  phase00|world|bxworld) SPLIT_REPEATS=0 ;;
-  phase01|biomex) SPLIT_REPEATS=1 ;;
+  phase00|world|bxworld|pfworld|pfbxworld) SPLIT_REPEATS=0 ;;
+  phase01|biomex|perfold|pfbiomex) SPLIT_REPEATS=1 ;;
 esac
 UNITS_FILE="$(mktemp)"
 # Through a file, not `mapfile < <(python3 ...)`: a process substitution's exit status is lost,
@@ -193,14 +203,30 @@ PY
   { rm -f "$UNITS_FILE"; refuse "could not list the units of $PWD/$PROFILE_DIR (above)"; }
 mapfile -t ALL_UNITS < "$UNITS_FILE"
 rm -f "$UNITS_FILE"
-(( NTASKS <= ${#ALL_UNITS[@]} )) ||
-  refuse "$NTASKS tasks for ${#ALL_UNITS[@]} units: some tasks would have nothing to run"
 # A unit's name in markers and logs: <profile stem>, or <profile stem>.rep<k>.
 unit_id() {
   local stem
   stem="$(basename "$1" .json)"
   if [[ "$2" == "-" ]]; then echo "$stem"; else echo "${stem}.rep$2"; fi
 }
+# THESIS_UNITS (see the header): keep exactly the units it names; a name that is not a unit of
+# this phase is refused, not passed over.
+if [[ -n "${THESIS_UNITS:-}" ]]; then
+  IFS=',' read -r -a WANTED <<< "$THESIS_UNITS"
+  KEPT=()
+  for w in "${WANTED[@]}"; do
+    found=""
+    for u in "${ALL_UNITS[@]}"; do
+      IFS=$'\t' read -r unit_profile unit_rep <<< "$u"
+      [[ "$(unit_id "$unit_profile" "$unit_rep")" == "$w" ]] && { found="$u"; break; }
+    done
+    [[ -n "$found" ]] || refuse "THESIS_UNITS names '$w', which is not a unit of $PHASE"
+    KEPT+=("$found")
+  done
+  ALL_UNITS=("${KEPT[@]}")
+fi
+(( NTASKS <= ${#ALL_UNITS[@]} )) ||
+  refuse "$NTASKS tasks for ${#ALL_UNITS[@]} units: some tasks would have nothing to run"
 
 RES="results/thesis/${PHASE}"
 DONE_DIR="${RES}/.done"
@@ -280,6 +306,8 @@ tags = [tag] if reps == 1 else [f"{tag}_rep{k}" for k in ks]
 kinds = ["summary.json", "paraconsistent.csv"]
 if p["paraconsistent"]["enabled"] and p["paraconsistent"]["speaker_subsets"]:
     kinds.append("paraconsistent_subsets.csv")  # Phase 00: the ranking-stability input
+if p.get("selection", {}).get("enabled"):  # the per-fold protocol's choices
+    kinds += ["selection_extractors.csv", "selection_grid.csv"]
 names = [f"e05_{t}_{kind}" for t in tags for kind in kinds]
 print(" ".join(n for n in names if not os.path.isfile(os.path.join(sys.argv[2], n))))
 PY
