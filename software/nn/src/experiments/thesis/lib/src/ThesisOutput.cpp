@@ -139,7 +139,7 @@ auto build_result_entry_json(const ClassificationResult& r) -> nlohmann::json
     rj["std_auc"] = r.std_auc;
 
     // Run cost / complexity (Meeting01-style): model size + mean per-fold wall-clock.
-    rj["param_count"] = r.param_count;
+    if (r.param_count) rj["param_count"] = *r.param_count;
     rj["mean_train_ms"] = r.mean_train_ms;
     rj["mean_infer_ms"] = r.mean_infer_ms;
     if (!std::isnan(r.mean_spike_rate)) // SNN classifiers only

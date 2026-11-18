@@ -66,6 +66,17 @@ auto extract_features(
     const ThesisDatasetView& view, const ThesisConfig& cfg, const ModelSnapshotFn& on_model_trained)
     -> std::vector<FeatureSet>;
 
+// The same, with the models that LEARN from the data (PCA, autoencoders) fitted on `fit_rows`
+// only and then applied to every sample: the per-fold protocol, where only a fold's training
+// speakers may shape the extractor (.wiki/Experiments/Thesis-Per-Fold-Protocol.md).
+// `fit_rows` must be strictly increasing indices into view.samples. Handcrafted features do
+// not learn, so they are identical to extract_features(); lstm-ae is refused unless the rows
+// are every sample. extract_features() is this call with every row.
+auto extract_features_fitted_on(const ThesisDatasetView& view,
+    const ThesisConfig& cfg,
+    const std::vector<size_t>& fit_rows,
+    const ModelSnapshotFn& on_model_trained) -> std::vector<FeatureSet>;
+
 // Fatal check for the one failure mode a spike loss can hit SILENTLY: if EVERY
 // training batch produced an all-zero gradient, the autoencoder trained on nothing and
 // its features are meaningless. Throws std::runtime_error naming the cause and the

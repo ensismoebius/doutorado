@@ -52,6 +52,7 @@ configure_xtensor_parallel_target(thesis_feature_extraction_gtest)
 add_executable(thesis_classifiers_gtest
     thesis_classifiers_gtest.cpp
     thesis_protocol_gtest.cpp
+    thesis_per_fold_gtest.cpp
 )
 
 target_include_directories(thesis_classifiers_gtest

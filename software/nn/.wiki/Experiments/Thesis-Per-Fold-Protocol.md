@@ -1,6 +1,7 @@
 # Thesis: extractor and hyperparameters chosen inside each fold (pre-registration draft)
 
-Status: **design agreed with the author 2026-11-18; nothing implemented, nothing run.**
+Status: **design agreed with the author 2026-11-18; stages (a)-(c) of §6 implemented and tested
+on `thesis-per-fold-protocol`; nothing run.**
 This page is the rule. It is committed before any code that produces a result, and a result
 never changes it: a deviation is written here as a dated amendment, with its reason, before the
 run it affects.
@@ -83,10 +84,92 @@ Holm correction of the thesis, chapter 3) and the same CLAIMS mechanism: every n
 the prose comes from `thesis_build_text_numbers.py`. What changes is only how each test-fold
 model was produced.
 
-## 6. Still open (to be fixed here before the code)
+## 6. Implementation (amendment 2026-11-18: route chosen by the author — inside the binary)
 
-- Implementation route: per-fold Phase 00 inside the C++ binary (one process sees the split it
-  scores), or the split exported and the ranking done in Python from stored features. Either way
-  the fold assignment must be the one `GroupKFoldPolicy` produces, checked by a test.
-- Cost estimate from one timed debug profile per kind (handcrafted, PCA, AE, DSNN search) on
-  GridUnesp, run through the expensive-experiment guard with the author's confirmation.
+One `thesis` process runs one (profile, repetition) and does everything of §2 itself, so the
+split it ranks on is, by construction, the split it scores. Nothing crosses a file boundary.
+
+**Profile.** A Phase 01 profile gains a `selection` block; when it is enabled, the keys it owns
+are refused elsewhere in the profile (the strict-config rule: a declared value that changes
+nothing is a silent fallback):
+
+```json
+"selection": {
+  "enabled": true,
+  "rank_modality": "voice",                 // the signal the candidates are ranked on
+  "extractor_candidates": [ {feature_extraction}, ... ],   // the Phase 00 set of that signal
+  "inner_k": 4,
+  "hidden_widths": [64, 128, 256],          // dsnn / ann only
+  "residual_blocks": [0, 1, 2],             //   layer_spec residual:<blocks + 1>
+  "learning_rates": [0.001, 0.0003],
+  "weight_decays": [0.0, 0.0001]
+}
+```
+
+Owned (refused when `selection.enabled`): `feature_extraction`, `classifier.layer_spec`,
+`training.learning_rate`, `training.weight_decay`, `training.nested_cv`. The cosine control
+declares only the extractor part. `rank_modality` is the profile's own signal, except for the
+fused sources, where it is `voice` (§2: the fold's voice winner feeds both parts).
+
+**Per outer fold** (the existing `GroupKFoldPolicy(k, shuffle, seed)` split, intersected with the
+text split exactly as `run_flat_cv` does):
+
+1. Candidate features. Handcrafted: extracted once per process for every sample (a sample's
+   vector does not depend on any other sample). PCA and autoencoders: fitted on the fold's
+   training rows only, then applied to every sample; the autoencoder's training frames keep the
+   sample's own index in `frame_seed`, so a training sample is encoded with the frames it was
+   trained on.
+2. $D_{\text{pen}}$ of every candidate on the fold's training rows (`score_feature_set`); winner =
+   lowest; ties -> first in profile order (the generator writes them in the Phase 00 order).
+3. Features of the profile's own modality with the winner (for fused: the winner applied as in
+   `extract_features`, early or late).
+4. Inner `GroupKFoldPolicy(inner_k, shuffle, seed ^ 0xDEADBEEF)` over the training rows' speakers;
+   every candidate of the grid trained on inner-train (scaler fitted there) and scored by EER on
+   inner-validation; winner = lowest mean EER; ties -> fewer trainable parameters, then grid
+   order.
+5. Refit the winner on all training rows (scaler fitted there), score the test rows once
+   (degraded test rows, when the profile degrades, extracted with the fold's winner).
+6. The fold record carries the winning extractor's label, its $D_{\text{pen}}$, the winning
+   hyperparameters and the mean inner EER of every grid candidate.
+
+**Which rows, exactly** (amendment 2026-11-18, stage (c): fixed in `ThesisPerFold.hpp`). The
+text split $T$ of the repetition's seed (`make_text_split`) cuts every speaker's rows by phrase,
+so "the 12 training speakers" is not yet a row list. The rule is the outer fold copied one level
+down:
+
+| Rows | Speakers | Phrases | Used for |
+|---|---|---|---|
+| training | the 12 training speakers | $T$.train | extractor fit, $D_{\text{pen}}$, refit |
+| test | the 3 test speakers | $T$.test | the single evaluation |
+| inner train | the 9 inner-train speakers | $T$.train | each grid candidate's model and scaler |
+| inner validation | the 3 inner-validation speakers | $T$.test | each grid candidate's EER |
+
+Example (text-independent mode): if $T$.train = {arriba, abajo, ...} and $T$.test = {adelante,
+...}, an inner-validation speaker is scored on "adelante" exactly as a test speaker is, and no
+model of the fold ever trains on "adelante". The extractor is never fitted on a $T$.test row,
+of any speaker: that is the text leak fixed on 2026-11-12, one level up.
+
+**Degraded test rows with a fitted winner** (PCA, autoencoder). The degraded features must come
+from the SAME model as the clean ones. The run builds a view whose training rows keep the clean
+voice and whose other rows carry the degraded one, fits the winner on the training rows (so the
+fit is the clean fit: it reads only those rows, and every autoencoder frame is seeded by the
+sample's own index) and compares the training rows of both extractions bit for bit; a
+difference stops the run. Only test rows are read from the degraded extraction. A handcrafted
+winner fits nothing: its degraded features are extracted once per process. This lifts, for the
+per-fold protocol only, the refusal of degradation with an autoencoder.
+
+**What a fold records** (`FoldResult::selection`): every candidate's label and $D_{\text{pen}}$
+(profile order) and the winner's index; every grid point with its parameter count, its EER per
+inner fold and their mean, and the winner's index; the refitted winner's parameter count;
+`fold_ms`, the wall-clock of the whole fold (extraction, ranking, search, refit, test).
+`train_ms` stays the refit's, so it compares with the fixed-configuration run. The run-level
+`param_count` is absent (each fold's winner has its own). The result's label is
+`per-fold-<modality>` (`per-fold-fused-<mode>` for fused).
+
+**Refused with `selection.enabled`**: `paraconsistent.enabled = true` — the whole-dataset ranking
+needs one extractor for every sample, and here each fold has its own.
+
+**Stages** (each with its tests, committed on `thesis-per-fold-protocol`):
+(a) fit-on-rows for PCA and autoencoders; (b) the `selection` block in `ThesisConfig` with the
+refusals; (c) the per-fold runner; (d) outputs; (e) the profile generator; (f) a timed debug
+profile per kind on GridUnesp, only with the author's confirmation, before any real run.

@@ -40,17 +40,28 @@ using K = const ThesisConfig&;
 //   classifier.enabled = true additionally reads classifier.* and the classifier's
 //   training keys (folds, CV, standardization, weight decay; dsnn: firing rate, tdBN).
 
+auto trains_classifier(K k) -> bool
+{
+    return k.classifier.enabled;
+}
+/// The per-fold protocol: the extractor and the classifier's hyperparameters are chosen in
+/// each fold (selection.*), so the profile's own extractor and those keys do not exist.
+auto selects(K k) -> bool
+{
+    return trains_classifier(k) && k.selection.enabled;
+}
+/// The profile names its extractor (every run except the per-fold protocol).
+auto has_extractor(K k) -> bool
+{
+    return !selects(k);
+}
 auto trains_ae(K k) -> bool
 {
-    return k.feature_extraction.strategy == "autoencoder";
+    return has_extractor(k) && k.feature_extraction.strategy == "autoencoder";
 }
 auto is_snn_ae(K k) -> bool
 {
     return trains_ae(k) && k.feature_extraction.autoencoder.model == "snn-ae";
-}
-auto trains_classifier(K k) -> bool
-{
-    return k.classifier.enabled;
 }
 /// A classifier that trains a network (dsnn, ann). The "cosine" control trains nothing.
 auto trains_network_classifier(K k) -> bool
@@ -60,6 +71,16 @@ auto trains_network_classifier(K k) -> bool
 auto trains_anything(K k) -> bool
 {
     return trains_ae(k) || trains_network_classifier(k);
+}
+/// A network classifier whose hyperparameters the profile states (not chosen per fold).
+auto fixed_network_classifier(K k) -> bool
+{
+    return trains_network_classifier(k) && !selects(k);
+}
+/// The learning rate: the autoencoder's, or a fixed network classifier's.
+auto reads_learning_rate(K k) -> bool
+{
+    return trains_ae(k) || fixed_network_classifier(k);
 }
 auto reads_eeg(K k) -> bool
 {
@@ -106,11 +127,18 @@ void for_each_field(Cfg& c, Row&& row)
         "dataset.eeg_condition is \"imagined\"",
         [](K k) { return reads_eeg(k) && k.dataset.eeg_condition == "imagined"; });
 
+    // Read by the extractor rows' conditions below, so they come first.
+    row(c.classifier.enabled, kAlways, always);
+    row(c.selection.enabled, "classifier.enabled is true", trains_classifier);
+
     auto& fe = c.feature_extraction;
-    row(fe.strategy, kAlways, always);
+    row(fe.strategy,
+        "selection.enabled is not true (the per-fold protocol chooses the extractor)",
+        has_extractor);
 
     constexpr const char* kHandcrafted = "feature_extraction.strategy is \"handcrafted\"";
-    const auto handcrafted = [](K k) { return k.feature_extraction.strategy == "handcrafted"; };
+    const auto handcrafted = [](K k)
+    { return has_extractor(k) && k.feature_extraction.strategy == "handcrafted"; };
     auto& hc = fe.handcrafted;
     row(hc.transform, kHandcrafted, handcrafted);
     row(hc.scale, kHandcrafted, handcrafted);
@@ -142,7 +170,7 @@ void for_each_field(Cfg& c, Row&& row)
 
     row(fe.pca.n_components,
         "feature_extraction.strategy is \"pca\"",
-        [](K k) { return k.feature_extraction.strategy == "pca"; });
+        [](K k) { return has_extractor(k) && k.feature_extraction.strategy == "pca"; });
 
     auto& pc = c.paraconsistent;
     row(pc.enabled, kAlways, always);
@@ -157,12 +185,24 @@ void for_each_field(Cfg& c, Row&& row)
     row(pc.fold_repeats, kSubsets, subsets);
 
     constexpr const char* kClf = "classifier.enabled is true";
-    constexpr const char* kNetClf = "classifier.enabled with classifier.type \"dsnn\" or \"ann\"";
+    constexpr const char* kFixedNet =
+        "a dsnn/ann classifier runs with selection.enabled false (otherwise selection.* chooses "
+        "it)";
     auto& cl = c.classifier;
-    row(cl.enabled, kAlways, always);
     row(cl.type, kClf, trains_classifier);
-    row(cl.layer_spec, kNetClf, trains_network_classifier);
+    row(cl.layer_spec, kFixedNet, fixed_network_classifier);
     row(cl.text_mode, kClf, trains_classifier);
+
+    auto& sel = c.selection;
+    constexpr const char* kSel = "selection.enabled is true";
+    row(sel.rank_modality, kSel, selects);
+    constexpr const char* kSelNet = "selection.enabled with classifier.type \"dsnn\" or \"ann\"";
+    const auto selects_network = [](K k) { return selects(k) && trains_network_classifier(k); };
+    row(sel.inner_k, kSelNet, selects_network);
+    row(sel.hidden_widths, kSelNet, selects_network);
+    row(sel.residual_blocks, kSelNet, selects_network);
+    row(sel.learning_rates, kSelNet, selects_network);
+    row(sel.weight_decays, kSelNet, selects_network);
 
     auto& dg = c.degradation;
     row(dg.enabled,
@@ -198,7 +238,9 @@ void for_each_field(Cfg& c, Row&& row)
         "a training runs (strategy \"autoencoder\", or a dsnn/ann classifier)";
     auto& t = c.training;
     row(t.epochs, kTrains, trains_anything);
-    row(t.learning_rate, kTrains, trains_anything);
+    row(t.learning_rate,
+        "the autoencoder trains, or a dsnn/ann classifier with selection.enabled false",
+        reads_learning_rate);
     row(t.optimizer_type, kTrains, trains_anything);
     row(t.optimizer_momentum,
         "a training runs with training.optimizer_type \"sgd\"",
@@ -206,12 +248,15 @@ void for_each_field(Cfg& c, Row&& row)
     row(t.gradient_clip_norm, kTrains, trains_anything);
     row(t.samples_per_batch, kTrains, trains_anything);
     row(t.k_folds, kClf, trains_classifier);
-    row(t.nested_cv, kClf, trains_classifier);
+    row(t.nested_cv,
+        "classifier.enabled with selection.enabled false (the per-fold protocol runs its own "
+        "inner folds)",
+        [](K k) { return trains_classifier(k) && !selects(k); });
     row(t.early_stop_patience,
         "classifier.enabled and training.nested_cv are true",
-        [](K k) { return trains_classifier(k) && k.training.nested_cv; });
+        [](K k) { return trains_classifier(k) && !selects(k) && k.training.nested_cv; });
     row(t.standardize_features, kClf, trains_classifier);
-    row(t.weight_decay, kNetClf, trains_network_classifier);
+    row(t.weight_decay, kFixedNet, fixed_network_classifier);
     constexpr const char* kDsnn = "the classifier is enabled with classifier.type \"dsnn\"";
     row(t.firing_rate_reg_lambda, kDsnn, is_dsnn);
     constexpr const char* kDsnnBand =
@@ -245,6 +290,55 @@ auto kOwner() -> const std::string&
     return owner;
 }
 
+constexpr std::string_view kCandidatesPath = "selection.extractor_candidates";
+
+// One candidate object: only its two blocks are read here. Its keys are checked when the
+// candidate is turned into a complete Phase 00 profile (candidate_config), where every rule of
+// a Phase 00 profile applies to them, unknown keys included.
+auto parse_candidate(const nlohmann::json& c, std::size_t i) -> ThesisConfig::ExtractorCandidate
+{
+    std::string where = kOwner();
+    where += ": ";
+    where += kCandidatesPath;
+    where += "[" + std::to_string(i) + "]";
+    if (!c.is_object())
+        throw std::invalid_argument(where + " must be an object, got " + strict::describe(c));
+    for (const auto& [key, value] : c.items())
+        if (key != "feature_extraction" && key != "training")
+        {
+            std::string msg = where;
+            msg += " has the key \"";
+            msg += key;
+            msg +=
+                "\"; a candidate holds only feature_extraction and training (the run's own "
+                "keys apply to everything else)";
+            throw std::invalid_argument(msg);
+        }
+    if (!c.contains("feature_extraction"))
+        throw std::invalid_argument(where + " has no feature_extraction");
+    // Read through a whole profile so the field table types and refuses every key.
+    nlohmann::json shell = {{"feature_extraction", c["feature_extraction"]}};
+    if (c.contains("training")) shell["training"] = c["training"];
+    ThesisConfig tmp;
+    std::set<std::string> fields;
+    for_each_field(tmp,
+        [&](auto& field, const char* /*when*/, auto /*applies*/)
+        {
+            const std::string path = field.path();
+            if (path.rfind("feature_extraction.", 0) == 0 || path.rfind("training.", 0) == 0)
+                fields.insert(path);
+        });
+    strict::refuse_unknown_keys(shell, "", fields, strict::sections_of(fields), {}, where);
+    for_each_field(tmp,
+        [&](auto& field, const char* /*when*/, auto /*applies*/)
+        {
+            using T = typename std::remove_cvref_t<decltype(field)>::value_type;
+            if (const auto* v = strict::find_path(shell, field.path()))
+                field = strict::read_exact<T>(*v, where, field.path());
+        });
+    return {tmp.feature_extraction, tmp.training};
+}
+
 auto parse(const nlohmann::json& j, const ThesisConfig::Embedding* embedding) -> ThesisConfig
 {
     ThesisConfig cfg;
@@ -253,6 +347,7 @@ auto parse(const nlohmann::json& j, const ThesisConfig::Embedding* embedding) ->
     std::set<std::string> fields;
     for_each_field(cfg,
         [&](auto& field, const char* /*when*/, auto /*applies*/) { fields.insert(field.path()); });
+    fields.insert(std::string(kCandidatesPath)); // an array of objects, parsed below
 
     const std::string owner =
         embedding != nullptr ? kOwner() + " (embedded in " + embedding->program + ")" : kOwner();
@@ -284,6 +379,15 @@ auto parse(const nlohmann::json& j, const ThesisConfig::Embedding* embedding) ->
             if (const auto* v = strict::find_path(j, field.path()))
                 field = strict::read_exact<T>(*v, kOwner(), field.path());
         });
+
+    if (const auto* cands = strict::find_path(j, kCandidatesPath))
+    {
+        if (!cands->is_array())
+            throw std::invalid_argument(kOwner() + ": \"" + std::string(kCandidatesPath) +
+                                        "\" must be an array, got " + strict::describe(*cands));
+        for (std::size_t i = 0; i < cands->size(); ++i)
+            cfg.selection.extractor_candidates.push_back(parse_candidate((*cands)[i], i));
+    }
 
     cfg.check_declarations();
     return cfg;
@@ -378,7 +482,8 @@ void validate_degradation(const ThesisConfig& cfg)
     }
     // The degraded features are extracted once, beside the clean ones. An autoencoder is
     // trained per repetition on the clean signals, so it has no single "degraded" twin.
-    if (cfg.feature_extraction.strategy == "autoencoder")
+    if (cfg.feature_extraction.strategy.declared() &&
+        cfg.feature_extraction.strategy == "autoencoder")
         throw std::invalid_argument(
             "ThesisConfig: degradation needs a fixed extractor (handcrafted or pca); an "
             "autoencoder is retrained per repetition");
@@ -610,13 +715,75 @@ void validate_classifier(const ThesisConfig::Classifier& classifier)
             "ThesisConfig: last classifier.layer_spec item must start with linear:N_speakers:");
 }
 
+void validate_selection(const ThesisConfig& cfg)
+{
+    const auto& s = cfg.selection;
+    if (!s.rank_modality.declared()) return; // not the per-fold protocol (check_declarations)
+    const std::string& modality = cfg.dataset.modality;
+    const std::string expected = modality == "fused" ? "voice" : modality;
+    if (s.rank_modality.get() != expected)
+        throw std::invalid_argument(
+            "ThesisConfig: selection.rank_modality must be \"" + expected + "\" for modality \"" +
+            modality +
+            "\" (a profile ranks its own signal; a fused one ranks the voice, whose winner feeds "
+            "both parts)");
+    // The whole-dataset ranking needs one extractor for every sample; here each fold has its
+    // own, ranked inside the fold (FoldResult::selection carries every D_pen).
+    if (cfg.paraconsistent.enabled)
+        throw std::invalid_argument(
+            "ThesisConfig: paraconsistent.enabled must be false with selection.enabled: the "
+            "extractor is ranked inside each fold, there is no single feature set to rank");
+    if (s.extractor_candidates.empty())
+        throw std::invalid_argument(
+            "ThesisConfig: selection.extractor_candidates must list at least one extractor");
+    // Every candidate must be a valid Phase 00 profile of the ranked signal, and of the
+    // profile's own modality (the winner extracts that one).
+    for (std::size_t i = 0; i < s.extractor_candidates.size(); ++i)
+    {
+        (void) cfg.candidate_config(i, s.rank_modality.get());
+        if (modality != s.rank_modality.get()) (void) cfg.candidate_config(i, modality);
+    }
+    if (!s.inner_k.declared()) return; // cosine: no hyperparameter search
+    if (s.inner_k < 2) throw std::invalid_argument("ThesisConfig: selection.inner_k must be >= 2");
+    const auto refuse_list = [](const char* name, bool bad, const std::string& why)
+    {
+        if (bad)
+            throw std::invalid_argument(std::string("ThesisConfig: selection.") + name + " " + why);
+    };
+    const auto distinct = [](auto v)
+    {
+        std::sort(v.begin(), v.end());
+        return std::adjacent_find(v.begin(), v.end()) == v.end();
+    };
+    const auto& w = *s.hidden_widths;
+    const auto& b = *s.residual_blocks;
+    const auto& lr = *s.learning_rates;
+    const auto& wd = *s.weight_decays;
+    refuse_list("hidden_widths", w.empty() || !distinct(w), "must be non-empty and distinct");
+    refuse_list("residual_blocks", b.empty() || !distinct(b), "must be non-empty and distinct");
+    refuse_list("learning_rates", lr.empty() || !distinct(lr), "must be non-empty and distinct");
+    refuse_list("weight_decays", wd.empty() || !distinct(wd), "must be non-empty and distinct");
+    refuse_list("hidden_widths",
+        std::any_of(w.begin(), w.end(), [](int x) { return x < 1; }),
+        "must be >= 1");
+    refuse_list("residual_blocks",
+        std::any_of(b.begin(), b.end(), [](int x) { return x < 0; }),
+        "must be >= 0 (blocks after the input stage)");
+    refuse_list("learning_rates",
+        std::any_of(lr.begin(), lr.end(), [](float x) { return !(x > 0.0f); }),
+        "must be > 0");
+    refuse_list("weight_decays",
+        std::any_of(wd.begin(), wd.end(), [](float x) { return !(x >= 0.0f); }),
+        "must be >= 0");
+}
+
 void validate_training(const ThesisConfig::Training& training)
 {
     if (!training.epochs.declared()) return; // no training runs (check_declarations)
 
     if (training.epochs <= 0)
         throw std::invalid_argument("ThesisConfig: training.epochs must be > 0");
-    if (training.learning_rate <= 0.0f)
+    if (training.learning_rate.declared() && training.learning_rate <= 0.0f)
         throw std::invalid_argument("ThesisConfig: training.learning_rate must be > 0");
     if (training.samples_per_batch <= 0)
         throw std::invalid_argument("ThesisConfig: training.samples_per_batch must be > 0");
@@ -676,6 +843,17 @@ void ThesisConfig::check_declarations() const
             }
             strict::check_declared(field, applies(*this), when, kOwner());
         });
+    if (selects(*this) != !selection.extractor_candidates.empty())
+        throw std::invalid_argument(
+            selects(*this)
+                ? kOwner() +
+                      ": the profile does not declare \"selection.extractor_candidates\", "
+                      "which this run reads (selection.enabled is true). There is no "
+                      "default: declare it."
+                : kOwner() +
+                      ": the profile declares \"selection.extractor_candidates\", which "
+                      "this run never reads (it is read only when selection.enabled is "
+                      "true). Remove it.");
 }
 
 void ThesisConfig::validate() const
@@ -685,18 +863,22 @@ void ThesisConfig::validate() const
     validate_experiment(experiment);
     validate_dataset(dataset);
 
-    const std::string& strategy = feature_extraction.strategy;
-    if (strategy == "handcrafted")
-        validate_handcrafted(feature_extraction.handcrafted, dataset);
-    else if (strategy == "autoencoder")
-        validate_autoencoder(feature_extraction.autoencoder);
-    else if (strategy == "pca")
-        validate_pca(feature_extraction.pca);
-    else
-        throw std::invalid_argument(
-            "ThesisConfig: feature_extraction.strategy must be handcrafted, autoencoder, or pca; "
-            "got \"" +
-            strategy + "\"");
+    if (feature_extraction.strategy.declared()) // not the per-fold protocol
+    {
+        const std::string& strategy = feature_extraction.strategy;
+        if (strategy == "handcrafted")
+            validate_handcrafted(feature_extraction.handcrafted, dataset);
+        else if (strategy == "autoencoder")
+            validate_autoencoder(feature_extraction.autoencoder);
+        else if (strategy == "pca")
+            validate_pca(feature_extraction.pca);
+        else
+            throw std::invalid_argument(
+                "ThesisConfig: feature_extraction.strategy must be handcrafted, autoencoder, or "
+                "pca; got \"" +
+                strategy + "\"");
+    }
+    validate_selection(*this);
 
     validate_paraconsistent(paraconsistent);
     validate_classifier(classifier);
@@ -705,7 +887,8 @@ void ThesisConfig::validate() const
 
     // The cosine control has no model to select, so a nested split would only repeat the
     // flat one under another name.
-    if (classifier.enabled && classifier.type == "cosine" && training.nested_cv)
+    if (classifier.enabled && classifier.type == "cosine" && training.nested_cv.declared() &&
+        training.nested_cv)
         throw std::invalid_argument(
             "ThesisConfig: classifier.type cosine trains nothing; training.nested_cv must be "
             "false");
@@ -741,7 +924,69 @@ auto ThesisConfig::declared_json() const -> nlohmann::json
             std::replace(pointer.begin(), pointer.end(), '.', '/');
             j[nlohmann::json::json_pointer(pointer)] = field.get();
         });
+    if (!selection.extractor_candidates.empty())
+    {
+        nlohmann::json cands = nlohmann::json::array();
+        for (const auto& cand : selection.extractor_candidates)
+        {
+            ThesisConfig tmp;
+            tmp.feature_extraction = cand.feature_extraction;
+            tmp.training = cand.training;
+            nlohmann::json one = nlohmann::json::object();
+            for_each_field(tmp,
+                [&](const auto& field, const char* /*when*/, auto /*applies*/)
+                {
+                    if (!field.declared()) return;
+                    std::string pointer = std::string("/") + field.path();
+                    std::replace(pointer.begin(), pointer.end(), '.', '/');
+                    one[nlohmann::json::json_pointer(pointer)] = field.get();
+                });
+            cands.push_back(std::move(one));
+        }
+        j["selection"]["extractor_candidates"] = std::move(cands);
+    }
     return j;
+}
+
+auto ThesisConfig::candidate_config(std::size_t i, const std::string& modality) const
+    -> ThesisConfig
+{
+    if (i >= selection.extractor_candidates.size())
+        throw std::out_of_range("ThesisConfig: no extractor candidate " + std::to_string(i));
+    if (modality != "voice" && modality != "eeg" && modality != "fused")
+        throw std::invalid_argument("ThesisConfig: candidate modality must be voice/eeg/fused");
+    const auto& cand = selection.extractor_candidates[i];
+    ThesisConfig c;
+    c.experiment.run_tag = experiment.run_tag.get() + "-candidate" + std::to_string(i);
+    c.experiment.seed = experiment.seed.get();
+    c.experiment.repeats = 1;
+    c.dataset.source = dataset.source.get();
+    c.dataset.root = dataset.root.get();
+    c.dataset.results_dir = dataset.results_dir.get();
+    c.dataset.modality = modality;
+    c.dataset.max_samples = dataset.max_samples.get();
+    if (modality == "fused") c.dataset.fusion_mode = dataset.fusion_mode.get();
+    if (modality != "voice")
+    {
+        c.dataset.eeg_condition = dataset.eeg_condition.get();
+        if (dataset.eeg_condition.get() == "imagined")
+            c.dataset.eeg_pairing_seed = dataset.eeg_pairing_seed.get();
+    }
+    c.feature_extraction = cand.feature_extraction;
+    c.training = cand.training;
+    c.paraconsistent.enabled = false;
+    c.classifier.enabled = false;
+    try
+    {
+        c.validate();
+    }
+    catch (const std::exception& e)
+    {
+        throw std::invalid_argument("ThesisConfig: selection.extractor_candidates[" +
+                                    std::to_string(i) + "] is not a valid " + modality +
+                                    " extractor: " + e.what());
+    }
+    return c;
 }
 
 } // namespace thesis

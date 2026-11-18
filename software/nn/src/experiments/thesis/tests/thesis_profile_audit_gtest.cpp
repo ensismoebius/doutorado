@@ -334,6 +334,7 @@ nlohmann::json base_config()
                         {"cepstral", false}}}}},
         {"paraconsistent", {{"enabled", true}, {"speaker_subsets", false}}},
         {"degradation", {{"enabled", false}}},
+        {"selection", {{"enabled", false}}},
         {"classifier",
             {{"type", "dsnn"},
                 {"layer_spec", {"linear:64:relu", "residual:1", "linear:N_speakers:identity"}},
@@ -367,6 +368,7 @@ TEST(ThesisConfigGate, Phase00HasNoClassifierOrTrainingKeys)
     auto j = base_config();
     j["classifier"] = nlohmann::json{{"enabled", false}};
     j.erase("degradation"); // read only when a classifier runs
+    j.erase("selection");   // likewise
     EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument);
     j.erase("training");
     auto cfg = ThesisConfig::from_json(j);
@@ -407,6 +409,215 @@ TEST(ThesisConfigGate, WaveletValidated)
     EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument);
     j["feature_extraction"]["handcrafted"]["wavelet"] = "not-a-wavelet";
     EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument);
+}
+
+// ─── selection: the per-fold protocol (.wiki/Experiments/Thesis-Per-Fold-Protocol.md) ─────
+namespace
+{
+// A per-fold dsnn profile on the voice: three candidates (handcrafted, PCA, an ANN-AE that
+// carries its own training block) and the compact grid.
+nlohmann::json per_fold_config()
+{
+    auto j = base_config();
+    j.erase("feature_extraction");
+    j["classifier"].erase("layer_spec");
+    j["training"].erase("learning_rate");
+    j["training"].erase("weight_decay");
+    j["training"].erase("nested_cv");
+    j["paraconsistent"] = {{"enabled", false}}; // each fold ranks its own candidates
+    j["selection"] = nlohmann::json{{"enabled", true},
+        {"rank_modality", "voice"},
+        {"extractor_candidates",
+            nlohmann::json::array({nlohmann::json{
+                                       {"feature_extraction", base_config()["feature_extraction"]}},
+                nlohmann::json{
+                    {"feature_extraction", {{"strategy", "pca"}, {"pca", {{"n_components", 8}}}}}},
+                nlohmann::json{{"feature_extraction",
+                                   {{"strategy", "autoencoder"},
+                                       {"autoencoder",
+                                           {{"model", "ann-ae"},
+                                               {"encoder_layer_spec",
+                                                   {"linear:32:leaky", "linear:8:identity"}},
+                                               {"decoder_layer_spec",
+                                                   {"linear:32:leaky", "linear:output:identity"}},
+                                               {"ae_loss_type", "mse"}}}}},
+                    {"training",
+                        {{"epochs", 3},
+                            {"learning_rate", 0.001},
+                            {"optimizer_type", "adam"},
+                            {"gradient_clip_norm", 0.0},
+                            {"samples_per_batch", 8}}}}})},
+        {"inner_k", 4},
+        {"hidden_widths", {64, 128, 256}},
+        {"residual_blocks", {0, 1, 2}},
+        {"learning_rates", {0.001, 0.0003}},
+        {"weight_decays", {0.0, 0.0001}}};
+    return j;
+}
+} // namespace
+
+TEST(ThesisSelectionConfig, CompletePerFoldProfileValidates)
+{
+    const auto cfg = ThesisConfig::from_json(per_fold_config());
+    EXPECT_NO_THROW(cfg.validate());
+    ASSERT_EQ(cfg.selection.extractor_candidates.size(), 3u);
+    // Each candidate becomes a complete, valid Phase 00 profile of the ranked signal.
+    const auto c2 = cfg.candidate_config(2, "voice");
+    EXPECT_EQ(c2.feature_extraction.autoencoder.model.get(), "ann-ae");
+    EXPECT_EQ(c2.training.epochs.get(), 3);
+    EXPECT_FALSE(c2.classifier.enabled);
+    EXPECT_EQ(c2.experiment.seed.get(), cfg.experiment.seed.get());
+}
+
+TEST(ThesisSelectionConfig, OwnedKeysAreRefused)
+{
+    // A key the run replaces per fold would read as applied: each is refused.
+    {
+        auto j = per_fold_config();
+        j["feature_extraction"] = base_config()["feature_extraction"];
+        EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << "feature_extraction";
+    }
+    for (const char* key : {"learning_rate", "weight_decay", "nested_cv"})
+    {
+        auto j = per_fold_config();
+        j["training"][key] = base_config()["training"][key];
+        EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << key;
+    }
+    auto j = per_fold_config();
+    j["classifier"]["layer_spec"] = base_config()["classifier"]["layer_spec"];
+    EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << "layer_spec";
+}
+
+TEST(ThesisSelectionConfig, CandidatesAreRequiredAndChecked)
+{
+    {
+        auto j = per_fold_config();
+        j["selection"].erase("extractor_candidates");
+        EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << "no candidates";
+    }
+    {
+        auto j = per_fold_config();
+        j["selection"]["extractor_candidates"][0]["classifier"] = {{"enabled", false}};
+        EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << "foreign key";
+    }
+    {
+        auto j = per_fold_config();
+        j["selection"]["extractor_candidates"][1]["feature_extraction"]["pca"]["typo"] = 1;
+        EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << "unknown nested key";
+    }
+    {
+        // The ANN-AE without its training block is not a valid Phase 00 profile.
+        auto j = per_fold_config();
+        j["selection"]["extractor_candidates"][2].erase("training");
+        EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument);
+    }
+    {
+        // A handcrafted candidate trains nothing: a training block is refused.
+        auto j = per_fold_config();
+        j["selection"]["extractor_candidates"][0]["training"] =
+            j["selection"]["extractor_candidates"][2]["training"];
+        EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument);
+    }
+    {
+        // bark on EEG is refused by the Phase 00 rules, here as for any EEG profile.
+        auto j = per_fold_config();
+        j["dataset"]["modality"] = "eeg";
+        j["dataset"]["eeg_condition"] = "pronounced";
+        j.erase("degradation"); // an EEG run degrades no voice
+        j["selection"]["rank_modality"] = "eeg";
+        ASSERT_NO_THROW(ThesisConfig::from_json(j).validate()) << "the EEG profile itself is valid";
+        j["selection"]["extractor_candidates"][0]["feature_extraction"]["handcrafted"]["scale"] =
+            "bark";
+        EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument);
+    }
+}
+
+TEST(ThesisSelectionConfig, RankModalityFollowsTheProfile)
+{
+    auto j = per_fold_config();
+    j["selection"]["rank_modality"] = "eeg";
+    EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument)
+        << "voice ranks voice";
+    // A fused profile ranks the voice.
+    j = per_fold_config();
+    j["dataset"]["modality"] = "fused";
+    j["dataset"]["fusion_mode"] = "late";
+    j["dataset"]["eeg_condition"] = "pronounced";
+    EXPECT_NO_THROW(ThesisConfig::from_json(j).validate());
+    j["selection"]["rank_modality"] = "eeg";
+    EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument);
+}
+
+TEST(ThesisSelectionConfig, GridChecks)
+{
+    for (const auto& [key, bad] : std::vector<std::pair<const char*, nlohmann::json>>{
+             {"hidden_widths", nlohmann::json::array()},
+             {"hidden_widths", {64, 64}},
+             {"hidden_widths", {0}},
+             {"residual_blocks", {-1}},
+             {"learning_rates", {0.0}},
+             {"weight_decays", {-0.1}},
+             {"inner_k", 1}})
+    {
+        auto j = per_fold_config();
+        j["selection"][key] = bad;
+        EXPECT_THROW(ThesisConfig::from_json(j).validate(), std::invalid_argument) << key;
+    }
+}
+
+TEST(ThesisSelectionConfig, CosineHasNoGrid)
+{
+    auto j = per_fold_config();
+    j["classifier"]["type"] = "cosine";
+    for (const char* key : {"epochs",
+             "optimizer_type",
+             "gradient_clip_norm",
+             "samples_per_batch",
+             "firing_rate_reg_lambda",
+             "batch_normalization"})
+        j["training"].erase(key);
+    EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << "grid keys are refused";
+    for (const char* key :
+        {"inner_k", "hidden_widths", "residual_blocks", "learning_rates", "weight_decays"})
+        j["selection"].erase(key);
+    EXPECT_NO_THROW(ThesisConfig::from_json(j).validate());
+}
+
+TEST(ThesisSelectionConfig, DeclaredJsonRoundTrips)
+{
+    const auto a = ThesisConfig::from_json(per_fold_config());
+    const auto dumped = a.declared_json();
+    ASSERT_TRUE(dumped["selection"].contains("extractor_candidates"));
+    const auto b = ThesisConfig::from_json(dumped);
+    EXPECT_EQ(dumped, b.declared_json());
+    EXPECT_EQ(dumped, ThesisConfig::from_json(per_fold_config()).declared_json());
+}
+
+TEST(ThesisSelectionConfig, WholeDatasetRankingIsRefused)
+{
+    // There is no single feature set to rank: each fold ranks its candidates on its own rows.
+    auto j = per_fold_config();
+    j["paraconsistent"] = {{"enabled", true}, {"speaker_subsets", false}};
+    const auto cfg = ThesisConfig::from_json(j);
+    EXPECT_THROW(cfg.validate(), std::invalid_argument);
+}
+
+TEST(ThesisSelectionConfig, DisabledRefusesTheSelectionKeys)
+{
+    auto j = base_config();
+    j["selection"]["rank_modality"] = "voice";
+    EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument);
+    j = base_config();
+    j["selection"]["extractor_candidates"] = per_fold_config()["selection"]["extractor_candidates"];
+    EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument);
+    // Phase 00 (no classifier) does not read selection at all.
+    j = base_config();
+    j["classifier"] = nlohmann::json{{"enabled", false}};
+    j.erase("degradation");
+    j.erase("training");
+    EXPECT_THROW(ThesisConfig::from_json(j), std::invalid_argument) << "selection.enabled declared";
+    j.erase("selection");
+    EXPECT_NO_THROW(ThesisConfig::from_json(j).validate());
 }
 
 INSTANTIATE_TEST_SUITE_P(AllProfiles,

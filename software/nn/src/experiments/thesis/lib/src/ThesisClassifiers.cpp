@@ -15,14 +15,36 @@
 namespace thesis
 {
 
-auto run_classifier(const ThesisDatasetView& view,
+namespace
+{
+
+void require_supported_type(const std::string& type)
+{
+    if (type != "ann" && type != "dsnn" && type != "cosine")
+        throw std::invalid_argument("ThesisClassifiers: classifier type \"" + type +
+                                    "\" is not implemented. Supported: dsnn, ann, cosine.");
+}
+
+// Everything a run derives from (view, features, cfg) before its first fold, owned here so the
+// FoldContext built over it (references only) stays valid for the whole run.
+struct PreparedRun
+{
+    std::vector<int> labels; // sequential class index per sample
+    std::vector<int> groups; // subject_id per sample (GroupKFold)
+    nn::training::TrainerConfig trainer_cfg;
+    nn::Tensor all_inputs;
+    nn::Tensor all_targets;
+    std::optional<nn::Tensor> degraded_inputs;
+    int feat_dim = 0;
+    int hidden_dim = 0;
+    int depth = 0;
+    int n_speakers = 0;
+};
+
+auto prepare_run(const ThesisDatasetView& view,
     const std::vector<std::vector<double>>& feature_vectors,
-    const std::string& feature_label,
     const ThesisConfig& cfg,
-    const statistics::IEERScorer& eer_scorer,
-    uint32_t global_bar_id,
-    int* global_completed,
-    const DegradedTestFeatures* degraded) -> ClassificationResult
+    const DegradedTestFeatures* degraded) -> PreparedRun
 {
     if (feature_vectors.empty())
         throw std::invalid_argument("ThesisClassifiers: empty feature vectors");
@@ -30,20 +52,17 @@ auto run_classifier(const ThesisDatasetView& view,
         throw std::invalid_argument("ThesisClassifiers: features/samples size mismatch");
 
     const std::string& type = cfg.classifier.type;
-    if (type != "ann" && type != "dsnn" && type != "cosine")
-        throw std::invalid_argument("ThesisClassifiers: classifier type \"" + type +
-                                    "\" is not implemented. Supported: dsnn, ann, cosine.");
-    if (type == "cosine" && cfg.training.nested_cv)
-        throw std::invalid_argument(
-            "ThesisClassifiers: the cosine control has no model to select; "
-            "it runs flat CV only");
+    require_supported_type(type);
 
-    const int n_speakers = view.n_subjects;
-    const int feat_dim = static_cast<int>(feature_vectors[0].size());
+    PreparedRun run;
+    run.n_speakers = view.n_subjects;
+    run.feat_dim = static_cast<int>(feature_vectors[0].size());
 
     // The cosine control builds no network: no layer_spec, shape unused.
-    const auto [hidden_dim, depth] =
+    const auto shape =
         type == "cosine" ? ClassifierShape{0, 0} : parse_layer_spec(cfg.classifier.layer_spec);
+    run.hidden_dim = shape.hidden_dim;
+    run.depth = shape.depth;
 
     // Map subject_id → sequential class index.
     std::map<int, int> id_to_class;
@@ -56,43 +75,33 @@ auto run_classifier(const ThesisDatasetView& view,
         }
     }
 
-    std::vector<int> labels;
-    labels.reserve(view.samples.size());
-    for (const auto& s : view.samples) labels.push_back(id_to_class[s.subject_id]);
+    run.labels.reserve(view.samples.size());
+    for (const auto& s : view.samples) run.labels.push_back(id_to_class[s.subject_id]);
 
     // The cosine control trains nothing and declares no training keys.
-    nn::training::TrainerConfig trainer_cfg;
     if (type != "cosine")
     {
-        trainer_cfg.epochs = cfg.training.epochs;
-        trainer_cfg.learning_rate = cfg.training.learning_rate;
-        trainer_cfg.optimizer_type = cfg.training.optimizer_type;
+        auto& tc = run.trainer_cfg;
+        tc.epochs = cfg.training.epochs;
+        tc.learning_rate = cfg.training.learning_rate;
+        tc.optimizer_type = cfg.training.optimizer_type;
         // Momentum exists for sgd only; the profile declares it exactly then.
         if (cfg.training.optimizer_type == "sgd")
-            trainer_cfg.optimizer_momentum = cfg.training.optimizer_momentum;
-        trainer_cfg.grad_clip_norm = cfg.training.gradient_clip_norm;
-        trainer_cfg.batch_size = cfg.training.samples_per_batch;
-        trainer_cfg.weight_decay = cfg.training.weight_decay; // decoupled L2 (ann + dsnn)
+            tc.optimizer_momentum = cfg.training.optimizer_momentum;
+        tc.grad_clip_norm = cfg.training.gradient_clip_norm;
+        tc.batch_size = cfg.training.samples_per_batch;
+        tc.weight_decay = cfg.training.weight_decay; // decoupled L2 (ann + dsnn)
     }
 
-    std::vector<int> groups;
-    groups.reserve(view.samples.size());
-    for (const auto& s : view.samples) groups.push_back(s.subject_id);
-
-    const std::size_t k = static_cast<std::size_t>(cfg.training.k_folds);
-
-    ClassificationResult result;
-    result.feature_set_label = feature_label;
-    result.classifier_type = cfg.classifier.type;
-    result.text_mode = cfg.classifier.text_mode;
+    run.groups.reserve(view.samples.size());
+    for (const auto& s : view.samples) run.groups.push_back(s.subject_id);
 
     // Pre-build full dataset tensors once — avoid per-fold reconstruction.
     const auto N_all = static_cast<nn::Index>(feature_vectors.size());
-    const auto D = static_cast<nn::Index>(feat_dim);
-    const auto C = static_cast<nn::Index>(n_speakers);
+    const auto D = static_cast<nn::Index>(run.feat_dim);
+    const auto C = static_cast<nn::Index>(run.n_speakers);
 
     // Degraded test features: same rows, same width as the clean ones.
-    std::optional<nn::Tensor> degraded_inputs;
     if (degraded != nullptr)
     {
         if (degraded->vectors == nullptr || degraded->vectors->size() != feature_vectors.size())
@@ -112,22 +121,92 @@ auto run_classifier(const ThesisDatasetView& view,
             for (nn::Index j = 0; j < D; ++j)
                 p[i * D + j] = static_cast<float>(fv[static_cast<size_t>(j)]);
         }
-        degraded_inputs = std::move(x);
+        run.degraded_inputs = std::move(x);
     }
 
-    nn::Tensor all_inputs = nn::Tensor::zeros(N_all, D);
-    nn::Tensor all_targets = nn::Tensor::zeros(N_all, C);
+    run.all_inputs = nn::Tensor::zeros(N_all, D);
+    run.all_targets = nn::Tensor::zeros(N_all, C);
     {
-        float* inp_ptr = all_inputs.mutable_data_ptr();
-        float* tgt_ptr = all_targets.mutable_data_ptr();
+        float* inp_ptr = run.all_inputs.mutable_data_ptr();
+        float* tgt_ptr = run.all_targets.mutable_data_ptr();
         for (nn::Index i = 0; i < N_all; ++i)
         {
             const auto& fv = feature_vectors[static_cast<size_t>(i)];
+            if (static_cast<nn::Index>(fv.size()) != D)
+                throw std::invalid_argument(
+                    "ThesisClassifiers: a feature vector has another width");
             for (nn::Index j = 0; j < D; ++j)
                 inp_ptr[i * D + j] = static_cast<float>(fv[static_cast<size_t>(j)]);
-            tgt_ptr[i * C + labels[static_cast<size_t>(i)]] = 1.0f;
+            tgt_ptr[i * C + run.labels[static_cast<size_t>(i)]] = 1.0f;
         }
     }
+    return run;
+}
+
+auto make_context(const PreparedRun& run,
+    const ThesisDatasetView& view,
+    const std::vector<std::vector<double>>& feature_vectors,
+    const ThesisConfig& cfg,
+    const statistics::IEERScorer& scorer,
+    const std::string& feature_label,
+    uint32_t global_bar_id,
+    int* global_completed,
+    const DegradedTestFeatures* degraded) -> FoldContext
+{
+    return FoldContext{view,
+        feature_vectors,
+        run.labels,
+        run.groups,
+        run.all_inputs,
+        run.all_targets,
+        cfg,
+        run.trainer_cfg,
+        scorer,
+        feature_label,
+        run.feat_dim,
+        run.hidden_dim,
+        run.depth,
+        run.n_speakers,
+        global_bar_id,
+        global_completed,
+        run.degraded_inputs ? &*run.degraded_inputs : nullptr,
+        degraded != nullptr && degraded->enrol_clean,
+        degraded != nullptr ? degraded->enrol_per_speaker : 0};
+}
+
+auto params_of(const FoldContext& ctx) -> std::size_t
+{
+    // Counted on a fresh model (the count does not depend on the weights). The cosine
+    // control has none.
+    if (ctx.cfg.classifier.type == "cosine") return 0;
+    return with_classifier(ctx, [](auto& model) { return count_trainable_params(model); });
+}
+
+} // namespace
+
+auto run_classifier(const ThesisDatasetView& view,
+    const std::vector<std::vector<double>>& feature_vectors,
+    const std::string& feature_label,
+    const ThesisConfig& cfg,
+    const statistics::IEERScorer& eer_scorer,
+    uint32_t global_bar_id,
+    int* global_completed,
+    const DegradedTestFeatures* degraded) -> ClassificationResult
+{
+    const std::string& type = cfg.classifier.type;
+    require_supported_type(type);
+    if (type == "cosine" && cfg.training.nested_cv)
+        throw std::invalid_argument(
+            "ThesisClassifiers: the cosine control has no model to select; "
+            "it runs flat CV only");
+
+    const PreparedRun run = prepare_run(view, feature_vectors, cfg, degraded);
+    const std::size_t k = static_cast<std::size_t>(cfg.training.k_folds);
+
+    ClassificationResult result;
+    result.feature_set_label = feature_label;
+    result.classifier_type = cfg.classifier.type;
+    result.text_mode = cfg.classifier.text_mode;
 
     const auto text_split =
         make_text_split(view.samples, cfg.classifier.text_mode, cfg.experiment.seed);
@@ -138,35 +217,19 @@ auto run_classifier(const ThesisDatasetView& view,
 
     // The caller's EER scorer, used both for inner-fold model selection and for
     // reporting, shared by every fold via FoldContext.
-    const statistics::IEERScorer& scorer = eer_scorer;
-
-    const FoldContext ctx{view,
+    const FoldContext ctx = make_context(run,
+        view,
         feature_vectors,
-        labels,
-        groups,
-        all_inputs,
-        all_targets,
         cfg,
-        trainer_cfg,
-        scorer,
+        eer_scorer,
         feature_label,
-        feat_dim,
-        hidden_dim,
-        depth,
-        n_speakers,
         global_bar_id,
         global_completed,
-        degraded_inputs ? &*degraded_inputs : nullptr,
-        degraded != nullptr && degraded->enrol_clean,
-        degraded != nullptr ? degraded->enrol_per_speaker : 0};
+        degraded);
 
     // Count trainable parameters once on a fresh model (identical across folds) —
-    // the Meeting01-style model-complexity stat. The cosine control has none.
-    if (type == "cosine")
-        result.param_count = 0;
-    else
-        with_classifier(
-            ctx, [&](auto& model) { result.param_count = count_trainable_params(model); });
+    // the Meeting01-style model-complexity stat.
+    result.param_count = params_of(ctx);
 
     if (cfg.training.nested_cv)
         run_nested_cv(ctx, result, text_train_indices, text_test_indices, k);
@@ -175,6 +238,48 @@ auto run_classifier(const ThesisDatasetView& view,
 
     compute_aggregate_stats(result);
     return result;
+}
+
+auto run_split(const ThesisDatasetView& view,
+    const std::vector<std::vector<double>>& feature_vectors,
+    const std::string& feature_label,
+    const ThesisConfig& cfg,
+    const statistics::IEERScorer& eer_scorer,
+    const std::vector<std::size_t>& train_rows,
+    const std::vector<std::size_t>& test_rows,
+    const SplitRun& split) -> FoldResult
+{
+    if (split.total_folds < 1 || split.fold < 0 || split.fold >= split.total_folds)
+        throw std::invalid_argument("ThesisClassifiers: split " + std::to_string(split.fold) +
+                                    " of " + std::to_string(split.total_folds) +
+                                    " is not a fold of the run");
+    const PreparedRun run = prepare_run(view, feature_vectors, cfg, split.degraded);
+    const FoldContext ctx = make_context(run,
+        view,
+        feature_vectors,
+        cfg,
+        eer_scorer,
+        feature_label,
+        split.global_bar_id,
+        nullptr,
+        split.degraded);
+    return run_flat_fold(ctx,
+        train_rows,
+        test_rows,
+        static_cast<size_t>(split.fold),
+        split.total_folds,
+        split.save_model);
+}
+
+auto classifier_param_count(const ThesisDatasetView& view,
+    const std::vector<std::vector<double>>& feature_vectors,
+    const ThesisConfig& cfg,
+    const statistics::IEERScorer& eer_scorer) -> std::size_t
+{
+    const PreparedRun run = prepare_run(view, feature_vectors, cfg, nullptr);
+    const std::string label = "param-count";
+    return params_of(
+        make_context(run, view, feature_vectors, cfg, eer_scorer, label, 0, nullptr, nullptr));
 }
 
 void compute_aggregate_stats(ClassificationResult& result)

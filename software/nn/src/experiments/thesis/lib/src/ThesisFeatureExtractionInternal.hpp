@@ -402,21 +402,46 @@ auto normalize_signals(const std::vector<std::vector<double>>& raw_signals)
     return normed;
 }
 
-/// `time_count` spike frames per sample, contiguous, at index = s*T + t.
+/// `time_count` spike frames for each sample listed in `rows`, contiguous, at index = k*T + t
+/// for the k-th listed sample. The frame seed uses the sample's OWN index (rows[k]), not k:
+/// a sample the autoencoder trains on is then encoded (encode_mean_latents, which walks every
+/// sample by its own index) with exactly the frames it was trained on, whether the model was
+/// fitted on every sample or only on a fold's training rows.
 auto build_spike_frames(const std::vector<std::vector<float>>& normed,
+    const std::vector<size_t>& rows,
     const std::string& encoding,
     int time_count,
     std::uint32_t seed) -> std::vector<nn::Tensor>
 {
     std::vector<nn::Tensor> frames;
-    frames.reserve(normed.size() * static_cast<size_t>(time_count));
-    for (size_t s = 0; s < normed.size(); ++s)
+    frames.reserve(rows.size() * static_cast<size_t>(time_count));
+    for (size_t s : rows)
         for (int t = 0; t < time_count; ++t)
         {
             std::mt19937 rng(frame_seed(seed, s, t));
-            frames.push_back(spike_frame(normed[s], encoding, t, time_count, rng));
+            frames.push_back(spike_frame(normed.at(s), encoding, t, time_count, rng));
         }
     return frames;
+}
+
+/// The rows a model is fitted on must exist, be distinct and be sorted: a repeated row would
+/// weigh one sample twice, an unsorted list would change the batch order (and so the trained
+/// weights) between two calls that mean the same subset.
+inline void require_fit_rows(const std::vector<size_t>& rows, size_t n_samples, const char* who)
+{
+    if (rows.empty())
+        throw std::invalid_argument(
+            std::string("ThesisFeatureExtraction: ") + who + " has no rows to fit on");
+    for (size_t k = 0; k < rows.size(); ++k)
+    {
+        if (rows[k] >= n_samples)
+            throw std::invalid_argument(std::string("ThesisFeatureExtraction: ") + who +
+                                        " fit row " + std::to_string(rows[k]) + " is outside the " +
+                                        std::to_string(n_samples) + " samples");
+        if (k > 0 && rows[k] <= rows[k - 1])
+            throw std::invalid_argument(std::string("ThesisFeatureExtraction: ") + who +
+                                        " fit rows must be strictly increasing");
+    }
 }
 
 /// Re-lay per-(sample, t) frames into the time-major groups the loss reads.
@@ -746,6 +771,7 @@ auto encode_mean_latents(AEType& model,
 template <typename AEType>
 std::vector<std::vector<double>> run_protocol_ae(
     const std::vector<std::vector<double>>& raw_signals,
+    const std::vector<size_t>& fit_rows, // trained on these samples, encodes every sample
     const ThesisConfig::AutoencoderConfig& spec,
     const ThesisConfig::Training& training,
     const std::string& label_suffix,
@@ -788,9 +814,10 @@ std::vector<std::vector<double>> run_protocol_ae(
     // so this is uniform rather than special-cased.
     const bool time_major = spiking;
 
-    std::vector<nn::Tensor> train_samples = build_spike_frames(normed, encoding, T, seed);
+    require_fit_rows(fit_rows, normed.size(), ae_kind.c_str());
+    std::vector<nn::Tensor> train_samples = build_spike_frames(normed, fit_rows, encoding, T, seed);
     if (time_major)
-        train_samples = to_time_major_groups(train_samples, normed.size(), T, batch_size);
+        train_samples = to_time_major_groups(train_samples, fit_rows.size(), T, batch_size);
 
     const AutoencoderConfig ae_cfg =
         build_ae_config(spec, T, seed, voltage_threshold, ae_loss_type, spiking);

@@ -38,7 +38,10 @@ struct ClassificationResult
     double std_auc = 0.0;
 
     // Run-level cost / complexity stats (the Meeting01-style "info about the run").
-    std::size_t param_count = 0;  // trainable parameters in the classifier
+    // Trainable parameters of the classifier, one value for every fold (0 for the cosine
+    // control); nullopt under the per-fold protocol, where each fold's winner has its own
+    // (FoldResult::selection->param_count).
+    std::optional<std::size_t> param_count;
     double mean_train_ms = 0.0;   // mean per-fold training wall-clock
     double mean_infer_ms = 0.0;   // mean per-fold inference wall-clock
     double mean_spike_rate = 0.0; // SNN: mean firing rate at last epoch (NaN→skipped)
