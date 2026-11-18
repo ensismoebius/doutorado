@@ -1,0 +1,85 @@
+{
+  "experiment": {
+    "run_tag": "e05_pf01_cmp-pca_voice_dep",
+    "seed": 42,
+    "repeats": 3,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "source": "coretto2017",
+    "root": "~/Documentos/academico/UNESP/doutorado/databases/database.sqlite",
+    "results_dir": "results/thesis/perfold",
+    "modality": "voice",
+    "max_samples": 0
+  },
+  "paraconsistent": {
+    "enabled": false
+  },
+  "classifier": {
+    "type": "dsnn",
+    "text_mode": "dependent",
+    "enabled": true
+  },
+  "selection": {
+    "enabled": true,
+    "rank_modality": "voice",
+    "extractor_candidates": [
+      {
+        "feature_extraction": {
+          "strategy": "pca",
+          "pca": {
+            "n_components": 8
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "pca",
+          "pca": {
+            "n_components": 16
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "pca",
+          "pca": {
+            "n_components": 32
+          }
+        }
+      }
+    ],
+    "inner_k": 4,
+    "hidden_widths": [
+      64,
+      128,
+      256
+    ],
+    "residual_blocks": [
+      0,
+      1,
+      2
+    ],
+    "learning_rates": [
+      0.001,
+      0.0003
+    ],
+    "weight_decays": [
+      0.0,
+      0.0001
+    ]
+  },
+  "degradation": {
+    "enabled": false
+  },
+  "training": {
+    "k_folds": 5,
+    "standardize_features": true,
+    "epochs": 50,
+    "samples_per_batch": 32,
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0,
+    "firing_rate_reg_lambda": 0.0,
+    "batch_normalization": "none"
+  }
+}

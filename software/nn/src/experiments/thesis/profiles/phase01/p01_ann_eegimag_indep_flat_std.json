@@ -45,15 +45,18 @@
     "text_mode": "independent",
     "enabled": true
   },
+  "selection": {
+    "enabled": false
+  },
   "training": {
     "k_folds": 5,
-    "nested_cv": false,
     "standardize_features": true,
+    "nested_cv": false,
     "epochs": 50,
-    "learning_rate": 0.001,
     "samples_per_batch": 32,
     "optimizer_type": "adam",
     "gradient_clip_norm": 0.0,
+    "learning_rate": 0.001,
     "weight_decay": 0.0
   }
 }

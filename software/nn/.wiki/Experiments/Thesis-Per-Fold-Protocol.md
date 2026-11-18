@@ -1,6 +1,6 @@
 # Thesis: extractor and hyperparameters chosen inside each fold (pre-registration draft)
 
-Status: **design agreed with the author 2026-11-18; stages (a)-(c) of §6 implemented and tested
+Status: **design agreed with the author 2026-11-18; stages (a)-(e) of §6 implemented and tested
 on `thesis-per-fold-protocol`; nothing run.**
 This page is the rule. It is committed before any code that produces a result, and a result
 never changes it: a deviation is written here as a dated amendment, with its reason, before the
@@ -165,6 +165,47 @@ inner fold and their mean, and the winner's index; the refitted winner's paramet
 `train_ms` stays the refit's, so it compares with the fixed-configuration run. The run-level
 `param_count` is absent (each fold's winner has its own). The result's label is
 `per-fold-<modality>` (`per-fold-fused-<mode>` for fused).
+
+**Outputs** (amendment 2026-11-18, stage (d)). Beside the usual metrics, comparison and
+learning-curve files of the repetition:
+
+| File / key | Content |
+|---|---|
+| summary `"protocol"` | `"per-fold"` (`"fixed"` in every other run) |
+| summary `"strategy"` | absent under the per-fold protocol, so a reader that groups by extractor fails loudly instead of filing the run under one |
+| summary `fold_models[f].selection` | `extractors` [{label, d_penalized}], `extractor_index`, `extractor_label`, `param_count`, `fold_ms`; networks also `grid` [{hidden_width, residual_blocks, learning_rate, weight_decay, param_count, inner_eer[], mean_inner_eer}] and `grid_index` (the cosine control has no grid keys) |
+| `e05_<tag>_selection_extractors.csv` | `feature_set,fold,candidate,label,d_penalized,chosen`, one row per (fold, candidate) |
+| `e05_<tag>_selection_grid.csv` | `feature_set,fold,point,hidden_width,residual_blocks,learning_rate,weight_decay,param_count,inner_fold,inner_eer,mean_inner_eer,chosen`, one row per (fold, point, inner fold); header only for the cosine control |
+
+The Python table builders (`thesis_build_phase01_auth_tables.py` and the rest) read the
+profile's `feature_extraction.strategy`, which a per-fold profile does not have: they must be
+adapted before they read a per-fold run.
+
+**Profiles** (amendment 2026-11-18, stage (e); `00_thesis_generate_profiles.py`, `per_fold()`).
+Every fixed-configuration profile now declares `"selection": {"enabled": false}` and stays as
+the comparison grid. The per-fold profiles mirror every flat, standardized cell of it, in their
+own directories (results in `results/thesis/<dir>`):
+
+| Directory | Profiles | Count |
+|---|---|---|
+| `perfold/` | `pf01_<dsnn,ann,cosine>_<7 sources>_<dep,indep>`; `pf01_dysph_<5 voice sources>_<scope>_l<level>`; `pf01_cmp-<hc,ae,pca>_<3 signals>_<text>` | 42 + 40 + 18 |
+| `pfbiomex/` | `pfbx01_<kind>_<4 sources>_<text>`; `pfbx01_dysph_<3 sources>_<scope>_l<level>` | 24 + 24 |
+| `pfworld/`, `pfbxworld/` | `pf01w_…`, `pfbx01w_…`: the WORLD grid | 150 + 90 |
+
+Not mirrored: the DSNN's nested-CV cells (the selection is what replaces them) and its raw
+(unstandardized) cells (an ablation of the fixed grid); the identity pilot. Candidates: the
+Phase 00 set of the ranked signal, in Phase 00 order (voice: 153 = 138 handcrafted + 12
+autoencoders + 3 PCA; EEG: 61), each autoencoder with the 100-epoch block Phase 00 ranked it
+at. The `cmp-<family>` profiles keep only that family and now train the classifier 50 epochs
+like every other cell (the fixed grid needed 100 because one training block drove both). The
+per-fold profiles read no winners, and a fusion ranks the voice whatever `--fused` says.
+
+**Smoke check** (local, 2026-11-18, smoke mirror: 240 samples, 2 folds, autoencoders 2 epochs,
+one grid point, 2 inner folds): `pf01_cosine_eegpron_dep` and `pf01_dysph_voice_test_l100`
+ran end to end on the real Coretto data; in the second, fold 0 chose an ANN-AE and the
+degraded refit check passed on it; 522 s on the workstation for the degraded voice profile.
+The smoke mirror needs 240 samples, not 120: PCA k = 32 is fitted on a fold's training rows,
+about a quarter of the samples there.
 
 **Refused with `selection.enabled`**: `paraconsistent.enabled = true` — the whole-dataset ranking
 needs one extractor for every sample, and here each fold has its own.

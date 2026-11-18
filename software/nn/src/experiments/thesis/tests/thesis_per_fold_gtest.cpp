@@ -14,13 +14,16 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "../lib/include/IndexIntersection.hpp"
+#include "../lib/include/ThesisOutput.hpp"
 #include "../lib/include/ThesisPerFold.hpp"
 #include "ThesisTestConfig.hpp"
+#include "nlohmann/json.hpp"
 #include "statistics/GenuineImpostorEERScorer.hpp"
 #include "statistics/GroupKFoldPolicy.hpp"
 
@@ -379,4 +382,95 @@ TEST(PerFoldRun, DegradedTwinRefitsTheCleanAutoencoder)
     ClassificationResult r;
     ASSERT_NO_THROW(r = run_per_fold(view, cfg, scorer, &real, cache));
     EXPECT_EQ(r.outer_folds.size(), 2u);
+}
+
+// ── Outputs (stage d) ──────────────────────────────────────────────────────────
+namespace
+{
+std::vector<std::string> csv_lines(const std::string& path)
+{
+    std::ifstream f(path);
+    if (!f) throw std::runtime_error("not written: " + path);
+    std::vector<std::string> lines;
+    for (std::string line; std::getline(f, line);) lines.push_back(line);
+    return lines;
+}
+} // namespace
+
+TEST(PerFoldOutput, SummaryAndCsvsCarryEveryChoice)
+{
+    const auto view = make_view();
+    ThesisConfig cfg = per_fold_cfg("ann");
+    const std::string dir = results_dir() + "_out";
+    cfg.dataset.results_dir = dir;
+    cfg.experiment.run_tag = "pf";
+    const statistics::GenuineImpostorEERScorer scorer(1);
+    CandidateFeatureCache cache;
+    const std::vector<ClassificationResult> results = {
+        run_per_fold(view, cfg, scorer, nullptr, cache)};
+    write_summary_json(dir, "pf", cfg, results, {}, kSpeakers, 2, view.samples.size(), 0u);
+    write_selection_csvs(dir, "pf", results);
+
+    nlohmann::json j;
+    {
+        std::ifstream f(dir + "/e05_pf_summary.json");
+        ASSERT_TRUE(f.good());
+        f >> j;
+    }
+    EXPECT_EQ(j["protocol"], "per-fold");
+    EXPECT_FALSE(j.contains("strategy")) << "a per-fold run has no extractor of its own";
+    const auto& r = j["results"][0];
+    EXPECT_FALSE(r.contains("param_count")) << "each fold's winner has its own";
+    ASSERT_EQ(r["fold_models"].size(), 2u);
+    for (std::size_t f = 0; f < 2; ++f)
+    {
+        const auto& sel = r["fold_models"][f]["selection"];
+        const FoldSelection& want = results[0].outer_folds[f].selection.value_or(FoldSelection{});
+        EXPECT_EQ(sel["extractors"].size(), 3u);
+        EXPECT_EQ(sel["extractor_index"], want.extractor_index);
+        EXPECT_EQ(sel["extractor_label"], want.extractors.at(want.extractor_index).label);
+        ASSERT_EQ(sel["grid"].size(), 2u);
+        EXPECT_EQ(sel["grid_index"], want.grid_index);
+        EXPECT_EQ(sel["grid"][0]["inner_eer"].size(), 2u);
+        EXPECT_EQ(sel["param_count"], want.param_count);
+        EXPECT_GT(sel["fold_ms"].get<double>(), 0.0);
+    }
+
+    // 2 folds x 3 candidates; 2 folds x 2 points x 2 inner folds; one "chosen" per fold.
+    const auto ex = csv_lines(dir + "/e05_pf_selection_extractors.csv");
+    const auto grid = csv_lines(dir + "/e05_pf_selection_grid.csv");
+    EXPECT_EQ(ex.size(), 1u + 6u);
+    EXPECT_EQ(grid.size(), 1u + 8u);
+    const auto chosen = [](const std::vector<std::string>& lines)
+    {
+        return std::count_if(
+            lines.begin() + 1, lines.end(), [](const std::string& l) { return l.back() == '1'; });
+    };
+    EXPECT_EQ(chosen(ex), 2);
+    EXPECT_EQ(chosen(grid), 4); // the winner's row of each inner fold
+    std::filesystem::remove_all(dir);
+}
+
+TEST(PerFoldOutput, FixedRunKeepsItsStrategyAndHasNoSelectionFiles)
+{
+    ThesisConfig cfg = test::phase00("voice");
+    test::set_handcrafted(cfg);
+    cfg.validate();
+    const std::string dir = results_dir() + "_fixed";
+    write_summary_json(dir, "fx", cfg, {}, {}, kSpeakers, 2, 48, 0u);
+    nlohmann::json j;
+    {
+        std::ifstream f(dir + "/e05_fx_summary.json");
+        ASSERT_TRUE(f.good());
+        f >> j;
+    }
+    EXPECT_EQ(j["protocol"], "fixed");
+    EXPECT_EQ(j["strategy"], "handcrafted");
+
+    ClassificationResult r;
+    r.outer_folds.resize(2);
+    EXPECT_THROW(write_selection_csvs(dir, "fx", {r}), std::logic_error) << "no selection";
+    r.outer_folds[1].selection = FoldSelection{};
+    EXPECT_THROW(write_selection_csvs(dir, "fx", {r}), std::logic_error) << "a mix";
+    std::filesystem::remove_all(dir);
 }

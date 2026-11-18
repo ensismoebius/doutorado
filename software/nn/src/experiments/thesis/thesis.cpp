@@ -216,6 +216,7 @@ void run_once_per_fold(const thesis::ThesisConfig& cfg,
         thesis::run_per_fold(view, cfg, scorer, degradation ? &*degradation : nullptr, cache, bar));
     pm.complete_bar(bar);
     write_outputs(cfg, view, results, {});
+    thesis::write_selection_csvs(cfg.dataset.results_dir, cfg.experiment.run_tag, results);
 }
 } // namespace
 

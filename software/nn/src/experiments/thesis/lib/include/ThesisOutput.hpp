@@ -39,6 +39,17 @@ void write_summary_json(const std::string& results_dir,
     size_t n_samples,
     std::size_t config_hash);
 
+// The per-fold protocol's choices (every fold must carry FoldResult::selection; a
+// fixed-configuration run throws). Long format, one row per item chosen among:
+//   results_dir/e05_{run_tag}_selection_extractors.csv
+//     feature_set,fold,candidate,label,d_penalized,chosen
+//   results_dir/e05_{run_tag}_selection_grid.csv   (header only for the cosine control)
+//     feature_set,fold,point,hidden_width,residual_blocks,learning_rate,weight_decay,
+//     param_count,inner_fold,inner_eer,mean_inner_eer,chosen
+void write_selection_csvs(const std::string& results_dir,
+    const std::string& run_tag,
+    const std::vector<ClassificationResult>& results);
+
 // Write pgfplots DAT file for thesis figures.
 // Path: results_dir/e05_{run_tag}_comparison.dat
 void write_comparison_dat(const std::string& results_dir,

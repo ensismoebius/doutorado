@@ -338,7 +338,7 @@ class GeneratedTree(unittest.TestCase):
         requests = GEN.load_calibration(TRACKED_CALIBRATION)
         rows = list(GEN.phase00()) + list(GEN.phase01(winners, fused)) + \
             list(GEN.biomex(winners, fused)) + list(GEN.pilot(winners, fused)) + \
-            list(GEN.world(winners, fused, requests))
+            list(GEN.world(winners, fused, requests)) + list(GEN.per_fold(requests))
         differ = []
         for rel, prof in rows:
             with open(os.path.join(GEN.PROFILES, rel), encoding="utf-8") as f:
@@ -348,6 +348,73 @@ class GeneratedTree(unittest.TestCase):
         with open(os.path.join(GEN.PROFILES, "profiles.manifest"), encoding="utf-8") as f:
             listed = sorted(l.strip() for l in f if l.strip() and not l.startswith("#"))
         self.assertEqual(listed, sorted(["debug.json"] + [rel for rel, _ in rows]))
+
+
+class PerFoldProfiles(unittest.TestCase):
+    """The per-fold protocol's profiles (.wiki/Experiments/Thesis-Per-Fold-Protocol.md): the
+    mirror of the fixed grid's flat standardized cells, the Phase 00 set as candidates, and
+    none of the keys the selection owns."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = list(GEN.per_fold(GEN.load_calibration(TRACKED_CALIBRATION)))
+        cls.profiles = {os.path.basename(rel)[:-5]: prof for rel, prof in cls.rows}
+
+    def test_shape(self):
+        by_dir = {}
+        for rel, _ in self.rows:
+            by_dir[rel.split("/")[0]] = by_dir.get(rel.split("/")[0], 0) + 1
+        self.assertEqual(by_dir, {"perfold": 7 * 2 * 3 + 5 * 8 + 3 * 3 * 2,
+                                  "pfbiomex": 4 * 2 * 3 + 3 * 8,
+                                  "pfworld": 5 * 2 * 15, "pfbxworld": 3 * 2 * 15})
+
+    def test_candidates_are_the_phase00_set_in_its_order(self):
+        for sig in SIGNALS:
+            want = [fe for _, fe in GEN.phase00_extractors(sig)]
+            got = [c["feature_extraction"]
+                   for c in self.profiles[f"pf01_dsnn_{sig}_dep"]["selection"]["extractor_candidates"]]
+            self.assertEqual(got, want, sig)
+        # A fusion ranks the voice (its winner feeds both parts).
+        fused = self.profiles["pf01_dsnn_latepron_dep"]["selection"]
+        self.assertEqual(fused["rank_modality"], "voice")
+        self.assertEqual(len(fused["extractor_candidates"]),
+                         len(list(GEN.phase00_extractors("voice"))))
+
+    def test_an_autoencoder_candidate_keeps_its_phase00_budget(self):
+        for c in self.profiles["pf01_ann_voice_dep"]["selection"]["extractor_candidates"]:
+            if c["feature_extraction"]["strategy"] == "autoencoder":
+                self.assertEqual(c["training"], GEN.AE_TRAINING)
+            else:
+                self.assertNotIn("training", c)
+
+    def test_comparison_profiles_hold_one_family(self):
+        for fam, strategy in (("hc", "handcrafted"), ("ae", "autoencoder"), ("pca", "pca")):
+            cands = self.profiles[f"pf01_cmp-{fam}_eegpron_dep"]["selection"]["extractor_candidates"]
+            self.assertTrue(cands)
+            self.assertEqual({c["feature_extraction"]["strategy"] for c in cands}, {strategy})
+
+    def test_owned_keys_are_absent_and_the_grid_is_the_rule(self):
+        for name, prof in self.profiles.items():
+            self.assertNotIn("feature_extraction", prof, name)
+            self.assertNotIn("layer_spec", prof["classifier"], name)
+            for key in ("learning_rate", "weight_decay", "nested_cv", "early_stop_patience"):
+                self.assertNotIn(key, prof["training"], name)
+            self.assertFalse(prof["paraconsistent"]["enabled"], name)
+            grid = {k: v for k, v in prof["selection"].items() if k in GEN.SELECTION_GRID}
+            want = {} if prof["classifier"]["type"] == "cosine" else GEN.SELECTION_GRID
+            self.assertEqual(grid, want, name)
+        self.assertEqual(GEN.SELECTION_GRID["hidden_widths"], [64, 128, 256])
+        self.assertEqual(GEN.SELECTION_GRID["residual_blocks"], [0, 1, 2])
+        self.assertEqual(GEN.SELECTION_GRID["learning_rates"], [0.001, 0.0003])
+        self.assertEqual(GEN.SELECTION_GRID["weight_decays"], [0.0, 0.0001])
+        self.assertEqual(GEN.SELECTION_GRID["inner_k"], 4)
+
+    def test_every_fixed_profile_declares_the_fixed_configuration(self):
+        winners = GEN.load_winners(TRACKED_WINNERS)
+        rows = list(GEN.phase01(winners, "voice")) + list(GEN.biomex(winners, "voice"))
+        for rel, prof in rows:
+            self.assertEqual(prof["selection"], {"enabled": False}, rel)
+            self.assertIn("feature_extraction", prof, rel)
 
 
 class WorldFloor(unittest.TestCase):

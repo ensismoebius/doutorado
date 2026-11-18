@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """thesis_make_smoke_profiles.py — Generate smoke-test copies of every Experiment05 profile.
 
-Mirrors src/experiments/thesis/profiles/{debug.json,phase00/*,phase01/*,biomex/*,pilot/*,world/*,bxworld/*} into
+Mirrors src/experiments/thesis/profiles/{debug.json,phase00/*,phase01/*,biomex/*,pilot/*,world/*,bxworld/*,
+ perfold/*,pfbiomex/*,pfworld/*,pfbxworld/*} into
 src/experiments/thesis/profiles/smoke/ with the SAME code-path-selecting fields
 (strategy, wavelet, scale, cepstral, modality, fusion_mode, classifier.type,
 nested_cv, standardize_features, …) but tiny run parameters, so a run exercises
@@ -54,6 +55,23 @@ def smoke_overrides(prof):
                            ("early_stop_patience", 1)):
             if key in tr:
                 tr[key] = value
+    sel = prof.get("selection")
+    if sel is not None and sel["enabled"]:
+        # PCA k = 32 is fitted on a fold's TRAINING rows only (about a quarter of the samples
+        # with 2 folds and the text split), which need more than 33 of them.
+        if ds["source"] != "biomex2021":
+            ds["max_samples"] = 240
+        # The per-fold protocol: every candidate keeps its code path (its strategy and model);
+        # the autoencoders train briefly, and the grid keeps one point per axis on 2 inner folds.
+        for cand in sel["extractor_candidates"]:
+            if "training" in cand:
+                cand["training"]["epochs"] = 2
+                cand["training"]["samples_per_batch"] = 4
+        for key in ("hidden_widths", "residual_blocks", "learning_rates", "weight_decays"):
+            if key in sel:
+                sel[key] = sel[key][:1]
+        if "inner_k" in sel:
+            sel["inner_k"] = 2
     return prof
 
 
@@ -75,6 +93,8 @@ def main():
     sources += sorted(glob.glob(os.path.join(PROFILES, "pilot", "*.json")))
     sources += sorted(glob.glob(os.path.join(PROFILES, "world", "*.json")))
     sources += sorted(glob.glob(os.path.join(PROFILES, "bxworld", "*.json")))
+    for sub in ("perfold", "pfbiomex", "pfworld", "pfbxworld"):  # the per-fold protocol
+        sources += sorted(glob.glob(os.path.join(PROFILES, sub, "*.json")))
 
     n = 0
     for src in sources:

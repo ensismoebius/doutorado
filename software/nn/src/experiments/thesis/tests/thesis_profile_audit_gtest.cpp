@@ -127,13 +127,32 @@ TEST_P(ThesisProfileAuditTest, DatasetModalityValid)
         << "unexpected modality: " << cfg.dataset.modality;
 }
 
+// The per-fold protocol (selection.enabled): the profile names no extractor and no network
+// hyperparameters; its candidates and its grid stand in for them.
+bool per_fold(const ThesisConfig& cfg)
+{
+    return cfg.classifier.enabled && cfg.selection.enabled;
+}
+
+bool known_strategy(const std::string& s)
+{
+    return s == "handcrafted" || s == "autoencoder" || s == "pca";
+}
+
 TEST_P(ThesisProfileAuditTest, StrategyValid)
 {
     auto cfg = load(GetParam());
-    EXPECT_TRUE(cfg.feature_extraction.strategy == "handcrafted" ||
-                cfg.feature_extraction.strategy == "autoencoder" ||
-                cfg.feature_extraction.strategy == "pca")
-        << "unexpected strategy: " << cfg.feature_extraction.strategy;
+    if (!per_fold(cfg))
+    {
+        EXPECT_TRUE(known_strategy(cfg.feature_extraction.strategy))
+            << "unexpected strategy: " << cfg.feature_extraction.strategy;
+        return;
+    }
+    EXPECT_FALSE(cfg.feature_extraction.strategy.declared()) << "each fold chooses its extractor";
+    ASSERT_FALSE(cfg.selection.extractor_candidates.empty());
+    for (const auto& c : cfg.selection.extractor_candidates)
+        EXPECT_TRUE(known_strategy(c.feature_extraction.strategy))
+            << "unexpected candidate strategy: " << c.feature_extraction.strategy;
 }
 
 TEST_P(ThesisProfileAuditTest, ClassifierValid)
@@ -143,7 +162,14 @@ TEST_P(ThesisProfileAuditTest, ClassifierValid)
     EXPECT_TRUE(cfg.classifier.type == "ann" || cfg.classifier.type == "dsnn" ||
                 cfg.classifier.type == "cosine")
         << "unexpected classifier type: " << cfg.classifier.type;
-    if (cfg.classifier.type != "cosine")
+    if (cfg.classifier.type != "cosine" && per_fold(cfg))
+    {
+        EXPECT_FALSE(cfg.classifier.layer_spec.declared()) << "the grid chooses the layer_spec";
+        EXPECT_GE(cfg.selection.inner_k, 2);
+        EXPECT_FALSE(cfg.selection.hidden_widths->empty());
+        EXPECT_FALSE(cfg.selection.residual_blocks->empty());
+    }
+    else if (cfg.classifier.type != "cosine")
     {
         EXPECT_FALSE(cfg.classifier.layer_spec->empty());
     }
@@ -157,7 +183,16 @@ TEST_P(ThesisProfileAuditTest, TrainingParamsPositive)
     auto cfg = load(GetParam());
     if (!cfg.training.epochs.declared()) return; // nothing trains (handcrafted/PCA Phase 00)
     EXPECT_GT(cfg.training.epochs, 0);
-    EXPECT_GT(cfg.training.learning_rate, 0.0f); // declared: what ran is what is written
+    if (per_fold(cfg))
+    {
+        EXPECT_FALSE(cfg.training.learning_rate.declared()) << "the grid chooses it";
+        for (float lr : cfg.selection.learning_rates.get()) EXPECT_GT(lr, 0.0f);
+        for (float wd : cfg.selection.weight_decays.get()) EXPECT_GE(wd, 0.0f);
+    }
+    else
+    {
+        EXPECT_GT(cfg.training.learning_rate, 0.0f); // declared: what ran is what is written
+    }
     EXPECT_GT(cfg.training.samples_per_batch, 0);
     if (cfg.training.early_stop_patience.declared())
     {
