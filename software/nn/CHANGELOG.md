@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-18/19 — per-fold protocol; feature cache
+
+### Thesis experiment (`src/experiments/thesis/`)
+
+- Per-fold protocol (pre-registered in `.wiki/Experiments/Thesis-Per-Fold-Protocol.md`), inside
+  the binary: a profile's `selection` block makes every outer fold rank the Phase 00 candidates
+  by $D_{pen}$ on its own training speakers, search a 36-point classifier grid with an inner
+  4-fold split, refit the winner and score the test speakers once (`ThesisPerFold.{hpp,cpp}`;
+  c98d187d8, bed1f603d). Outputs: `"protocol"` in the summary, `fold_models[f].selection`,
+  `e05_<tag>_selection_{extractors,grid}.csv`.
+- New profile directories `perfold/` (100), `pfbiomex/` (48), `pfworld/` (150), `pfbxworld/` (90);
+  every fixed-configuration profile now declares `"selection": {"enabled": false}`.
+- `FeatureDiskCache` and `thesis --warm-feature-cache` (271cbb5b1): the handcrafted candidates of
+  each data view are computed once and read by every per-fold unit; key = revision + data
+  fingerprint + signal + extractor block, checksummed, atomic writes; a miss in read mode stops.
+
+### Cluster scripts
+
+- `thesis_gridunesp.sbatch`: phases `perfold`, `pfbiomex`, `pfworld`, `pfbxworld` (read the
+  cache), `THESIS_UNITS` for a trial run of named units (74b805873).
+- `thesis_warm_feature_cache.sbatch`: the warm array, 11 data views.
+- First runs: timed debug units (2026-11-18, deploy 74b80587), warm array 5331039 and `perfold`
+  array 5331068 (2026-11-19).
+
+### Documentation
+
+- Running Thesis Profiles § 10 and § Feature cache, Re-run Runbook, the thesis README, the
+  scripts README and How-To-Change-Anything describe how to run and change the per-fold protocol.
+
 ## 2026-11-17 — full read of the thesis; WORLD grid results; floor test
 
 ### Thesis text (`documentation/00-thesis/monography/`)

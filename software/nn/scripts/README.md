@@ -51,7 +51,8 @@ and [Thesis Document › Results to text](../.wiki/Guides/Thesis-Document.md#res
 | `thesis_build_phase01_auth_tables.py` | `tables/phase01_{auth,controls,dysphonia,energy,extractors}.csv` |
 | `thesis_build_biomex_tables.py` | `tables/biomex_{auth,dysphonia}.csv`, each BIOMEX cell beside its Coretto cell |
 | `thesis_build_text_numbers.py` | `tables/thesis_numbers.tex`: every number the prose quotes (`\tn{key}`), and `CLAIMS`, the qualitative sentences checked against the data |
-| `thesis_gridunesp.sbatch` | one phase as a Slurm array on GridUnesp: `THESIS_PHASE=phase00 sbatch --array=0-63 …` (phase01: `0-141`, biomex: `0-47`, world: `0-149`, bxworld: `0-89`) |
+| `thesis_gridunesp.sbatch` | one phase as a Slurm array on GridUnesp: `THESIS_PHASE=phase00 sbatch --array=0-63 …` (phase01: `0-141`, biomex: `0-47`, world: `0-149`, bxworld: `0-89`; per-fold protocol: perfold `0-99`, pfbiomex `0-47`, pfworld `0-149`, pfbxworld `0-89`). `THESIS_UNITS=a.rep0,b.rep0` restricts it to named units (a trial run) |
+| `thesis_warm_feature_cache.sbatch` | fills `results/thesis/feature_cache/` before any per-fold phase, once per deploy: `sbatch --array=0-10 …` (one task per data view; the per-fold units only read the cache and stop on a miss) |
 
 The profile runners themselves are in `testing/` (`run_thesis_profiles.sh`, `run_thesis_smoke.sh`).
 

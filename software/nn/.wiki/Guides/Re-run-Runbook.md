@@ -168,7 +168,7 @@ pdflatex paper.tex && bibtex paper && pdflatex paper.tex && pdflatex paper.tex
 
 ---
 
-## 2. Thesis — Phase 00, Phase 01, BIOMEX-DB
+## 2. Thesis — Phase 00, Phase 01, BIOMEX-DB, per-fold protocol
 
 The commands, their order and their gating are in one place,
 [Running Experiment05 Profiles › Full pipeline](./Running-Thesis-Profiles.md#full-pipeline);
@@ -196,6 +196,14 @@ reference fixed in advance, Holm within the family. The underlying tool,
 `corrected` (Nadeau–Bengio) is the one for fold-matched conditions, `independent`
 (Mann–Whitney) for conditions whose test sets differ (seen vs unseen phrases). Its docstring
 explains each refusal.
+
+**The per-fold protocol (primary result from 2026-11-18) is a cluster-only re-run** of four
+more arrays, `perfold`, `pfbiomex`, `pfworld` and `pfbxworld`. They come after a warm array
+that fills the feature cache for that deploy. They need no Phase 00 winners. The commands, the
+order and the refusals are in
+[Running Thesis Profiles › 10. Per-fold protocol](./Running-Thesis-Profiles.md#10-per-fold-protocol--extractor-and-hyperparameters-chosen-inside-each-fold).
+Run one phase at a time and read its results before submitting the next. A redeploy invalidates
+the cache (its key holds the revision), so after a redeploy the warm array runs again.
 
 ---
 

@@ -1220,6 +1220,13 @@ runs from start to finish.
 |---|---|---|---|---|
 | 00 | one profile (all its repetitions) | 275 | `--array=0-63`, ~4–5 units per task | A handcrafted profile extracts its features once for all repetitions, because they do not depend on the seed. Split by repetition, it would extract them three times. The slowest profile took 230 s (array 5323006). |
 | 01 | one (profile, repetition) | 142 × 3 = 426 | `--array=0-141`, 3 units per task | Repetitions are whole trainings with their own seeds. |
+| `perfold`, `pfbiomex`, `pfbxworld` | one (profile, repetition) | 300, 144, 270 | `--array=0-99`, `0-47`, `0-89` | As Phase 01. `pfbxworld` must be split: a whole BIOMEX-DB WORLD profile takes ~43 h. |
+| `pfworld` | one profile | 150 | `--array=0-149` | As `world`: the WORLD resynthesis runs once before the repetition loop. |
+
+The four per-fold phases ([Thesis per-fold protocol](Thesis-Per-Fold-Protocol.md)) read the
+handcrafted candidates from a feature cache that `thesis_warm_feature_cache.sbatch` fills once
+per deploy, and a unit stops on a miss
+([Running Thesis Profiles § Feature cache](../Guides/Running-Thesis-Profiles.md#feature-cache-per-fold-phases-only)).
 
 Task `t` of `N` runs units `t, t+N, t+2N, …` of the sorted list, one after another:
 
@@ -1303,6 +1310,9 @@ THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunes
 rsync -avz <user>@access.grid.unesp.br:software/nn/results/thesis/phase00/ results/thesis/phase00/
 # after the hand-off is committed and deployed: Phase 01, one (profile, repetition) per task
 THESIS_PHASE=phase01 sbatch --array=0-141 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+# per-fold protocol: warm the cache for this deploy, then one phase at a time
+sbatch --array=0-10 scripts/pipeline/thesis/thesis_warm_feature_cache.sbatch
+THESIS_PHASE=perfold sbatch --array=0-99 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 ```
 
 **What it refuses, and what it records.** Each line below is a loud stop. None of these cases
