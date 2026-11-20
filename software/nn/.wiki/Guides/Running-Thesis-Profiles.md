@@ -276,7 +276,7 @@ trained model of every outer fold under `models/`.
 ### 6. Phase 01 tables and significance
 
 ```bash
-python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol fixed \
   --profiles-dir src/experiments/thesis/profiles/phase01 \
   --results-dir  results/thesis/phase01 \
   --tables-dir   ../../documentation/00-thesis/monography/tables
@@ -463,12 +463,34 @@ whole-phase run skips them. Example:
 
 **Reading the results.** Each unit writes the usual files plus
 `e05_<tag>_selection_extractors.csv` and `e05_<tag>_selection_grid.csv`, and its summary says
-`"protocol": "per-fold"` ([outputs table](#per-run-diagnostics-output-files)). **Not adapted
-yet:** `thesis_build_phase01_auth_tables.py`, `thesis_build_biomex_tables.py` and the
-significance scripts were written for the fixed grid. They match profile names of
-`phase01/`/`biomex/` and read `feature_extraction.strategy`, which a per-fold profile does not
-have. Pointed at a per-fold directory they stop (a `KeyError` or a name check), so they fail
-loudly, but they produce no per-fold table. Adapting them is the next step after `perfold`.
+`"protocol": "per-fold"` ([outputs table](#per-run-diagnostics-output-files)). When the
+`perfold` array is home:
+
+```bash
+python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol per-fold \
+  --profiles-dir src/experiments/thesis/profiles/perfold --results-dir results/thesis/perfold \
+  --fixed-profiles-dir src/experiments/thesis/profiles/phase01 \
+  --fixed-results-dir results/thesis/phase01 \
+  --tables-dir ../../documentation/00-thesis/monography/tables
+scripts/pipeline/thesis/10_thesis_perfold_significance.sh \
+  src/experiments/thesis/profiles/perfold results/thesis/perfold
+```
+
+The first writes the same five tables as step 6, prefixed `perfold_` (the grid table has
+one cell per source and text mode: the selection replaces nested CV, and raw features stay a
+fixed-grid ablation), plus two more:
+
+| Table | Content |
+|---|---|
+| `perfold_selection.csv` | per cell, what its 15 folds (3 repetitions × 5) chose: the most chosen extractor and how often (`Haar + Linear (c1) (6/15)`), how many distinct extractors, the same for the grid point (`width/blocks/lr/decay`); a tie of more than two is counted (`5 empatados (2/15 cada)`), never broken |
+| `perfold_vs_fixed.csv` | every DSNN/ANN/cosine cell's per-fold EER beside the fixed grid's flat standardized cell, and the difference; descriptive (no test is declared for it) |
+
+In `perfold_extractors.csv` the extractor columns are the folds' most frequent choice, since
+each fold chooses its own. The script refuses a summary whose `protocol` disagrees with the
+profile. `10_thesis_perfold_significance.sh` runs `03_`'s families unchanged on the `pf01_*`
+names (§5 of the pre-registration: same comparisons, same statistics). A per-fold profile pairs
+with a flat fixed profile, because its outer folds are the flat CV's. The BIOMEX-DB builder and
+`04_` still read only the fixed grid: they are adapted when `pfbiomex` has run.
 
 **Locally** (a smoke check, or a debugging run) the binary runs a per-fold profile without the
 cache when `THESIS_FEATURE_CACHE` is unset. It then extracts the candidates itself, which takes

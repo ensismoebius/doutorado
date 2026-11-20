@@ -1,0 +1,7 @@
+signal,text,hc_extractor,hc_eer,hc_std,ae_extractor,ae_eer,ae_std,pca_extractor,pca_eer,pca_std
+Voz,frases vistas,Haar + Linear (c1) (6/15),0.3068,0.0501,ANN-AE (base) (8/15),0.3352,0.0486,PCA (k = 8) (15/15),0.3451,0.0251
+Voz,frases não vistas,Haar + Linear (c1) (6/15),0.3209,0.0178,ANN-AE (base) (8/15),0.4113,0.0081,PCA (k = 8) (15/15),0.4106,0.0237
+EEG (fala pronunciada),frases vistas,Haar + Linear (c1) (15/15),0.2827,0.0033,ANN-AE (base) (12/15),0.3638,0.0361,PCA (k = 8) (15/15),0.3612,0.0390
+EEG (fala pronunciada),frases não vistas,Haar + Linear (c1) (15/15),0.2395,0.0318,ANN-AE (base) (12/15),0.3862,0.0622,PCA (k = 8) (15/15),0.2769,0.0046
+EEG (fala imaginada),frases vistas,Haar + Linear (c1) (15/15),0.2531,0.0317,ANN-AE (base) (15/15),0.2582,0.0291,PCA (k = 8) (15/15),0.2043,0.0334
+EEG (fala imaginada),frases não vistas,Haar + Linear (c1) (15/15),0.2747,0.0369,ANN-AE (base) (15/15),0.2476,0.0142,PCA (k = 8) (15/15),0.1868,0.0102

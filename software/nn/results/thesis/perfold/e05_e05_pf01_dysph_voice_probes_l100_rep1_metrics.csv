@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-voice,dsnn,dependent,0,nan,nan,nan,nan,nan,0.244318,0.857180,14925.182,26.017,results/thesis/perfold/models/e05_pf01_dysph_voice_probes_l100_rep1/per-fold-voice/fold_0.bin
+per-fold-voice,dsnn,dependent,1,nan,nan,nan,nan,nan,0.245614,0.746828,14435.689,22.975,results/thesis/perfold/models/e05_pf01_dysph_voice_probes_l100_rep1/per-fold-voice/fold_1.bin
+per-fold-voice,dsnn,dependent,2,nan,nan,nan,nan,nan,0.450000,0.561327,14905.847,25.857,results/thesis/perfold/models/e05_pf01_dysph_voice_probes_l100_rep1/per-fold-voice/fold_2.bin
+per-fold-voice,dsnn,dependent,3,nan,nan,nan,nan,nan,0.177778,0.890448,7471.531,13.932,results/thesis/perfold/models/e05_pf01_dysph_voice_probes_l100_rep1/per-fold-voice/fold_3.bin
+per-fold-voice,dsnn,dependent,4,nan,nan,nan,nan,nan,0.297619,0.797353,31518.390,48.891,results/thesis/perfold/models/e05_pf01_dysph_voice_probes_l100_rep1/per-fold-voice/fold_4.bin

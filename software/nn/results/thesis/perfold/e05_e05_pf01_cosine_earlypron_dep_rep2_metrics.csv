@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,cosine,dependent,0,nan,nan,nan,nan,nan,0.374269,0.685288,0.000,0.435,
+per-fold-fused-early,cosine,dependent,1,nan,nan,nan,nan,nan,0.443850,0.577097,0.000,0.430,
+per-fold-fused-early,cosine,dependent,2,nan,nan,nan,nan,nan,0.318182,0.752034,0.000,0.441,
+per-fold-fused-early,cosine,dependent,3,nan,nan,nan,nan,nan,0.313609,0.746560,0.000,0.389,
+per-fold-fused-early,cosine,dependent,4,nan,nan,nan,nan,nan,0.248649,0.820511,0.000,0.433,

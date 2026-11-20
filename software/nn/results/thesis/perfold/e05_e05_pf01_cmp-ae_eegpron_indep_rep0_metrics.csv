@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-eeg,dsnn,independent,0,nan,nan,nan,nan,nan,0.414634,0.590013,9759.245,14.481,results/thesis/perfold/models/e05_pf01_cmp-ae_eegpron_indep_rep0/per-fold-eeg/fold_0.bin
+per-fold-eeg,dsnn,independent,1,nan,nan,nan,nan,nan,0.348214,0.700592,13811.924,21.033,results/thesis/perfold/models/e05_pf01_cmp-ae_eegpron_indep_rep0/per-fold-eeg/fold_1.bin
+per-fold-eeg,dsnn,independent,2,nan,nan,nan,nan,nan,0.487047,0.507262,12214.534,20.950,results/thesis/perfold/models/e05_pf01_cmp-ae_eegpron_indep_rep0/per-fold-eeg/fold_2.bin
+per-fold-eeg,dsnn,independent,3,nan,nan,nan,nan,nan,0.553977,0.431011,45437.638,69.810,results/thesis/perfold/models/e05_pf01_cmp-ae_eegpron_indep_rep0/per-fold-eeg/fold_3.bin
+per-fold-eeg,dsnn,independent,4,nan,nan,nan,nan,nan,0.411429,0.618367,45332.372,74.618,results/thesis/perfold/models/e05_pf01_cmp-ae_eegpron_indep_rep0/per-fold-eeg/fold_4.bin

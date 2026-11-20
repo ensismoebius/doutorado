@@ -1,0 +1,16 @@
+feature_set,fold,candidate,label,d_penalized,chosen
+per-fold-voice,0,0,pca,1.615171886,1
+per-fold-voice,0,1,pca,1.637387759,0
+per-fold-voice,0,2,pca,1.702604993,0
+per-fold-voice,1,0,pca,1.597329483,1
+per-fold-voice,1,1,pca,1.663491155,0
+per-fold-voice,1,2,pca,1.705135183,0
+per-fold-voice,2,0,pca,1.558828033,1
+per-fold-voice,2,1,pca,1.606140339,0
+per-fold-voice,2,2,pca,1.684173027,0
+per-fold-voice,3,0,pca,1.58408245,1
+per-fold-voice,3,1,pca,1.632249686,0
+per-fold-voice,3,2,pca,1.693665032,0
+per-fold-voice,4,0,pca,1.581421273,1
+per-fold-voice,4,1,pca,1.618515842,0
+per-fold-voice,4,2,pca,1.684409872,0

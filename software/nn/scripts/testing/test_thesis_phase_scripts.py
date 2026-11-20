@@ -588,12 +588,35 @@ class Phase01Tables(unittest.TestCase):
 
     def run_tables(self):
         return subprocess.run(
-            [sys.executable, AUTH_TABLES, "--profiles-dir", self.p01, "--results-dir", self.res,
-             "--tables-dir", self.tables], check=False, capture_output=True, text=True)
+            [sys.executable, AUTH_TABLES, "--protocol", "fixed", "--profiles-dir", self.p01,
+             "--results-dir", self.res, "--tables-dir", self.tables],
+            check=False, capture_output=True, text=True)
 
     def read(self, table):
         with open(os.path.join(self.tables, f"phase01_{table}.csv"), newline="") as f:
             return list(csv.DictReader(f))
+
+    def test_refuses_a_per_fold_summary(self):
+        prof = self.all01["p01_dsnn_voice_dep_flat_std"]
+        tag = "e05_e05_p01_dsnn_voice_dep_flat_std_rep0"
+        path = os.path.join(self.res, f"{tag}_summary.json")
+        with open(path) as f:
+            summary = json.load(f)
+        summary["protocol"] = "per-fold"
+        write_json(path, summary)
+        r = self.run_tables()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("the summary says protocol 'per-fold'", r.stderr)
+        del prof
+
+    def test_the_fixed_protocol_takes_no_fixed_dirs(self):
+        r = subprocess.run(
+            [sys.executable, AUTH_TABLES, "--protocol", "fixed", "--profiles-dir", self.p01,
+             "--results-dir", self.res, "--tables-dir", self.tables,
+             "--fixed-profiles-dir", self.p01, "--fixed-results-dir", self.res],
+            check=False, capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("belong to --protocol per-fold", r.stderr)
 
     def test_ranks_by_eer_with_labels_from_the_config(self):
         r = self.run_tables()
@@ -623,7 +646,7 @@ class Phase01Tables(unittest.TestCase):
         write_json(os.path.join(self.p01, "a_voice.json"), self.all01["p01_dsnn_voice_dep_flat_std"])
         r = self.run_tables()
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("belongs to no Phase 01 set", r.stderr)
+        self.assertIn("belongs to no fixed Phase 01 set", r.stderr)
 
     def test_refuses_a_name_its_config_contradicts(self):
         prof = json.loads(json.dumps(self.all01["p01_dsnn_voice_dep_flat_std"]))
@@ -651,6 +674,140 @@ class Phase01Tables(unittest.TestCase):
             "Voz · frases vistas · $k$-fold plano · padronizado"))
         self.assertEqual((voice["mean_eer"], voice["std_eer"], voice["std_auc"]),
                          ("0.1000", "—", "—"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+
+def per_fold_profiles(phase="perfold"):
+    """{stem: profile} of one per-fold directory, exactly as the generator writes them."""
+    rows = GEN.per_fold(GEN.load_calibration(TRACKED_CALIBRATION))
+    return {os.path.basename(rel)[:-len(".json")]: prof
+            for rel, prof in rows if rel.split("/")[0] == phase}
+
+
+def per_fold_summary(prof, eer, extractor_index=0, grid_index=0, k_folds=5):
+    """A per-fold summary as thesis writes it: protocol, and per fold the selection record
+    (every candidate ranked, the chosen one; for a network every grid point, the chosen one)."""
+    sel = prof["selection"]
+    n_cands = len(sel["extractor_candidates"])
+    folds = []
+    for f in range(k_folds):
+        record = {"extractors": [{"label": "x", "d_penalized": 1.0}] * n_cands,
+                  "extractor_index": extractor_index, "extractor_label": "x",
+                  "param_count": 0, "fold_ms": 1.0}
+        if prof["classifier"]["type"] != "cosine":
+            grid = [{"hidden_width": w, "residual_blocks": b, "learning_rate": lr,
+                     "weight_decay": wd, "param_count": 1, "inner_eer": [0.3],
+                     "mean_inner_eer": 0.3}
+                    for w in sel["hidden_widths"] for b in sel["residual_blocks"]
+                    for lr in sel["learning_rates"] for wd in sel["weight_decays"]]
+            record.update(grid=grid, grid_index=grid_index)
+        folds.append({"fold": f, "selection": record})
+    r = {"mean_eer": eer, "mean_auc": 0.9, "fold_models": folds}
+    if prof["classifier"]["type"] != "cosine":
+        r["energy"] = ENERGY
+    return {"protocol": "per-fold", "results": [r]}
+
+
+class PerFoldTables(unittest.TestCase):
+    """The per-fold protocol's tables: the same five sets without the CV/standardization axes,
+    the folds' choices reported, and every cell beside its fixed-grid twin."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.pf = os.path.join(self.tmp, "perfold")
+        self.p01 = os.path.join(self.tmp, "phase01")
+        self.res = os.path.join(self.tmp, "results_pf")
+        self.res01 = os.path.join(self.tmp, "results_p01")
+        self.tables = os.path.join(self.tmp, "tables")
+        self.allpf = per_fold_profiles()
+        for i, (name, prof) in enumerate(sorted(self.allpf.items())):
+            write_json(os.path.join(self.pf, f"{name}.json"), prof)
+            for k, t in enumerate(rep_tags(prof)):
+                # Folds 0-4 of rep 0 choose candidate 0; reps 1-2 choose candidate 1, so the
+                # most chosen extractor is candidate 1 (10/15) wherever there are two.
+                idx = 0 if k == 0 or len(prof["selection"]["extractor_candidates"]) == 1 else 1
+                write_json(os.path.join(self.res, f"{t}_summary.json"),
+                           per_fold_summary(prof, 0.20 + 0.001 * i + 0.01 * k, idx, grid_index=k))
+        for name, prof in generated("phase01").items():
+            write_json(os.path.join(self.p01, f"{name}.json"), prof)
+            for t in rep_tags(prof):
+                r = {"mean_eer": 0.30, "mean_auc": 0.9}
+                if prof["classifier"]["type"] != "cosine":
+                    r["energy"] = ENERGY
+                write_json(os.path.join(self.res01, f"{t}_summary.json"), {"results": [r]})
+
+    def run_tables(self, *extra, fixed=True):
+        args = [sys.executable, AUTH_TABLES, "--protocol", "per-fold", "--profiles-dir", self.pf,
+                "--results-dir", self.res, "--tables-dir", self.tables, *extra]
+        if fixed:
+            args += ["--fixed-profiles-dir", self.p01, "--fixed-results-dir", self.res01]
+        return subprocess.run(args, check=False, capture_output=True, text=True)
+
+    def read(self, table):
+        with open(os.path.join(self.tables, f"perfold_{table}.csv"), newline="") as f:
+            return list(csv.DictReader(f))
+
+    def test_the_tables_and_the_folds_choices(self):
+        r = self.run_tables()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(self.read("auth")), 7 * 2)
+        self.assertEqual({x["configuration"].count("·") for x in self.read("auth")}, {1})
+        for t in ("controls", "dysphonia", "extractors", "energy", "selection"):
+            self.assertTrue(self.read(t), t)
+        voice = self.allpf["pf01_dsnn_voice_dep"]["selection"]["extractor_candidates"]
+        AUTH = _load(AUTH_TABLES, "auth_tables")
+        want = AUTH.extractor_label(voice[1]["feature_extraction"])
+        row = next(x for x in self.read("selection")
+                   if x["classifier"] == "dsnn" and x["source"] == "Voz"
+                   and x["text"] == "frases vistas")
+        self.assertEqual(row["extractor"], f"{want} (10/15)")
+        self.assertEqual(row["n_extractors"], "2")
+        # grid index k per repetition: three points, five folds each -> a three-way tie, counted
+        self.assertEqual(row["grid_point"], "3 empatados (5/15 cada)")
+        cos = next(x for x in self.read("selection") if x["classifier"] == "cosine")
+        self.assertEqual((cos["grid_point"], cos["n_grid_points"]), ("—", "—"))
+
+    def test_vs_fixed_is_the_difference_of_the_two_eers(self):
+        r = self.run_tables()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        rows = self.read("vs_fixed")
+        self.assertEqual(len(rows), 3 * 7 * 2)
+        for x in rows:
+            self.assertAlmostEqual(float(x["difference"]),
+                                   float(x["perfold_eer"]) - float(x["fixed_eer"]), places=3)
+
+    def test_needs_the_fixed_grid(self):
+        r = self.run_tables(fixed=False)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("needs --fixed-profiles-dir", r.stderr)
+
+    def test_refuses_a_fixed_summary_under_the_per_fold_protocol(self):
+        prof = self.allpf["pf01_ann_voice_dep"]
+        t = rep_tags(prof)[0]
+        summary = per_fold_summary(prof, 0.2)
+        del summary["protocol"]
+        write_json(os.path.join(self.res, f"{t}_summary.json"), summary)
+        r = self.run_tables()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("the summary says protocol None", r.stderr)
+
+    def test_refuses_a_choice_outside_the_profiles_candidates(self):
+        prof = self.allpf["pf01_ann_voice_dep"]
+        n = len(prof["selection"]["extractor_candidates"])
+        write_json(os.path.join(self.res, f"{rep_tags(prof)[0]}_summary.json"),
+                   per_fold_summary(prof, 0.2, extractor_index=n))
+        r = self.run_tables()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("is not this profile's run", r.stderr)
+
+    def test_refuses_a_fixed_profile_in_the_per_fold_set(self):
+        write_json(os.path.join(self.pf, "p01_dsnn_voice_dep_flat_std.json"),
+                   generated("phase01")["p01_dsnn_voice_dep_flat_std"])
+        r = self.run_tables()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("selection.enabled is False", r.stderr)
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -747,6 +904,7 @@ def p01_profile(tag, modality, fusion_mode=None):
             "descriptors": ["energy", "zcr", "entropy", "teager", "jitter", "shimmer"],
             "dtwpt_level": 4}},
         "paraconsistent": {"enabled": False},
+        "selection": {"enabled": False},
         "classifier": {"type": "dsnn",
                        "layer_spec": ["linear:128:relu", "residual:2", "linear:N_speakers:identity"],
                        "text_mode": "independent", "enabled": True},
@@ -841,6 +999,34 @@ class CrossProfileSignificance(unittest.TestCase):
         r = self.run_sig(pairing="paired")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("wilcoxon(paired)", r.stdout)
+
+    def add_per_fold(self, name, eers):
+        """A per-fold profile on the same split as a and b: no nested_cv (the selection owns
+        the inner level), outer folds = the flat CV's."""
+        self.add(name, "voice", "independent", eers)
+        path = os.path.join(self.p01, f"{name}.json")
+        with open(path) as f:
+            prof = json.load(f)
+        prof["selection"] = {"enabled": True}
+        del prof["training"]["nested_cv"]
+        write_json(path, prof)
+
+    def test_a_per_fold_profile_pairs_with_a_flat_one(self):
+        for name in ("a", "b"):
+            path = os.path.join(self.p01, f"{name}.json")
+            with open(path) as f:
+                prof = json.load(f)
+            prof["training"]["nested_cv"] = False
+            write_json(path, prof)
+        self.add_per_fold("c", [0.20, 0.22, 0.25, 0.21, 0.24, 0.26])
+        r = self.run_sig(pairing="corrected", reference="e05_a")
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_a_per_fold_profile_does_not_pair_with_a_nested_one(self):
+        self.add_per_fold("c", [0.20, 0.22, 0.25, 0.21, 0.24, 0.26])
+        r = self.run_sig(pairing="corrected", reference="e05_a")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("outer_cv: 'nested' vs 'flat'", r.stderr)
 
     def test_paired_refused_when_the_folds_differ(self):
         self.add("c", "voice", "dependent", [0.2] * 6)

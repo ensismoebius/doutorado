@@ -1197,7 +1197,7 @@ A fourth script, not yet chained into `run_thesis_profiles.sh`, ranks the Phase 
 
 ```bash
 # Regenerate the thesis Phase 01 tables (grid, controls, dysphonia, extractors, energy):
-python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol fixed \
   --profiles-dir src/experiments/thesis/profiles/phase01 \
   --results-dir  results/thesis/phase01 \
   --tables-dir   ../../documentation/00-thesis/monography/tables

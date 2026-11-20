@@ -179,7 +179,11 @@ learning-curve files of the repetition:
 
 The Python table builders (`thesis_build_phase01_auth_tables.py` and the rest) read the
 profile's `feature_extraction.strategy`, which a per-fold profile does not have: they must be
-adapted before they read a per-fold run.
+adapted before they read a per-fold run. (Amendment 2026-11-19, after the `perfold` array: the
+Phase 01 builder takes `--protocol per-fold` and adds `perfold_selection.csv` and the
+descriptive `perfold_vs_fixed.csv`; `10_thesis_perfold_significance.sh` runs the families of
+`03_` on the `pf01_*` names, as §5 requires; the significance engine pairs a per-fold profile
+with a flat fixed one, its outer folds being the flat CV's. BIOMEX-DB follows after `pfbiomex`.)
 
 **Profiles** (amendment 2026-11-18, stage (e); `00_thesis_generate_profiles.py`, `per_fold()`).
 Every fixed-configuration profile now declares `"selection": {"enabled": false}` and stays as

@@ -290,7 +290,7 @@ def phase00(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
 
 
 def phase01(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
-    sets = P01.collect(profiles, results)
+    sets = P01.collect(profiles, results, "fixed")
 
     def metrics(prefix: str, run: dict) -> None:
         n.num(f"{prefix}.eer", run["mean_eer"])
@@ -497,7 +497,7 @@ def biomex(n: Numbers, profiles: pathlib.Path, results: pathlib.Path,
     """The BIOMEX-DB replication: bx.<kind>.<source>.<text>.<m>, its comparison with the same
     Coretto cell (bx.vs.*), and its significance families (bxsig.*, bxsiggroup.*)."""
     sets = BX.collect(profiles, results)
-    co = P01.collect(co_profiles, co_results)
+    co = P01.collect(co_profiles, co_results, "fixed")
 
     def metrics(prefix: str, run: dict) -> None:
         n.num(f"{prefix}.eer", run["mean_eer"])

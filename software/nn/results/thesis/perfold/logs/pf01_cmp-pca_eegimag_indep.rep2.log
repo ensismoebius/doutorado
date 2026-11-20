@@ -1,0 +1,11 @@
+2026-11-19 08:45:58 INFO:  ThesisDataset: loaded 1974 samples from decoded cache (/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/database.sqlite.imagined-2026.e05dscache)
+[Thesis] run_tag=e05_pf01_cmp-pca_eegimag_indep modality=eeg strategy=per-fold selection repeats=3 running=[2,3)
+[Thesis] Loaded 1974 samples from 15 subjects, 11 stimuli.
+[Thesis] === Repeat 3/3 (seed=44) ===
+[Thesis] per-fold 0: extractor 0 (pca, D_pen 1.59737), width 256, blocks 0, lr 0.0003, wd 0 (inner EER 0.208213), test EER 0.12931
+[Thesis] per-fold 1: extractor 0 (pca, D_pen 1.56956), width 256, blocks 0, lr 0.0003, wd 0 (inner EER 0.225299), test EER 0.234211
+[Thesis] per-fold 2: extractor 0 (pca, D_pen 1.58746), width 128, blocks 0, lr 0.0003, wd 0.0001 (inner EER 0.221597), test EER 0.19883
+[Thesis] per-fold 3: extractor 0 (pca, D_pen 1.64195), width 64, blocks 0, lr 0.001, wd 0.0001 (inner EER 0.184104), test EER 0.0848485
+[Thesis] per-fold 4: extractor 0 (pca, D_pen 1.62109), width 256, blocks 0, lr 0.0003, wd 0 (inner EER 0.243283), test EER 0.311475
+[Thesis] per-fold-eeg  acc=nan ±nan  EER=0.191735  spec=nan
+[Thesis] Done. Results written to results/thesis/perfold

@@ -1,0 +1,11 @@
+2026-11-19 06:12:15 INFO:  ThesisDataset: loaded 1974 samples from decoded cache (/home/ensismoebius/Documentos/academico/UNESP/doutorado/databases/database.sqlite.pronounced.e05dscache)
+[Thesis] run_tag=e05_pf01_cmp-ae_voice_dep modality=voice strategy=per-fold selection repeats=3 running=[1,2)
+[Thesis] Loaded 1974 samples from 15 subjects, 11 stimuli.
+[Thesis] === Repeat 2/3 (seed=43) ===
+[Thesis] per-fold 0: extractor 2 (autoencoder-ann, D_pen 1.61346), width 128, blocks 2, lr 0.001, wd 0 (inner EER 0.254774), test EER 0.244318
+[Thesis] per-fold 1: extractor 2 (autoencoder-ann, D_pen 1.61979), width 256, blocks 0, lr 0.001, wd 0 (inner EER 0.268246), test EER 0.304094
+[Thesis] per-fold 2: extractor 2 (autoencoder-ann, D_pen 1.58806), width 256, blocks 1, lr 0.001, wd 0 (inner EER 0.25682), test EER 0.355556
+[Thesis] per-fold 3: extractor 8 (autoencoder-snn, D_pen 1.64523), width 256, blocks 2, lr 0.0003, wd 0.0001 (inner EER 0.386197), test EER 0.202778
+[Thesis] per-fold 4: extractor 1 (autoencoder-ann, D_pen 1.62273), width 256, blocks 1, lr 0.001, wd 0.0001 (inner EER 0.279365), test EER 0.238095
+[Thesis] per-fold-voice  acc=nan ±nan  EER=0.268968  spec=nan
+[Thesis] Done. Results written to results/thesis/perfold

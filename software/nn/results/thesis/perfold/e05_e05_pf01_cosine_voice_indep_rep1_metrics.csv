@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-voice,cosine,independent,0,nan,nan,nan,nan,nan,0.308108,0.722162,0.000,0.408,
+per-fold-voice,cosine,independent,1,nan,nan,nan,nan,nan,0.314286,0.775363,0.000,0.330,
+per-fold-voice,cosine,independent,2,nan,nan,nan,nan,nan,0.464088,0.586032,0.000,0.411,
+per-fold-voice,cosine,independent,3,nan,nan,nan,nan,nan,0.362637,0.721577,0.000,0.438,
+per-fold-voice,cosine,independent,4,nan,nan,nan,nan,nan,0.289157,0.796614,0.000,0.279,

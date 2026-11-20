@@ -40,6 +40,7 @@ and [Thesis Document › Results to text](../.wiki/Guides/Thesis-Document.md#res
 | `00_thesis_generate_profiles.py` | writes every profile under `src/experiments/thesis/profiles/` and `profiles.manifest`. `--phase00-only` before the ranking; `--winners results/thesis/phase00/winners.json --fused voice --calibration results/thesis/dysphonia_calibration/calibration.json` after it (the Phase 01, BIOMEX, pilot and WORLD profiles carry the winners; the WORLD levels carry the calibrated requests) |
 | `01_thesis_phase00_rank.py` | reads the Phase 00 results each profile declares, picks the winner per signal and the best per family by `d_penalized`, writes `winners.json`; reports ties |
 | `03_thesis_phase01_significance.sh` | the declared significance families of Phase 01 → `results/thesis/phase01/significance_*.csv` |
+| `10_thesis_perfold_significance.sh` | `03_`'s families on the per-fold profiles (`pf01_*`) → `results/thesis/perfold/significance_*.csv` |
 | `04_thesis_biomex_significance.sh` | the same families on the BIOMEX-DB replication → `results/thesis/biomex/significance_*.csv` |
 | `05_thesis_dysphonia_calibration.py` | Praat (parselmouth) calibration of the WORLD rough/tremor requests on real vowels → `results/thesis/dysphonia_calibration/calibration.json` (needed by `00_ --calibration`); minutes, no training |
 | `06_thesis_identity_pilot.py` | verdict of the six `pilot/` profiles (does resynthesis alone move the EER?) → `results/thesis/pilot/pilot_verdict.json` |
@@ -48,7 +49,7 @@ and [Thesis Document › Results to text](../.wiki/Guides/Thesis-Document.md#res
 | `09_thesis_world_floor.py` | the pre-registered floor test of the BIOMEX-DB WORLD null → `results/thesis/world_analysis/world_floor.json` |
 | `thesis_cross_profile_significance.py` | the test engine both `.sh` call: per-fold metrics of a family of profiles vs a reference; `--pairing paired\|corrected\|independent`, Holm within the family |
 | `thesis_build_phase00_paraconsistent_tables.py` | `tables/phase00_{hc,ae,pca}_{voice,eegpron,eegimag}.csv` |
-| `thesis_build_phase01_auth_tables.py` | `tables/phase01_{auth,controls,dysphonia,energy,extractors}.csv` |
+| `thesis_build_phase01_auth_tables.py` | `--protocol fixed`: `tables/phase01_{auth,controls,dysphonia,energy,extractors}.csv`; `--protocol per-fold` (+ `--fixed-profiles-dir/--fixed-results-dir`): the same five as `perfold_*.csv`, plus `perfold_selection.csv` (the folds' choices) and `perfold_vs_fixed.csv` |
 | `thesis_build_biomex_tables.py` | `tables/biomex_{auth,dysphonia}.csv`, each BIOMEX cell beside its Coretto cell |
 | `thesis_build_text_numbers.py` | `tables/thesis_numbers.tex`: every number the prose quotes (`\tn{key}`), and `CLAIMS`, the qualitative sentences checked against the data |
 | `thesis_gridunesp.sbatch` | one phase as a Slurm array on GridUnesp: `THESIS_PHASE=phase00 sbatch --array=0-63 …` (phase01: `0-141`, biomex: `0-47`, world: `0-149`, bxworld: `0-89`; per-fold protocol: perfold `0-99`, pfbiomex `0-47`, pfworld `0-149`, pfbxworld `0-89`). `THESIS_UNITS=a.rep0,b.rep0` restricts it to named units (a trial run) |

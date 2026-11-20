@@ -87,7 +87,7 @@ def collect(profiles_dir: pathlib.Path, results_dir: pathlib.Path) -> dict:
             key = (src, m[2])
         if key in sets[kind]:
             fail(f"{path}: a second profile for {kind} cell {key}")
-        runs = P01.read_runs(prof, results_dir, missing)
+        runs = P01.read_runs(prof, results_dir, missing, "fixed")
         if runs is not None:
             runs["profile"] = prof
             sets[kind][key] = runs
@@ -139,7 +139,8 @@ def main() -> int:
         ap.add_argument(arg, required=True)
     args = ap.parse_args()
     bx = collect(pathlib.Path(args.profiles_dir), pathlib.Path(args.results_dir))
-    co = P01.collect(pathlib.Path(args.coretto_profiles_dir), pathlib.Path(args.coretto_results_dir))
+    co = P01.collect(pathlib.Path(args.coretto_profiles_dir), pathlib.Path(args.coretto_results_dir),
+                     "fixed")
     out = pathlib.Path(args.tables_dir)
     out.mkdir(parents=True, exist_ok=True)
     auth_table(bx, co, out)
