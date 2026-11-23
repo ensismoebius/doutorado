@@ -224,8 +224,25 @@ def read_logs(array, name):
     return logs
 
 
+# When each fold count of a unit was first seen: {(phase, unit): {folds finished: log mtime}}.
+# Kept in memory by the refresh loop, never written anywhere. thesis writes nothing to a unit's
+# log between two "per-fold" lines, so the log's mtime, read while it shows f folds, is the time
+# fold f finished. Two such readings give the pace of a fold WITHOUT the unit's one-off costs
+# (loading, the WORLD resynthesis), which all fall before the first fold line.
+FOLD_SEEN = {}
+
+
+def fold_pace(key):
+    """Seconds per fold between the first and the last fold count seen, or None."""
+    seen = FOLD_SEEN.get(key, {})
+    if len(seen) < 2:
+        return None
+    lo, hi = min(seen), max(seen)
+    return (seen[hi] - seen[lo]) / (hi - lo)
+
+
 def unit_folds(phase, unit):
-    """(folds finished, folds in the unit) of a per-fold unit, from its own log: the run_tag line
+    """(folds finished, folds in the unit, log mtime) of a per-fold unit, from its own log: the run_tag line
     says which repetitions the unit runs (running=[a,b)), the profile says k_folds, and thesis
     logs one "per-fold <f>:" line per finished outer fold. None when that cannot be read (a
     fixed-protocol unit logs no per-fold line; the log may not exist yet)."""
@@ -250,7 +267,10 @@ def unit_folds(phase, unit):
             finished += 1
     if reps is None:
         return None
-    return finished, reps * k_folds
+    mtime = os.path.getmtime(log)
+    if finished:
+        FOLD_SEEN.setdefault((phase, unit), {}).setdefault(finished, mtime)
+    return finished, reps * k_folds, mtime
 
 
 def split_phases(sbatch="scripts/pipeline/thesis/thesis_gridunesp.sbatch"):
@@ -390,8 +410,8 @@ def frame(args, split):
             lines.append("  memory  peak of finished tasks {}".format(gb(max(peak))))
 
         if running:
-            lines.append("  {:>4}  {:<36} {:>7}  {:<23} {:>9}  {:>10}  {:>23}  {:>7}".format(
-                "task", "unit", "folds", "task progress", "unit time", "~task left",
+            lines.append("  {:>4}  {:<36} {:>7}  {:<23} {:>9}  {:>8}  {:>10}  {:>23}  {:>7}".format(
+                "task", "unit", "folds", "task progress", "unit time", "per fold", "~task left",
                 "task time / limit", "memory"))
             now = time.time()
             for i, (task, row) in enumerate(sorted(running.items())):
@@ -403,7 +423,8 @@ def frame(args, split):
                 started = info.get("started")
                 unit_time = now - started if started else None
                 folds = unit_folds(phase, unit) if phase and unit != "-" else None
-                progress, left = task_progress(info, folds, unit_time, mean)
+                pace = fold_pace((phase, unit))
+                progress, left = task_progress(info, folds, unit_time, mean, pace, now)
                 limit = row["limit"]
                 flag = ""
                 if limit and row["elapsed"] is not None:
@@ -411,37 +432,43 @@ def frame(args, split):
                         flag = "  NEAR LIMIT"
                     elif left is not None and row["elapsed"] + left > limit:
                         flag = "  MAY HIT LIMIT"
-                lines.append("  {:>4}  {:<36} {:>7}  {:<23} {:>9}  {:>10}  {:>10} / {:<10}  {:>7}{}"
+                lines.append("  {:>4}  {:<36} {:>7}  {:<23} {:>9}  {:>8}  {:>10}  {:>10} / {:<10}  {:>7}{}"
                              .format(task, unit[:36],
-                                     "{}/{}".format(*folds) if folds else "-",
+                                     "{}/{}".format(folds[0], folds[1]) if folds else "-",
                                      "{} {:>3.0f}%".format(bar(progress, 1.0, 16), 100 * progress)
                                      if progress is not None else "-",
-                                     hms(unit_time), human_span(left), hms(row["elapsed"]),
-                                     hms(limit), gb(rss_now.get(row["raw"])), flag))
+                                     hms(unit_time), human_span(pace), human_span(left),
+                                     hms(row["elapsed"]), hms(limit),
+                                     gb(rss_now.get(row["raw"])), flag))
     return "\n".join(lines)
 
 
-def task_progress(info, folds, unit_time, mean):
+def task_progress(info, folds, unit_time, mean, pace, now):
     """(share of the task done, estimated seconds left) for one running task.
 
     share = (units finished + folds finished / folds of the current unit) / units of the task,
-    the units being what the task's header said it would run. The time left extrapolates the
-    current unit from its own pace (unit time per finished fold) and prices each unit still to
-    come at this job's mean unit time, or at the current unit's projection when no unit has
-    finished. An estimate: the first fold of a unit also carries its one-off costs (loading;
-    for WORLD, the resynthesis), so early in a unit the pace reads slow."""
+    the units being what the task's header said it would run.
+
+    The time left needs the pace of a fold, measured between two fold counts this loop has seen
+    (fold_pace): it then excludes the unit's one-off costs. Dividing the unit's time by its
+    folds would not: on 2026-11-23 a WORLD fusion unit had 1 fold after 1 h 56 min, ~1 h 15 min
+    of which was one-off, and that division projected 1.2 d for a unit of ~11 h. Without a
+    measured pace the time left is unknown (None, printed "-"), not guessed. The current unit's
+    remaining folds go at that pace, less the time already spent on the next fold; each unit
+    still to come is priced at this job's mean unit time, or at the current unit's projection
+    when none has finished."""
     units = info.get("units")
     if not units or folds is None:
         return None, None
     finished_units = len(info.get("done", []))
-    done_f, total_f = folds
+    done_f, total_f, last_fold_at = folds
     share = min(1.0, (finished_units + (done_f / total_f if total_f else 0.0)) / units)
-    if not done_f or unit_time is None:
+    if pace is None or unit_time is None:
         return share, None
-    projected_unit = unit_time * total_f / done_f
+    left_here = max(0.0, (total_f - done_f) * pace - (now - last_fold_at))
+    projected_unit = unit_time + left_here
     rest = max(0, units - finished_units - 1)
-    left = (projected_unit - unit_time) + rest * (mean if mean is not None else projected_unit)
-    return share, left
+    return share, left_here + rest * (mean if mean is not None else projected_unit)
 
 
 def main():

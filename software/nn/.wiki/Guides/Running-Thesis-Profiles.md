@@ -447,12 +447,20 @@ failed against the phase's total (the `.done` markers, the units of record), the
 the running units' finished folds counted (it moves during day-long units), the mean unit time
 and a time-left estimate. For each running task: its unit, the unit's finished outer folds
 (`per-fold <f>:` lines of the unit's log over repetitions × `k_folds`), a progress bar of the
-task (its finished units plus the current unit's fold share), how long the unit has run, an
-estimate of the task's time left (the current unit at its own pace per fold, later units at the
-job's mean), the task's time against its limit (`NEAR LIMIT` past 85%, `MAY HIT LIMIT` when the
-estimate passes it) and its memory (`sstat` MaxRSS). The fold columns exist only for per-fold
-units; a fixed-protocol unit logs no per-fold line and shows `-`. Early in a unit the estimate
-reads slow: its first fold also carries the one-off costs (loading; the WORLD resynthesis). Do not
+task (its finished units plus the current unit's fold share), how long the unit has run, the
+measured time of one fold, an estimate of the task's time left (the current unit's remaining
+folds at that pace, later units at the job's mean), the task's time against its limit
+(`NEAR LIMIT` past 85%, `MAY HIT LIMIT` when the estimate passes it) and its memory (`sstat`
+MaxRSS). The fold columns exist only for per-fold units; a fixed-protocol unit logs no per-fold
+line and shows `-`.
+
+The pace is measured, not divided out: the loop notes the log's modification time each time a
+unit's fold count grows (thesis writes nothing between two fold lines, so that time is when the
+fold finished), and the pace is the time between two such readings. Dividing the unit's time by
+its folds would count the unit's one-off costs (loading, the WORLD resynthesis) as fold time: on
+2026-11-23 a WORLD fusion unit had 1 fold after 1 h 56 min, and that division projected 1.2 d for
+a unit of about 11 h, with a false `MAY HIT LIMIT`. So `per fold` and `~task left` show `-`
+until the loop has seen a unit finish two folds; `--once` never has. Do not
 wrap it in a loop of your own: repeated logins trip the cluster's Fail2Ban.
 
 **A trial run.** `THESIS_UNITS=<unit>,<unit>` restricts a phase to the units it names, and the
