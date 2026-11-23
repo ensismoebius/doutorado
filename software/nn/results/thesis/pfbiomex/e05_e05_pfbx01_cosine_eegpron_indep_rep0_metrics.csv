@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-eeg,cosine,independent,0,nan,nan,nan,nan,nan,0.312698,0.752542,0.000,3.106,
+per-fold-eeg,cosine,independent,1,nan,nan,nan,nan,nan,0.411706,0.639949,0.000,3.169,
+per-fold-eeg,cosine,independent,2,nan,nan,nan,nan,nan,0.321230,0.745754,0.000,3.169,
+per-fold-eeg,cosine,independent,3,nan,nan,nan,nan,nan,0.334325,0.729626,0.000,3.182,
+per-fold-eeg,cosine,independent,4,nan,nan,nan,nan,nan,0.379365,0.677956,0.000,3.199,

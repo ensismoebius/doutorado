@@ -666,7 +666,7 @@ python3 scripts/data/biomex_verify.py --src ~/Documentos/academico/UNESP/doutora
 THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # after the array: results/thesis/biomex/ back from the cluster (rsync, no --delete), then
 scripts/pipeline/thesis/04_thesis_biomex_significance.sh src/experiments/thesis/profiles/biomex results/thesis/biomex
-python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --profiles-dir src/experiments/thesis/profiles/biomex \
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol fixed --profiles-dir src/experiments/thesis/profiles/biomex \
   --results-dir results/thesis/biomex --coretto-profiles-dir src/experiments/thesis/profiles/phase01 \
   --coretto-results-dir results/thesis/phase01 --tables-dir ../../documentation/00-thesis/monography/tables
 ```

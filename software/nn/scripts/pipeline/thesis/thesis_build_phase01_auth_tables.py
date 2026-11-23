@@ -427,13 +427,14 @@ def extractor_of(sets: dict, r: dict) -> str:
     return extractor_label(r["profile"]["feature_extraction"])
 
 
-def selection_table(sets: dict, out_dir: pathlib.Path) -> None:
+def selection_table(sets: dict, out_dir: pathlib.Path, stem: str = "perfold_selection") -> None:
     """Per cell of the per-fold protocol: what its folds chose (protocol §2: the stability of
-    the choices is reported, not hidden). Grid point = width/blocks/lr/weight decay."""
+    the choices is reported, not hidden). Grid point = width/blocks/lr/weight decay. `stem`
+    names the file; the BIOMEX-DB builder passes its own and has no extractor-comparison set."""
     rows = []
     cells = [("dsnn", k, r) for k, r in sets["grid"].items()] + \
             [(kind, k, r) for kind in ("ann", "cosine") for k, r in sets[kind].items()] + \
-            [(f"cmp-{k[2]}", k[:2], r) for k, r in sets["cmp"].items()]
+            [(f"cmp-{k[2]}", k[:2], r) for k, r in sets.get("cmp", {}).items()]
     order = {"dsnn": 0, "ann": 1, "cosine": 2, "cmp-hc": 3, "cmp-ae": 4, "cmp-pca": 5}
     cells.sort(key=lambda c: (order[c[0]], SOURCE_ORDER.index(c[1][0]), c[1][1]))
     for kind, (s, t), r in cells:
@@ -442,7 +443,7 @@ def selection_table(sets: dict, out_dir: pathlib.Path) -> None:
         rows.append([kind, SOURCE_LABELS[s], TEXT_LABELS[t], len(ext), most_chosen(ext),
                      len(set(ext)), most_chosen(grid) if grid else "—",
                      len(set(grid)) if grid else "—"])
-    write(table_path(sets, out_dir, "selection"),
+    write(out_dir / f"{stem}.csv",
           ["classifier", "source", "text", "folds", "extractor", "n_extractors", "grid_point",
            "n_grid_points"], rows)
 

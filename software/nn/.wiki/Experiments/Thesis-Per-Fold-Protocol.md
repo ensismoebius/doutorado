@@ -183,7 +183,7 @@ adapted before they read a per-fold run. (Amendment 2026-11-19, after the `perfo
 Phase 01 builder takes `--protocol per-fold` and adds `perfold_selection.csv` and the
 descriptive `perfold_vs_fixed.csv`; `10_thesis_perfold_significance.sh` runs the families of
 `03_` on the `pf01_*` names, as §5 requires; the significance engine pairs a per-fold profile
-with a flat fixed one, its outer folds being the flat CV's. BIOMEX-DB follows after `pfbiomex`.)
+with a flat fixed one, its outer folds being the flat CV's. BIOMEX-DB: amendment 2026-11-23, after `pfbiomex`: `thesis_build_biomex_tables.py --protocol per-fold` writes `pfbiomex_*.csv` beside the Coretto per-fold cell, and `11_thesis_pfbiomex_significance.sh` is `04_`'s families on the `pfbx01_*` names. Same renaming-only rule as `10_`.)
 
 **Profiles** (amendment 2026-11-18, stage (e); `00_thesis_generate_profiles.py`, `per_fold()`).
 Every fixed-configuration profile now declares `"selection": {"enabled": false}` and stays as

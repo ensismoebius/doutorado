@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.207925,0.873440,71839.352,128.351,results/thesis/pfbiomex/models/e05_pfbx01_dysph_earlypron_test_l50_rep2/per-fold-fused-early/fold_0.bin
+per-fold-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.234426,0.852953,48780.805,90.895,results/thesis/pfbiomex/models/e05_pfbx01_dysph_earlypron_test_l50_rep2/per-fold-fused-early/fold_1.bin
+per-fold-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.293443,0.790983,102495.863,182.612,results/thesis/pfbiomex/models/e05_pfbx01_dysph_earlypron_test_l50_rep2/per-fold-fused-early/fold_2.bin
+per-fold-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.470492,0.555960,23734.855,42.257,results/thesis/pfbiomex/models/e05_pfbx01_dysph_earlypron_test_l50_rep2/per-fold-fused-early/fold_3.bin
+per-fold-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.241830,0.831717,45600.998,80.775,results/thesis/pfbiomex/models/e05_pfbx01_dysph_earlypron_test_l50_rep2/per-fold-fused-early/fold_4.bin

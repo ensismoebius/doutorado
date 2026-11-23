@@ -303,7 +303,7 @@ winners — nothing is selected on BIOMEX-DB). Needs `~/Documentos/academico/UNE
 ### 8. BIOMEX tables and significance
 
 ```bash
-python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol fixed \
   --profiles-dir src/experiments/thesis/profiles/biomex --results-dir results/thesis/biomex \
   --coretto-profiles-dir src/experiments/thesis/profiles/phase01 \
   --coretto-results-dir results/thesis/phase01 \
@@ -489,8 +489,27 @@ In `perfold_extractors.csv` the extractor columns are the folds' most frequent c
 each fold chooses its own. The script refuses a summary whose `protocol` disagrees with the
 profile. `10_thesis_perfold_significance.sh` runs `03_`'s families unchanged on the `pf01_*`
 names (§5 of the pre-registration: same comparisons, same statistics). A per-fold profile pairs
-with a flat fixed profile, because its outer folds are the flat CV's. The BIOMEX-DB builder and
-`04_` still read only the fixed grid: they are adapted when `pfbiomex` has run.
+with a flat fixed profile, because its outer folds are the flat CV's.
+
+The BIOMEX-DB replication has the same two protocols. With `pfbiomex` home:
+
+```bash
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol per-fold \
+  --profiles-dir src/experiments/thesis/profiles/pfbiomex --results-dir results/thesis/pfbiomex \
+  --coretto-profiles-dir src/experiments/thesis/profiles/perfold \
+  --coretto-results-dir results/thesis/perfold \
+  --tables-dir ../../documentation/00-thesis/monography/tables
+scripts/pipeline/thesis/11_thesis_pfbiomex_significance.sh \
+  src/experiments/thesis/profiles/pfbiomex results/thesis/pfbiomex
+```
+
+It writes `pfbiomex_{auth,dysphonia,selection}.csv`. Each BIOMEX-DB cell sits beside the Coretto
+**per-fold** cell, not the fixed one: the replication repeats the method, so the base it is
+compared with is read under the same method. `11_` is `04_`'s families on the `pfbx01_*` names.
+The memory note for the cluster: a pfbiomex task needs more than 8 GB (the degraded-voice
+fusion units peaked at 9.3 GB); the sbatch now asks for 16G, but a deploy older than
+2026-11-23 still has 8G, so pass `--mem=16G` on the `sbatch` line rather than redeploying
+(a redeploy changes the revision, which invalidates the feature cache and the phase markers).
 
 **Locally** (a smoke check, or a debugging run) the binary runs a per-fold profile without the
 cache when `THESIS_FEATURE_CACHE` is unset. It then extracts the candidates itself, which takes

@@ -813,6 +813,61 @@ class PerFoldTables(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
 
+class PerFoldBiomexTables(unittest.TestCase):
+    """The BIOMEX-DB replication under the per-fold protocol: pfbx01_* beside the Coretto
+    per-fold cell (the method is repeated, so the base it is compared with is read under it)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.dirs = {}
+        for key, phase in (("bx", "pfbiomex"), ("co", "perfold")):
+            profs = per_fold_profiles(phase)
+            pdir, rdir = (os.path.join(self.tmp, f"{key}_profiles"),
+                          os.path.join(self.tmp, f"{key}_results"))
+            for i, (name, prof) in enumerate(sorted(profs.items())):
+                write_json(os.path.join(pdir, f"{name}.json"), prof)
+                for k, t in enumerate(rep_tags(prof)):
+                    write_json(os.path.join(rdir, f"{t}_summary.json"),
+                               per_fold_summary(prof, 0.25 + 0.001 * i + 0.01 * k))
+            self.dirs[key] = (pdir, rdir)
+        self.tables = os.path.join(self.tmp, "tables")
+
+    def run_tables(self, protocol="per-fold"):
+        return subprocess.run(
+            [sys.executable, BIOMEX_TABLES, "--protocol", protocol,
+             "--profiles-dir", self.dirs["bx"][0], "--results-dir", self.dirs["bx"][1],
+             "--coretto-profiles-dir", self.dirs["co"][0],
+             "--coretto-results-dir", self.dirs["co"][1], "--tables-dir", self.tables],
+            check=False, capture_output=True, text=True)
+
+    def read(self, name):
+        with open(os.path.join(self.tables, f"pfbiomex_{name}.csv"), newline="") as f:
+            return list(csv.DictReader(f))
+
+    def test_tables_sit_beside_the_coretto_per_fold_cell(self):
+        r = self.run_tables()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(self.read("auth")), 4 * 2)
+        self.assertEqual(len(self.read("dysphonia")), 3 * 2)
+        self.assertTrue(self.read("selection"))
+        for row in self.read("auth"):
+            self.assertTrue(row["coretto_dsnn_eer"] and row["dsnn_eer"])
+
+    def test_refuses_the_per_fold_set_under_the_fixed_protocol(self):
+        r = self.run_tables("fixed")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("selection.enabled is True", r.stderr)
+
+    def test_refuses_a_missing_summary(self):
+        os.remove(os.path.join(self.dirs["bx"][1], "e05_e05_pfbx01_ann_voice_dep_rep1_summary.json"))
+        r = self.run_tables()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("pfbx01_ann_voice_dep_rep1_summary.json", r.stderr)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+
 class BiomexTables(unittest.TestCase):
     """Every BIOMEX-DB cell is printed next to the same Coretto cell, and only then."""
 
@@ -837,7 +892,7 @@ class BiomexTables(unittest.TestCase):
 
     def run_tables(self):
         return subprocess.run(
-            [sys.executable, BIOMEX_TABLES, "--profiles-dir", self.bx, "--results-dir", self.bxres,
+            [sys.executable, BIOMEX_TABLES, "--protocol", "fixed", "--profiles-dir", self.bx, "--results-dir", self.bxres,
              "--coretto-profiles-dir", self.co, "--coretto-results-dir", self.cores,
              "--tables-dir", self.tables], check=False, capture_output=True, text=True)
 

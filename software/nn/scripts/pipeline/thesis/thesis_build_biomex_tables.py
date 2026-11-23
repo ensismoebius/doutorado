@@ -18,11 +18,23 @@ name is checked against the declared config; the Coretto cell each row is compar
 exist. The per-run reading (mean/spread over repetitions, finite scores, energy block) is the
 Phase 01 builder's own (thesis_build_phase01_auth_tables.read_runs).
 
+Two protocols (--protocol, required; .wiki/Experiments/Thesis-Per-Fold-Protocol.md):
+  fixed     profiles/biomex (bx01_*) beside the Coretto Phase 01 cell. Tables biomex_*.csv.
+  per-fold  profiles/pfbiomex (pfbx01_*) beside the Coretto PER-FOLD cell (profiles/perfold):
+            the replication repeats the method, so the base it is compared with is read under
+            the same method. Tables pfbiomex_auth.csv, pfbiomex_dysphonia.csv and
+            pfbiomex_selection.csv (what the folds chose; same layout as perfold_selection.csv).
+
 Usage (from software/nn):
-    python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py \\
+    python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol fixed \\
         --profiles-dir src/experiments/thesis/profiles/biomex --results-dir results/thesis/biomex \\
         --coretto-profiles-dir src/experiments/thesis/profiles/phase01 \\
         --coretto-results-dir results/thesis/phase01 \\
+        --tables-dir ../../documentation/00-thesis/monography/tables
+    python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol per-fold \\
+        --profiles-dir src/experiments/thesis/profiles/pfbiomex --results-dir results/thesis/pfbiomex \\
+        --coretto-profiles-dir src/experiments/thesis/profiles/perfold \\
+        --coretto-results-dir results/thesis/perfold \\
         --tables-dir ../../documentation/00-thesis/monography/tables
 """
 
@@ -42,11 +54,20 @@ sys.modules["p01"] = P01
 _spec.loader.exec_module(P01)
 
 SET_PATTERNS = {
-    "grid": re.compile(r"^bx01_dsnn_([a-z]+)_(dep|indep)_flat_std$"),
-    "ann": re.compile(r"^bx01_ann_([a-z]+)_(dep|indep)_flat_std$"),
-    "cosine": re.compile(r"^bx01_cosine_([a-z]+)_(dep|indep)_flat_std$"),
-    "dysph": re.compile(r"^bx01_dysph_([a-z]+)_(probes|test)_l(\d+)$"),
+    "fixed": {
+        "grid": re.compile(r"^bx01_dsnn_([a-z]+)_(dep|indep)_flat_std$"),
+        "ann": re.compile(r"^bx01_ann_([a-z]+)_(dep|indep)_flat_std$"),
+        "cosine": re.compile(r"^bx01_cosine_([a-z]+)_(dep|indep)_flat_std$"),
+        "dysph": re.compile(r"^bx01_dysph_([a-z]+)_(probes|test)_l(\d+)$"),
+    },
+    "per-fold": {
+        "grid": re.compile(r"^pfbx01_dsnn_([a-z]+)_(dep|indep)$"),
+        "ann": re.compile(r"^pfbx01_ann_([a-z]+)_(dep|indep)$"),
+        "cosine": re.compile(r"^pfbx01_cosine_([a-z]+)_(dep|indep)$"),
+        "dysph": re.compile(r"^pfbx01_dysph_([a-z]+)_(probes|test)_l(\d+)$"),
+    },
 }
+TABLE_PREFIX = {"fixed": "biomex", "per-fold": "pfbiomex"}
 SOURCES = ("voice", "eegpron", "earlypron", "latepron")
 DYSPH_SOURCES = ("voice", "earlypron", "latepron")
 
@@ -55,20 +76,24 @@ def fail(msg: str) -> None:
     raise SystemExit(f"[biomex-tables] {msg}")
 
 
-def collect(profiles_dir: pathlib.Path, results_dir: pathlib.Path) -> dict:
+def collect(profiles_dir: pathlib.Path, results_dir: pathlib.Path, protocol: str) -> dict:
     profiles = sorted(profiles_dir.glob("*.json"))
     if not profiles:
         fail(f"no profiles in {profiles_dir}")
-    sets: dict[str, dict] = {k: {} for k in SET_PATTERNS}
+    patterns = SET_PATTERNS[protocol]
+    sets: dict[str, dict] = {k: {} for k in patterns}
     missing: list[pathlib.Path] = []
     for path in profiles:
         name = path.stem
         prof = json.loads(path.read_text(encoding="utf-8"))
         if prof["dataset"]["source"] != "biomex2021":
             fail(f"{path}: dataset.source is {prof['dataset']['source']!r}, not biomex2021")
-        matched = [(k, m) for k, p in SET_PATTERNS.items() if (m := p.match(name))]
+        if prof["selection"]["enabled"] != (protocol == "per-fold"):
+            fail(f"{path}: selection.enabled is {prof['selection']['enabled']}; the tables were "
+                 f"asked for the {protocol} protocol")
+        matched = [(k, m) for k, p in patterns.items() if (m := p.match(name))]
         if len(matched) != 1:
-            fail(f"{path}: the name belongs to no BIOMEX-DB set (or to several)")
+            fail(f"{path}: the name belongs to no {protocol} BIOMEX-DB set (or to several)")
         kind, m = matched[0]
         src = P01.source_of(prof)
         tr, clf = prof["training"], prof["classifier"]
@@ -82,12 +107,13 @@ def collect(profiles_dir: pathlib.Path, results_dir: pathlib.Path) -> dict:
         else:
             P01.check(name, "text mode", clf["text_mode"], P01.TEXT_MODE[m[2]])
             P01.check(name, "classifier", clf["type"], {"grid": "dsnn"}.get(kind, kind))
-            P01.check(name, "nested_cv", tr["nested_cv"], False)
+            if protocol == "fixed":
+                P01.check(name, "nested_cv", tr["nested_cv"], False)
             P01.check(name, "standardize", tr["standardize_features"], True)
             key = (src, m[2])
         if key in sets[kind]:
             fail(f"{path}: a second profile for {kind} cell {key}")
-        runs = P01.read_runs(prof, results_dir, missing, "fixed")
+        runs = P01.read_runs(prof, results_dir, missing, protocol)
         if runs is not None:
             runs["profile"] = prof
             sets[kind][key] = runs
@@ -97,11 +123,17 @@ def collect(profiles_dir: pathlib.Path, results_dir: pathlib.Path) -> dict:
     return sets
 
 
+def coretto_cell(co: dict, source: str, text: str, what: str) -> dict:
+    """The Coretto DSNN cell of the same protocol: flat CV, standardized under the fixed one."""
+    key = (source, text) if co["protocol"] == "per-fold" else (source, text, "flat", "std")
+    return P01.require(co["grid"], key, what)
+
+
 def auth_table(bx: dict, co: dict, out_dir: pathlib.Path) -> None:
     rows = []
     for s in SOURCES:
         for t in ("dep", "indep"):
-            c = P01.require(co["grid"], (s, t, "flat", "std"), "Coretto DSNN")
+            c = coretto_cell(co, s, t, "Coretto DSNN")
             d = P01.require(bx["grid"], (s, t), "BIOMEX-DB DSNN")
             a = P01.require(bx["ann"], (s, t), "BIOMEX-DB ANN")
             k = P01.require(bx["cosine"], (s, t), "BIOMEX-DB cosine")
@@ -109,7 +141,7 @@ def auth_table(bx: dict, co: dict, out_dir: pathlib.Path) -> None:
                          P01.f4(d["mean_eer"]), P01.f4(d["std_eer"]),
                          P01.f4(a["mean_eer"]), P01.f4(a["std_eer"]), P01.f4(k["mean_eer"]),
                          f"{d['nj']:.2f}", f"{a['nj']:.2f}", f"{d['nj'] / a['nj']:.2f}"])
-    P01.write(out_dir / "biomex_auth.csv",
+    P01.write(out_dir / f"{TABLE_PREFIX[bx['protocol']]}_auth.csv",
               ["source", "text", "coretto_dsnn_eer", "dsnn_eer", "dsnn_std", "ann_eer", "ann_std",
                "cosine_eer", "dsnn_nj", "ann_nj", "dsnn_over_ann"], rows)
 
@@ -118,7 +150,7 @@ def dysphonia_table(bx: dict, co: dict, out_dir: pathlib.Path) -> None:
     rows = []
     for s in DYSPH_SOURCES:
         clean = P01.require(bx["grid"], (s, "dep"), "BIOMEX-DB dysphonia (level 0)")
-        co_clean = P01.require(co["grid"], (s, "dep", "flat", "std"), "Coretto dysphonia (level 0)")
+        co_clean = coretto_cell(co, s, "dep", "Coretto dysphonia (level 0)")
         for scope in ("probes", "test"):
             cells = [P01.require(bx["dysph"], (s, scope, lv), "BIOMEX-DB dysphonia")
                      for lv in P01.LEVELS]
@@ -127,24 +159,29 @@ def dysphonia_table(bx: dict, co: dict, out_dir: pathlib.Path) -> None:
                         + [P01.f4(c["mean_eer"]) for c in cells]
                         + [P01.f4(cells[-1]["mean_eer"] - clean["mean_eer"]),
                            P01.f4(co_full["mean_eer"] - co_clean["mean_eer"])])
-    P01.write(out_dir / "biomex_dysphonia.csv",
+    P01.write(out_dir / f"{TABLE_PREFIX[bx['protocol']]}_dysphonia.csv",
               ["source", "scope", "eer_l0"] + [f"eer_l{lv}" for lv in P01.LEVELS]
               + ["rise", "coretto_rise"], rows)
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Build the BIOMEX-DB replication CSV tables.")
+    ap.add_argument("--protocol", required=True, choices=sorted(SET_PATTERNS))
     for arg in ("--profiles-dir", "--results-dir", "--coretto-profiles-dir",
                 "--coretto-results-dir", "--tables-dir"):
         ap.add_argument(arg, required=True)
     args = ap.parse_args()
-    bx = collect(pathlib.Path(args.profiles_dir), pathlib.Path(args.results_dir))
-    co = P01.collect(pathlib.Path(args.coretto_profiles_dir), pathlib.Path(args.coretto_results_dir),
-                     "fixed")
+    bx = P01.with_protocol(collect(pathlib.Path(args.profiles_dir), pathlib.Path(args.results_dir),
+                                   args.protocol), args.protocol)
+    co = P01.with_protocol(P01.collect(pathlib.Path(args.coretto_profiles_dir),
+                                       pathlib.Path(args.coretto_results_dir), args.protocol),
+                           args.protocol)
     out = pathlib.Path(args.tables_dir)
     out.mkdir(parents=True, exist_ok=True)
     auth_table(bx, co, out)
     dysphonia_table(bx, co, out)
+    if args.protocol == "per-fold":
+        P01.selection_table(bx, out, stem="pfbiomex_selection")
     return 0
 
 

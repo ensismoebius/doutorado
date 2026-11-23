@@ -1,0 +1,4 @@
+reference,condition,metric,pairing,n_folds_ref,n_folds_cond,mean_ref,mean_cond,delta_mean,cohens_d,p_value,p_holm,holm_family_size,test,significant_0.05,note
+e05_pfbx01_dsnn_voice_indep,e05_pfbx01_dsnn_latepron_indep,eer,corrected,15,15,0.33272433333333334,0.26907939999999997,-0.06364493333333338,-1.1496202498175871,0.027328072488645667,0.08198421746593701,3,corrected-t(paired),0,
+e05_pfbx01_dsnn_voice_indep,e05_pfbx01_dsnn_eegpron_indep,eer,corrected,15,15,0.33272433333333334,0.27174633333333337,-0.06097799999999998,-1.147994296070907,0.17213059008510803,0.34426118017021606,3,corrected-t(paired),0,
+e05_pfbx01_dsnn_voice_indep,e05_pfbx01_dsnn_earlypron_indep,eer,corrected,15,15,0.33272433333333334,0.32256399999999996,-0.010160333333333382,-0.17120707798226714,0.8282508259739941,0.8282508259739941,3,corrected-t(paired),0,

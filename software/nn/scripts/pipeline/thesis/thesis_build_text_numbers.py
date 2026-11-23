@@ -496,7 +496,7 @@ def biomex(n: Numbers, profiles: pathlib.Path, results: pathlib.Path,
            co_profiles: pathlib.Path, co_results: pathlib.Path) -> None:
     """The BIOMEX-DB replication: bx.<kind>.<source>.<text>.<m>, its comparison with the same
     Coretto cell (bx.vs.*), and its significance families (bxsig.*, bxsiggroup.*)."""
-    sets = BX.collect(profiles, results)
+    sets = BX.collect(profiles, results, "fixed")
     co = P01.collect(co_profiles, co_results, "fixed")
 
     def metrics(prefix: str, run: dict) -> None:

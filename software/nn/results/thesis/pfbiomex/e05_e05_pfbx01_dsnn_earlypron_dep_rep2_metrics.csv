@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.221814,0.868077,74562.666,132.348,results/thesis/pfbiomex/models/e05_pfbx01_dsnn_earlypron_dep_rep2/per-fold-fused-early/fold_0.bin
+per-fold-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.269057,0.818608,50190.218,93.965,results/thesis/pfbiomex/models/e05_pfbx01_dsnn_earlypron_dep_rep2/per-fold-fused-early/fold_1.bin
+per-fold-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.276025,0.808686,103923.939,166.042,results/thesis/pfbiomex/models/e05_pfbx01_dsnn_earlypron_dep_rep2/per-fold-fused-early/fold_2.bin
+per-fold-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.470492,0.556280,23711.331,39.928,results/thesis/pfbiomex/models/e05_pfbx01_dsnn_earlypron_dep_rep2/per-fold-fused-early/fold_3.bin
+per-fold-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.241830,0.831882,46109.763,73.484,results/thesis/pfbiomex/models/e05_pfbx01_dsnn_earlypron_dep_rep2/per-fold-fused-early/fold_4.bin

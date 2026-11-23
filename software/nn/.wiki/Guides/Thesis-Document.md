@@ -96,7 +96,7 @@ python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
 python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol fixed \
   --profiles-dir src/experiments/thesis/profiles/phase01 --results-dir results/thesis/phase01 \
   --tables-dir ../../documentation/00-thesis/monography/tables
-python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol fixed \
   --profiles-dir src/experiments/thesis/profiles/biomex --results-dir results/thesis/biomex \
   --coretto-profiles-dir src/experiments/thesis/profiles/phase01 \
   --coretto-results-dir results/thesis/phase01 \
