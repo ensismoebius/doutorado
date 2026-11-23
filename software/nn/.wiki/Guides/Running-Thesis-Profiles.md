@@ -440,6 +440,14 @@ THESIS_PHASE=perfold sbatch --array=0-99 scripts/pipeline/thesis/thesis_gridunes
 rsync -avz <user>@access.grid.unesp.br:software/nn/results/thesis/perfold/ results/thesis/perfold/
 ```
 
+**Watching a phase.** `scripts/pipeline/thesis/thesis_grid_watch.sh` (from `software/nn`) opens
+one ssh session and refreshes in place every 60 s (`--interval`, `--once`, `--jobs`,
+`--since-hours`). Per job it shows the phase, the tasks running and pending, the units done and
+failed against the phase's total (the `.done` markers, the units of record), the mean unit time
+and a time-left estimate, and for each running task its unit, how long that unit has run, the
+task's time against its limit (`NEAR LIMIT` past 85%) and its memory (`sstat` MaxRSS). Do not
+wrap it in a loop of your own: repeated logins trip the cluster's Fail2Ban.
+
 **A trial run.** `THESIS_UNITS=<unit>,<unit>` restricts a phase to the units it names, and the
 array must then be `0..(count − 1)`. These are real units with real markers, so a later
 whole-phase run skips them. Example:
