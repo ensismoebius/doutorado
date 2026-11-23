@@ -443,9 +443,16 @@ rsync -avz <user>@access.grid.unesp.br:software/nn/results/thesis/perfold/ resul
 **Watching a phase.** `scripts/pipeline/thesis/thesis_grid_watch.sh` (from `software/nn`) opens
 one ssh session and refreshes in place every 60 s (`--interval`, `--once`, `--jobs`,
 `--since-hours`). Per job it shows the phase, the tasks running and pending, the units done and
-failed against the phase's total (the `.done` markers, the units of record), the mean unit time
-and a time-left estimate, and for each running task its unit, how long that unit has run, the
-task's time against its limit (`NEAR LIMIT` past 85%) and its memory (`sstat` MaxRSS). Do not
+failed against the phase's total (the `.done` markers, the units of record), the same bar with
+the running units' finished folds counted (it moves during day-long units), the mean unit time
+and a time-left estimate. For each running task: its unit, the unit's finished outer folds
+(`per-fold <f>:` lines of the unit's log over repetitions × `k_folds`), a progress bar of the
+task (its finished units plus the current unit's fold share), how long the unit has run, an
+estimate of the task's time left (the current unit at its own pace per fold, later units at the
+job's mean), the task's time against its limit (`NEAR LIMIT` past 85%, `MAY HIT LIMIT` when the
+estimate passes it) and its memory (`sstat` MaxRSS). The fold columns exist only for per-fold
+units; a fixed-protocol unit logs no per-fold line and shows `-`. Early in a unit the estimate
+reads slow: its first fold also carries the one-off costs (loading; the WORLD resynthesis). Do not
 wrap it in a loop of your own: repeated logins trip the cluster's Fail2Ban.
 
 **A trial run.** `THESIS_UNITS=<unit>,<unit>` restricts a phase to the units it names, and the

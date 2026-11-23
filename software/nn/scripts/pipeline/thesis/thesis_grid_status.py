@@ -58,6 +58,10 @@ HEADER = re.compile(r"^\[thesis-(grid|warm)\] (\S+) task (\d+)/(\d+), revision (
 WARM_HEADER = re.compile(r"^\[thesis-warm\] \S+ \S+ task (\d+)/(\d+): (\S+) revision (\S+)")
 START = re.compile(r"^\[thesis-grid\] (\S+ \S+) start (\S+)$")
 DONE = re.compile(r"^\[thesis-(?:grid|warm)\] (\S+ \S+) done (\S+) \((\d+) s\)$")
+TO_RUN = re.compile(r"(\d+) unit\(s\) to run")
+# Inside a unit's own log (results/thesis/<phase>/logs/<unit>.log, written by thesis):
+RUN_TAG = re.compile(r"^\[Thesis\] run_tag=\S+ .*strategy=(\S+).* running=\[(\d+),(\d+)\)")
+FOLD = re.compile(r"^\[Thesis\] per-fold \d+:")
 
 
 def run(cmd):
@@ -187,7 +191,8 @@ def read_logs(array, name):
         if not m:
             continue
         task = int(m.group(1))
-        info = {"phase": None, "revision": None, "current": None, "started": None, "done": []}
+        info = {"phase": None, "revision": None, "current": None, "started": None, "done": [],
+                "units": None}
         try:
             with open(path, errors="replace") as fh:
                 lines = fh.read().splitlines()
@@ -197,6 +202,8 @@ def read_logs(array, name):
             h = HEADER.match(line)
             if h and h.group(1) == "grid":
                 info["phase"], info["revision"] = h.group(2), h.group(5)
+                n = TO_RUN.search(line)
+                info["units"] = int(n.group(1)) if n else None
                 continue
             w = WARM_HEADER.match(line)
             if w:
@@ -215,6 +222,35 @@ def read_logs(array, name):
                     info["current"], info["started"] = None, None
         logs[task] = info
     return logs
+
+
+def unit_folds(phase, unit):
+    """(folds finished, folds in the unit) of a per-fold unit, from its own log: the run_tag line
+    says which repetitions the unit runs (running=[a,b)), the profile says k_folds, and thesis
+    logs one "per-fold <f>:" line per finished outer fold. None when that cannot be read (a
+    fixed-protocol unit logs no per-fold line; the log may not exist yet)."""
+    log = "results/thesis/{}/logs/{}.log".format(phase, unit)
+    profile = "src/experiments/thesis/profiles/{}/{}.json".format(phase, unit.split(".rep")[0])
+    try:
+        with open(log, errors="replace") as fh:
+            lines = fh.read().splitlines()
+        with open(profile) as fh:
+            k_folds = int(json.load(fh)["training"]["k_folds"])
+    except (OSError, KeyError, ValueError):
+        return None
+    reps = None
+    finished = 0
+    for line in lines:
+        r = RUN_TAG.match(line)
+        if r:
+            if r.group(1) != "per-fold":
+                return None
+            reps = int(r.group(3)) - int(r.group(2))
+        elif FOLD.match(line):
+            finished += 1
+    if reps is None:
+        return None
+    return finished, reps * k_folds
 
 
 def split_phases(sbatch="scripts/pipeline/thesis/thesis_gridunesp.sbatch"):
@@ -323,6 +359,18 @@ def frame(args, split):
             pct = " ({:.0f}%)".format(100.0 * done / total) if total else ""
             lines.append("  units   {}  {}/{} done{}   {} failed".format(
                 bar(done, total), done, total if total is not None else "?", pct, len(failed)))
+            # The same bar with the running units' finished folds counted as fractions of a
+            # unit: it moves during units that take most of a day.
+            partial = 0.0
+            for task in running:
+                info = logs.get(task, {})
+                folds = unit_folds(phase, info["current"]) if info.get("current") else None
+                if folds and folds[1]:
+                    partial += folds[0] / folds[1]
+            if total and partial:
+                lines.append("  folds   {}  {:.1f}/{} units counting the running units' folds "
+                             "({:.1f}%)".format(bar(done + partial, total), done + partial, total,
+                                                 100.0 * (done + partial) / total))
             left = None
             if mean is not None and total is not None and running:
                 left = (total - done) * mean / len(running)
@@ -342,8 +390,9 @@ def frame(args, split):
             lines.append("  memory  peak of finished tasks {}".format(gb(max(peak))))
 
         if running:
-            lines.append("  {:>4}  {:<44} {:>10}  {:>23}  {:>8}".format(
-                "task", "unit", "unit time", "task time / limit", "memory"))
+            lines.append("  {:>4}  {:<36} {:>7}  {:<23} {:>9}  {:>10}  {:>23}  {:>7}".format(
+                "task", "unit", "folds", "task progress", "unit time", "~task left",
+                "task time / limit", "memory"))
             now = time.time()
             for i, (task, row) in enumerate(sorted(running.items())):
                 if i >= args.max_rows:
@@ -352,15 +401,47 @@ def frame(args, split):
                 info = logs.get(task, {})
                 unit = info.get("current") or "-"
                 started = info.get("started")
-                unit_time = hms(now - started) if started else "-"
+                unit_time = now - started if started else None
+                folds = unit_folds(phase, unit) if phase and unit != "-" else None
+                progress, left = task_progress(info, folds, unit_time, mean)
                 limit = row["limit"]
                 flag = ""
-                if limit and row["elapsed"] is not None and row["elapsed"] > NEAR_LIMIT * limit:
-                    flag = "  NEAR LIMIT"
-                lines.append("  {:>4}  {:<44} {:>10}  {:>10} / {:<10}  {:>8}{}".format(
-                    task, unit[:44], unit_time, hms(row["elapsed"]), hms(limit),
-                    gb(rss_now.get(row["raw"])), flag))
+                if limit and row["elapsed"] is not None:
+                    if row["elapsed"] > NEAR_LIMIT * limit:
+                        flag = "  NEAR LIMIT"
+                    elif left is not None and row["elapsed"] + left > limit:
+                        flag = "  MAY HIT LIMIT"
+                lines.append("  {:>4}  {:<36} {:>7}  {:<23} {:>9}  {:>10}  {:>10} / {:<10}  {:>7}{}"
+                             .format(task, unit[:36],
+                                     "{}/{}".format(*folds) if folds else "-",
+                                     "{} {:>3.0f}%".format(bar(progress, 1.0, 16), 100 * progress)
+                                     if progress is not None else "-",
+                                     hms(unit_time), human_span(left), hms(row["elapsed"]),
+                                     hms(limit), gb(rss_now.get(row["raw"])), flag))
     return "\n".join(lines)
+
+
+def task_progress(info, folds, unit_time, mean):
+    """(share of the task done, estimated seconds left) for one running task.
+
+    share = (units finished + folds finished / folds of the current unit) / units of the task,
+    the units being what the task's header said it would run. The time left extrapolates the
+    current unit from its own pace (unit time per finished fold) and prices each unit still to
+    come at this job's mean unit time, or at the current unit's projection when no unit has
+    finished. An estimate: the first fold of a unit also carries its one-off costs (loading;
+    for WORLD, the resynthesis), so early in a unit the pace reads slow."""
+    units = info.get("units")
+    if not units or folds is None:
+        return None, None
+    finished_units = len(info.get("done", []))
+    done_f, total_f = folds
+    share = min(1.0, (finished_units + (done_f / total_f if total_f else 0.0)) / units)
+    if not done_f or unit_time is None:
+        return share, None
+    projected_unit = unit_time * total_f / done_f
+    rest = max(0, units - finished_units - 1)
+    left = (projected_unit - unit_time) + rest * (mean if mean is not None else projected_unit)
+    return share, left
 
 
 def main():
