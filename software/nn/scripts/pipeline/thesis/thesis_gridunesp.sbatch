@@ -114,7 +114,12 @@
 #SBATCH --cpus-per-task=1
 # The decoded dataset alone is 1.6 GB in memory; the voice SNN-AE profiles peaked at ~4.4 GB RSS
 # locally. Out of memory is a loud failure (the task is killed and has no marker).
-#SBATCH --mem=8G
+# 16G since 2026-11-23: pfbiomex's degraded-voice fusions (pfbx01_dysph_earlypron_*, BIOMEX-DB has
+# ~3x the utterances of Coretto) were killed at 8G (job 5335100, exit 137, 24 tasks) and peaked
+# at 9.3 GB when rerun with 16G (job 5338456, sacct MaxRSS). The BIOMEX-DB WORLD phase
+# (pfbxworld) has the same shape. The phases run before this (perfold, pfbiomex's other units)
+# fit in 8G; the limit is not a measure of what each needs.
+#SBATCH --mem=16G
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --output=thesis_run_%A_%a.out
