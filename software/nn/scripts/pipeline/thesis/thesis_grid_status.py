@@ -391,13 +391,16 @@ def frame(args, split):
                 lines.append("  folds   {}  {:.1f}/{} units counting the running units' folds "
                              "({:.1f}%)".format(bar(done + partial, total), done + partial, total,
                                                  100.0 * (done + partial) / total))
+            # The work left is the units not done MINUS the folds the running ones already
+            # finished; spread over the running tasks it is a lower bound on the wall-clock
+            # (no task can do less than its own unit's remaining folds).
             left = None
             if mean is not None and total is not None and running:
-                left = (total - done) * mean / len(running)
+                left = (total - done - partial) * mean / len(running)
             lines.append("          mean {} per unit ({} measured in this job)   {}".format(
                 human_span(mean), len(durations),
-                "~{} left at {} in parallel (estimate)".format(human_span(left), len(running))
-                if left is not None else "time left: -"))
+                "~{} of work left per running task (estimate, a lower bound)".format(
+                    human_span(left)) if left is not None else "time left: -"))
             if failed:
                 shown = ", ".join(failed[:6]) + (" ..." if len(failed) > 6 else "")
                 lines.append("  FAILED  " + shown)
