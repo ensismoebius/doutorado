@@ -15,6 +15,9 @@
 # The per-fold protocol (.wiki/Experiments/Thesis-Per-Fold-Protocol.md), same rules:
 #   THESIS_PHASE=perfold   (100 profiles x 3 repetitions)   THESIS_PHASE=pfbiomex (48 x 3)
 #   THESIS_PHASE=pfworld   (150 whole profiles)             THESIS_PHASE=pfbxworld (90 x 3)
+#   arrays: perfold --array=0-99, pfbiomex 0-47, pfworld 0-149, pfbxworld 0-269 (one unit per
+#   task: a pfbxworld unit redoes its profile's WORLD resynthesis, ~17 h projected, so three in
+#   a row would pass the one-day limit; job 5345820, 2026-11-24)
 # (pfbxworld is split by repetition: a whole BIOMEX-DB WORLD profile takes ~43 h, measured
 # 2026-11-18 on jobs 5330058 and 5330064, beyond the day of the partition.)
 # Their units READ the handcrafted candidates from the feature cache and refuse a miss: run

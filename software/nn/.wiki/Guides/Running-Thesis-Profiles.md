@@ -431,10 +431,13 @@ carry a `selection` block and **no** `feature_extraction`, and they read no winn
 | `perfold` | 100 (`profiles/perfold/pf01_*`) | 100 × 3 repetitions | `--array=0-99` (3 units per task) | `results/thesis/perfold/` |
 | `pfbiomex` | 48 (`pfbiomex/pfbx01_*`) | 48 × 3 | `--array=0-47` | `results/thesis/pfbiomex/` |
 | `pfworld` | 150 (`pfworld/pf01w_*`) | 150 whole profiles | `--array=0-149` | `results/thesis/pfworld/` |
-| `pfbxworld` | 90 (`pfbxworld/pfbx01w_*`) | 90 × 3 | `--array=0-89` | `results/thesis/pfbxworld/` |
+| `pfbxworld` | 90 (`pfbxworld/pfbx01w_*`) | 90 × 3 | `--array=0-269` (1 unit per task) | `results/thesis/pfbxworld/` |
 
 `pfbxworld` is split by repetition because a whole BIOMEX-DB WORLD profile takes about 43 h,
-which is more than the partition's one-day limit.
+which is more than the partition's one-day limit. For the same reason it runs ONE unit per task
+(`--array=0-269`): a unit redoes the profile's WORLD resynthesis and takes ~17 h (projected), so
+three in a row (`--array=0-89`) would be cut by the limit after the first. Job 5345820,
+2026-11-24.
 
 **Run on GridUnesp only, in this order.** These are cluster runs: a single voice unit costs
 hours of CPU even with the cache (table below), and `run_thesis_profiles.sh` has no per-fold
