@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.190341,0.895354,30396.254,52.833,results/thesis/pfworld/models/e05_pf01w_earlypron_probes_jump-r05_rep1/per-fold-fused-early/fold_0.bin
+per-fold-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.257310,0.842464,29544.206,48.318,results/thesis/pfworld/models/e05_pf01w_earlypron_probes_jump-r05_rep1/per-fold-fused-early/fold_1.bin
+per-fold-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.155556,0.919522,3960.210,7.277,results/thesis/pfworld/models/e05_pf01w_earlypron_probes_jump-r05_rep1/per-fold-fused-early/fold_2.bin
+per-fold-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.183333,0.901682,7149.149,12.837,results/thesis/pfworld/models/e05_pf01w_earlypron_probes_jump-r05_rep1/per-fold-fused-early/fold_3.bin
+per-fold-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.244048,0.855796,29146.897,43.838,results/thesis/pfworld/models/e05_pf01w_earlypron_probes_jump-r05_rep1/per-fold-fused-early/fold_4.bin

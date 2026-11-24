@@ -374,13 +374,25 @@ for f in src/experiments/thesis/profiles/world/p01w_voice_probes_*.json \
          src/experiments/thesis/profiles/bxworld/bx01w_voice_probes_*.json; do
   $BIN/thesis_features --config "$f" --out-dir results/thesis/world_margin
 done
-python3 scripts/pipeline/thesis/08_thesis_world_analysis.py \
+python3 scripts/pipeline/thesis/08_thesis_world_analysis.py --protocol fixed \
   --features results/thesis/world_margin \
   --profiles-root src/experiments/thesis/profiles --results-root results/thesis \
   --out results/thesis/world_analysis
 ```
 
-Writes `world_margin.json` (Part A), `world_eer.csv` (Part B) and `sig_*.csv`. It refuses when the
+Writes `world_margin.json` (Part A), `world_eer.csv` (Part B) and `sig_*.csv`.
+Under the per-fold protocol only Part B is run (Part A reads `thesis_features`, one extractor per
+profile and no classifier, so it does not depend on the protocol):
+
+```bash
+python3 scripts/pipeline/thesis/08_thesis_world_analysis.py --protocol per-fold \
+  --bases coretto2017,biomex2021 \
+  --profiles-root src/experiments/thesis/profiles --results-root results/thesis \
+  --out results/thesis/world_analysis
+```
+
+It writes `world_eer_perfold.csv` and `sig_pfworld_*.csv` / `sig_pfbxworld_*.csv`. `--bases` is
+required: name only `coretto2017` while `pfbxworld` is still running. It refuses when the
 clean features of the runs of one base differ, or a profile's results are missing.
 
 **e. Floor test** (is the BIOMEX-DB null a floor effect? cross-half correlation, 100000

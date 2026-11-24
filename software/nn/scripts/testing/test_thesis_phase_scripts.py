@@ -495,6 +495,33 @@ class WorldAnalysis(unittest.TestCase):
         self.assertEqual({b: (ph, pre, src) for b, (ph, pre, src) in self.m08.BASES.items()},
                          {base: (ph, pre, src) for ph, (base, pre, src) in GEN.WORLD_GRIDS.items()})
 
+    def test_per_fold_bases_are_the_generators_per_fold_world_dirs(self):
+        # The per-fold WORLD grid mirrors the fixed one: same sources, the generator's prefixes.
+        for base, (phase, prefix, sources) in self.m08.PER_FOLD_BASES.items():
+            fixed_phase, fixed_prefix, fixed_sources = self.m08.BASES[base]
+            self.assertEqual(phase, "pf" + fixed_phase)
+            self.assertEqual(prefix, GEN.PER_FOLD_WORLD_PREFIX[fixed_prefix])
+            self.assertEqual(sources, fixed_sources)
+
+    def test_protocol_arguments_are_refused_out_of_place(self):
+        script = os.path.join(HERE_PIPE, "08_thesis_world_analysis.py")
+        common = ["--profiles-root", "x", "--results-root", "y", "--out", tempfile.mkdtemp()]
+        cases = (
+            (["--protocol", "per-fold"], "needs --bases"),
+            (["--protocol", "per-fold", "--bases", "coretto2017", "--features", "f"],
+             "--features belongs to --protocol fixed"),
+            (["--protocol", "per-fold", "--bases", "coretto2017,coretto2017"], "at most once"),
+            (["--protocol", "per-fold", "--bases", "nope"], "at most once"),
+            (["--protocol", "fixed"], "needs --features"),
+            (["--protocol", "fixed", "--features", "f", "--bases", "coretto2017"],
+             "takes no --bases"),
+        )
+        for extra, message in cases:
+            r = subprocess.run([sys.executable, script, *extra, *common], check=False,
+                               capture_output=True, text=True)
+            self.assertNotEqual(r.returncode, 0, extra)
+            self.assertIn(message, r.stderr + r.stdout, extra)
+
 
 class Phase00Tables(unittest.TestCase):
     """The tables are defined by the profile set, not by whatever sits in results/."""

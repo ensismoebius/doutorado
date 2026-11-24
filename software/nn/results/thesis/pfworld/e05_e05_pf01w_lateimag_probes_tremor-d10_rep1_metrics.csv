@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.102273,0.967652,36831.639,62.859,results/thesis/pfworld/models/e05_pf01w_lateimag_probes_tremor-d10_rep1/per-fold-fused-late/fold_0.bin
+per-fold-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.216374,0.829383,54933.152,88.799,results/thesis/pfworld/models/e05_pf01w_lateimag_probes_tremor-d10_rep1/per-fold-fused-late/fold_1.bin
+per-fold-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.283333,0.798750,5204.567,9.240,results/thesis/pfworld/models/e05_pf01w_lateimag_probes_tremor-d10_rep1/per-fold-fused-late/fold_2.bin
+per-fold-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.177778,0.901296,33744.018,54.534,results/thesis/pfworld/models/e05_pf01w_lateimag_probes_tremor-d10_rep1/per-fold-fused-late/fold_3.bin
+per-fold-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.208333,0.879748,51275.363,74.755,results/thesis/pfworld/models/e05_pf01w_lateimag_probes_tremor-d10_rep1/per-fold-fused-late/fold_4.bin

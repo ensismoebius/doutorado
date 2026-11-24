@@ -46,7 +46,7 @@ and [Thesis Document › Results to text](../.wiki/Guides/Thesis-Document.md#res
 | `05_thesis_dysphonia_calibration.py` | Praat (parselmouth) calibration of the WORLD rough/tremor requests on real vowels → `results/thesis/dysphonia_calibration/calibration.json` (needed by `00_ --calibration`); minutes, no training |
 | `06_thesis_identity_pilot.py` | verdict of the six `pilot/` profiles (does resynthesis alone move the EER?) → `results/thesis/pilot/pilot_verdict.json` |
 | `07_thesis_identity_margin.py` | the powered identity test on per-utterance margins (`thesis_features` output) → `results/thesis/identity_margin/identity_margin_verdict.json` |
-| `08_thesis_world_analysis.py` | the WORLD grid: Part A margins (confirmatory, each level minus its control) and Part B EER → `results/thesis/world_analysis/` |
+| `08_thesis_world_analysis.py` | the WORLD grid: Part A margins (confirmatory, each level minus its control) and Part B EER → `results/thesis/world_analysis/`. `--protocol fixed` (both parts) or `--protocol per-fold --bases ...` (Part B only, on `pfworld`/`pfbxworld` → `world_eer_perfold.csv`: Part A reads `thesis_features`, one extractor per profile, so it does not change with the protocol) |
 | `09_thesis_world_floor.py` | the pre-registered floor test of the BIOMEX-DB WORLD null → `results/thesis/world_analysis/world_floor.json` |
 | `thesis_cross_profile_significance.py` | the test engine both `.sh` call: per-fold metrics of a family of profiles vs a reference; `--pairing paired\|corrected\|independent`, Holm within the family |
 | `thesis_build_phase00_paraconsistent_tables.py` | `tables/phase00_{hc,ae,pca}_{voice,eegpron,eegimag}.csv` |

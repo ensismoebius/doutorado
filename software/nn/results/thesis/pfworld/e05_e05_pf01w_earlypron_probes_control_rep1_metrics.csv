@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.196023,0.894725,30249.685,48.692,results/thesis/pfworld/models/e05_pf01w_earlypron_probes_control_rep1/per-fold-fused-early/fold_0.bin
+per-fold-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.263158,0.846295,29459.847,45.443,results/thesis/pfworld/models/e05_pf01w_earlypron_probes_control_rep1/per-fold-fused-early/fold_1.bin
+per-fold-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.150000,0.924290,3951.825,7.335,results/thesis/pfworld/models/e05_pf01w_earlypron_probes_control_rep1/per-fold-fused-early/fold_2.bin
+per-fold-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.183333,0.902330,7179.221,13.286,results/thesis/pfworld/models/e05_pf01w_earlypron_probes_control_rep1/per-fold-fused-early/fold_3.bin
+per-fold-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.235119,0.854893,29493.958,43.790,results/thesis/pfworld/models/e05_pf01w_earlypron_probes_control_rep1/per-fold-fused-early/fold_4.bin
