@@ -20,7 +20,18 @@ results/thesis/{phase00,phase01,biomex}/   (committed run outputs)
         └────────────────────► thesis_build_text_numbers.py ─► tables/thesis_numbers.tex ─► \tn{key}
              (+ base_facts.csv, ae_input_reference.csv)     │      in the prose
                                                             └─ CLAIMS: stops if a sentence became false
+
+results/thesis/{perfold,pfbiomex,pfworld,pfbxworld}/   (the per-fold protocol, 2026-11-18)
+        ├─ ..._phase01_auth_tables.py --protocol per-fold ─► tables/perfold_*.csv ─┐ csvreader
+        ├─ ..._biomex_tables.py --protocol per-fold ───────► tables/pfbiomex_*.csv ┘ (not yet in the text)
+        ├─ 10_/11_..._significance.sh ─► results/.../significance_*.csv
+        └─ 08_thesis_world_analysis.py --protocol per-fold ─► world_eer_perfold.csv, sig_pf*world_*.csv
 ```
+
+**The per-fold branch does not reach the prose yet.** `thesis_build_text_numbers.py` reads only
+the fixed-configuration protocol, so every `\tn` and every CLAIM still describes the fixed
+results; the per-fold tables are generated and committed, but no chapter typesets them. Rewriting
+the text for the per-fold protocol (keys, CLAIMS, ch. 8/9) is an open item.
 
 All paths below are relative to the repository root unless stated.
 
@@ -128,6 +139,29 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
 
 # 5. the PDF (§ Building the PDF)
 ```
+
+The per-fold results ([Thesis per-fold protocol](../Experiments/Thesis-Per-Fold-Protocol.md))
+have their own tables and tests. They do not feed step 4 yet:
+
+```bash
+python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol per-fold \
+  --profiles-dir src/experiments/thesis/profiles/perfold --results-dir results/thesis/perfold \
+  --fixed-profiles-dir src/experiments/thesis/profiles/phase01 --fixed-results-dir results/thesis/phase01 \
+  --tables-dir ../../documentation/00-thesis/monography/tables
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol per-fold \
+  --profiles-dir src/experiments/thesis/profiles/pfbiomex --results-dir results/thesis/pfbiomex \
+  --coretto-profiles-dir src/experiments/thesis/profiles/perfold --coretto-results-dir results/thesis/perfold \
+  --tables-dir ../../documentation/00-thesis/monography/tables
+scripts/pipeline/thesis/10_thesis_perfold_significance.sh  src/experiments/thesis/profiles/perfold  results/thesis/perfold
+scripts/pipeline/thesis/11_thesis_pfbiomex_significance.sh src/experiments/thesis/profiles/pfbiomex results/thesis/pfbiomex
+python3 scripts/pipeline/thesis/08_thesis_world_analysis.py --protocol per-fold \
+  --bases coretto2017,biomex2021 \
+  --profiles-root src/experiments/thesis/profiles --results-root results/thesis \
+  --out results/thesis/world_analysis
+```
+
+What each writes, and why the per-fold WORLD analysis has no margin part:
+[Running Thesis Profiles § 10](./Running-Thesis-Profiles.md#10-per-fold-protocol--extractor-and-hyperparameters-chosen-inside-each-fold).
 
 If step 4 stops on a CLAIM, the data contradicts a sentence: **rewrite the sentence**. Do not
 loosen the claim. Then commit results, tables, `thesis_numbers.tex` and the text together.

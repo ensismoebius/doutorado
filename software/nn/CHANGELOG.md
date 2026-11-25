@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-19/25 — per-fold runs, tables and tests; thesis job monitor
+
+### Results (`results/thesis/`, committed with the fold models)
+
+- `perfold` (job 5331068, 300/300 units): no declared significance family changes its verdict
+  against the fixed configuration; EEG chose the fixed winner in every fold, voice chose 8
+  distinct extractors over 15 folds (f619bf648).
+- `pfbiomex` (jobs 5335100 + 5338456, 144/144): four families change verdict (c1e4ecf1e).
+- `pfworld` (job 5345042, 150/150): Part B (EER) 0 of 140 tests significant, as with the fixed
+  configuration (657f8da3c). `pfbxworld` (job 5345820) running.
+
+### Analysis scripts (`scripts/pipeline/thesis/`)
+
+- `thesis_build_phase01_auth_tables.py` and `thesis_build_biomex_tables.py` take a required
+  `--protocol fixed|per-fold`; per-fold writes `perfold_*.csv` (adds `_selection` and
+  `_vs_fixed`) and `pfbiomex_*.csv`; the fixed tables are byte-identical (f619bf648, c1e4ecf1e).
+- `10_thesis_perfold_significance.sh`, `11_thesis_pfbiomex_significance.sh`: the declared
+  families of `03_`/`04_` on the per-fold names; `thesis_cross_profile_significance.py` pairs a
+  per-fold profile on its flat outer folds.
+- `08_thesis_world_analysis.py --protocol per-fold --bases ...`: Part B only (a profile has no
+  single extractor for the margin); writes `world_eer_perfold.csv`, `sig_pf*world_*.csv`.
+- `thesis_grid_status.py` + `thesis_grid_watch.sh`: one ssh session, per job units done/failed
+  and a job bar counting folds, per task folds, bar, measured pace per fold, time left, memory
+  and limit warnings; markers from another deploy are flagged (de979e3d5, d576a52cd, e30d1e903,
+  50cb794f9).
+- `thesis_gridunesp.sbatch`: `--mem=16G` (pfbiomex degraded-voice units peaked at 9.3 GB and were
+  killed at 8 GB, 423acdf4a); pfbxworld documented as `--array=0-269`, one unit per task (a unit
+  takes ~11 h, 93a8a4739).
+
+### Documentation
+
+- Measured per-phase costs (Running Thesis Profiles), the per-fold branch of the results-to-text
+  chain (Thesis Document), the thesis rules of the GridUnesp guide (cache warm-up, no redeploy
+  mid-campaign, 16 GB, the monitor), the protocol page's status, the Home index.
+
 ## 2026-11-18/19 — per-fold protocol; feature cache
 
 ### Thesis experiment (`src/experiments/thesis/`)

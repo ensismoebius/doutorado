@@ -1,7 +1,11 @@
 # Thesis: extractor and hyperparameters chosen inside each fold (pre-registration draft)
 
-Status: **design agreed with the author 2026-11-18; stages (a)-(e) of §6 implemented and tested
-on `thesis-per-fold-protocol`; nothing run.**
+Status: **design agreed with the author 2026-11-18; stages (a)-(f) of §6 implemented, tested
+and run on `thesis-per-fold-protocol`.** Runs of record (deploy `271cbb5b`, one CPU per task):
+`perfold` 300/300 units (job 5331068), `pfbiomex` 144/144 (5335100 + rerun 5338456 at 16G),
+`pfworld` 150/150 (5345042), `pfbxworld` running (5345820, 208/270 on 2026-11-25). Tables and the
+declared tests are generated for the first three (§6 amendments); the thesis text still quotes
+the fixed-configuration results.
 This page is the rule. It is committed before any code that produces a result, and a result
 never changes it: a deviation is written here as a dated amendment, with its reason, before the
 run it affects.

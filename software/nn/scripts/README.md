@@ -23,7 +23,7 @@ Conventions every script here follows: **every argument is required** (no defaul
 incomplete or unreadable input is **refused** with exit status ≠ 0 (never skipped), and
 scripts in an ordered chain carry their position in the name (`01_`, `02_`, …).
 
-Python: `python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt`. The heavy
+Python: the machine's single shared venv — `~/.venv/bin/pip install -r scripts/requirements.txt` (CMake configure does this automatically). The heavy
 packages (`torch`, `snntorch`, …) are needed only by the PyTorch references and analyses;
 the pipeline scripts need only numpy and scipy, and several only the standard library; the
 dysphonia calibration (`05_`) also needs `praat-parselmouth` (Praat 6.1.38) and a C++ compiler.
@@ -53,7 +53,7 @@ and [Thesis Document › Results to text](../.wiki/Guides/Thesis-Document.md#res
 | `thesis_build_phase01_auth_tables.py` | `--protocol fixed`: `tables/phase01_{auth,controls,dysphonia,energy,extractors}.csv`; `--protocol per-fold` (+ `--fixed-profiles-dir/--fixed-results-dir`): the same five as `perfold_*.csv`, plus `perfold_selection.csv` (the folds' choices) and `perfold_vs_fixed.csv` |
 | `thesis_build_biomex_tables.py` | `--protocol fixed`: `tables/biomex_{auth,dysphonia}.csv`, each BIOMEX cell beside its Coretto cell; `--protocol per-fold`: `pfbiomex_{auth,dysphonia,selection}.csv`, beside the Coretto per-fold cell |
 | `thesis_build_text_numbers.py` | `tables/thesis_numbers.tex`: every number the prose quotes (`\tn{key}`), and `CLAIMS`, the qualitative sentences checked against the data |
-| `thesis_gridunesp.sbatch` | one phase as a Slurm array on GridUnesp: `THESIS_PHASE=phase00 sbatch --array=0-63 …` (phase01: `0-141`, biomex: `0-47`, world: `0-149`, bxworld: `0-89`; per-fold protocol: perfold `0-99`, pfbiomex `0-47`, pfworld `0-149`, pfbxworld `0-269` (one unit per task: a unit takes ~17 h)). `THESIS_UNITS=a.rep0,b.rep0` restricts it to named units (a trial run) |
+| `thesis_gridunesp.sbatch` | one phase as a Slurm array on GridUnesp: `THESIS_PHASE=phase00 sbatch --array=0-63 …` (phase01: `0-141`, biomex: `0-47`, world: `0-149`, bxworld: `0-89`; per-fold protocol: perfold `0-99`, pfbiomex `0-47`, pfworld `0-149`, pfbxworld `0-269` (one unit per task: a unit takes ~11 h, max 12.5 h)). `THESIS_UNITS=a.rep0,b.rep0` restricts it to named units (a trial run) |
 | `thesis_grid_watch.sh` | live view of the thesis arrays on GridUnesp, refreshed in place over ONE ssh session: per job the phase, tasks running/pending/finished, units done/failed against the phase total, mean unit time and a time-left estimate, and per running task its unit, its folds done, a task progress bar, unit time, an estimate of the task's time left, task time against the limit (`NEAR LIMIT` past 85%, `MAY HIT LIMIT` by the estimate) and memory. Runs `thesis_grid_status.py` on the login node (sent over stdin: no redeploy) |
 | `thesis_warm_feature_cache.sbatch` | fills `results/thesis/feature_cache/` before any per-fold phase, once per deploy: `sbatch --array=0-10 …` (one task per data view; the per-fold units only read the cache and stop on a miss) |
 

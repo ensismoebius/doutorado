@@ -24,6 +24,15 @@ The experiment consists of two stages:
 > the committed results through generated tables and `\tn{}` keys (§10); the Phase 00 winners
 > are in `results/thesis/phase00/winners.json`.
 
+> **Status (2026-11-25): the per-fold protocol is the primary result.** Each outer fold now
+> chooses its extractor ($D_{\text{pen}}$ on its own training speakers) and the classifier's
+> hyperparameters (inner search), so no test speaker helps choose what it is scored with
+> ([Thesis per-fold protocol](Thesis-Per-Fold-Protocol.md)). `perfold`, `pfbiomex` and `pfworld`
+> have run and are committed with their tables (`perfold_*.csv`, `pfbiomex_*.csv`,
+> `world_eer_perfold.csv`) and declared tests (`10_`, `11_`, `08_ --protocol per-fold`);
+> `pfbxworld` is running. The fixed-configuration results below become the comparison. The
+> thesis text has not been rewritten for it yet.
+
 > **Follow-up search:** because the hand-picked autoencoder profiles lose to handcrafted
 > features on `D_penalized` (the winner of every signal in `winners.json` is handcrafted), the [paraconsistentGA](ParaconsistentGA.md)
 > experiment searches the same architecture axes automatically with NSGA-II, to test
@@ -1220,7 +1229,7 @@ runs from start to finish.
 |---|---|---|---|---|
 | 00 | one profile (all its repetitions) | 275 | `--array=0-63`, ~4–5 units per task | A handcrafted profile extracts its features once for all repetitions, because they do not depend on the seed. Split by repetition, it would extract them three times. The slowest profile took 230 s (array 5323006). |
 | 01 | one (profile, repetition) | 142 × 3 = 426 | `--array=0-141`, 3 units per task | Repetitions are whole trainings with their own seeds. |
-| `perfold`, `pfbiomex`, `pfbxworld` | one (profile, repetition) | 300, 144, 270 | `--array=0-99`, `0-47`, `0-269` (1 unit per task: ~17 h each) | As Phase 01. `pfbxworld` must be split: a whole BIOMEX-DB WORLD profile takes ~43 h. |
+| `perfold`, `pfbiomex`, `pfbxworld` | one (profile, repetition) | 300, 144, 270 | `--array=0-99`, `0-47`, `0-269` (1 unit per task: ~11 h each, max 12.5 h) | As Phase 01. `pfbxworld` must be split: a whole BIOMEX-DB WORLD profile takes ~43 h. |
 | `pfworld` | one profile | 150 | `--array=0-149` | As `world`: the WORLD resynthesis runs once before the repetition loop. |
 
 The four per-fold phases ([Thesis per-fold protocol](Thesis-Per-Fold-Protocol.md)) read the

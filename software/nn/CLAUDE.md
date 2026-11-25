@@ -353,6 +353,9 @@ When adding/changing any layer, loss, optimizer, or training feature:
 | Exp05 classifiers | `src/experiments/thesis/lib/src/ThesisClassifiers.cpp` |
 | Exp05 output writers | `src/experiments/thesis/lib/src/ThesisOutput.cpp` |
 | Exp05 profile audit tests | `src/experiments/thesis/tests/thesis_profile_audit_gtest.cpp` |
+| Exp05 per-fold selection (extractor + HP search inside each fold) | `src/experiments/thesis/lib/src/ThesisPerFold.cpp` |
+| Exp05 handcrafted feature cache | `src/experiments/thesis/lib/src/FeatureDiskCache.cpp` |
+| Thesis GridUnesp job monitor | `scripts/pipeline/thesis/thesis_grid_watch.sh` (runs `thesis_grid_status.py` on the login node) |
 | Paper CSV aggregator | `scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py` |
 | LOSO run script | `scripts/pipeline/meeting01/01_meeting01_run_loso.sh` |
 | Baseline pre-validation (run / report) | `scripts/pipeline/meeting01/00_meeting01_prevalidate_baselines.sh`, `00_meeting01_prevalidation_report.py` |

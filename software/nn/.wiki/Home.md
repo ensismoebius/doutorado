@@ -125,6 +125,9 @@ Run in order; `thesis` is the primary experiment.
 - [Meeting01](./Experiments/Meeting01.md) — what spiking costs an autoencoder (conference paper)
 - [Thesis](./Experiments/Thesis.md) — **thesis primary**: biometric authentication
   of dysphonic speakers via imagined speech
+  - [Per-fold protocol](./Experiments/Thesis-Per-Fold-Protocol.md) — **the primary result
+    since 2026-11-18**: extractor and classifier hyperparameters chosen inside each outer fold,
+    on its training speakers only; pre-registered rule, dated amendments, measured costs
   - [Voice degradation proposal](./Experiments/Thesis-Voice-Degradation-Proposal.md) — the WORLD
     dysphonia profiles: decisions, Praat calibration, the pre-registered identity tests, the
     WORLD grid and the floor test, with their results

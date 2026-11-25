@@ -336,7 +336,7 @@ cmake --build out/build/max-performance --target thesis thesis_features -j$(npro
 vowels, the request of each rough/tremor level that yields the measured target.
 
 ```bash
-.venv/bin/python scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py \
+~/.venv/bin/python scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py \
   --db ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite \
   --subjects S10 S03 --jobs 10 --out-dir results/thesis/dysphonia_calibration
 ```
@@ -435,9 +435,9 @@ carry a `selection` block and **no** `feature_extraction`, and they read no winn
 
 `pfbxworld` is split by repetition because a whole BIOMEX-DB WORLD profile takes about 43 h,
 which is more than the partition's one-day limit. For the same reason it runs ONE unit per task
-(`--array=0-269`): a unit redoes the profile's WORLD resynthesis and takes ~17 h (projected), so
-three in a row (`--array=0-89`) would be cut by the limit after the first. Job 5345820,
-2026-11-24.
+(`--array=0-269`): a unit redoes the profile's WORLD resynthesis and takes ~11 h (mean 11.2 h,
+max 12.5 h, measured on job 5345820; ~17 h was projected at submission), so three in a row
+(`--array=0-89`) would pass the limit.
 
 **Run on GridUnesp only, in this order.** These are cluster runs: a single voice unit costs
 hours of CPU even with the cache (table below), and `run_thesis_profiles.sh` has no per-fold
@@ -488,7 +488,10 @@ whole-phase run skips them. Example:
 | | Value | Source |
 |---|---|---|
 | Warm array | 11 tasks, 8 min (EEG views) to 3 h 47 min (voice views), 552 cached matrices | job 5331039, 2026-11-19 |
-| `perfold` unit, with the cache | mean 55 min, median 28 min, range 11–198 min (dysphonia units are the slowest) | first 91 units of job 5331068 |
+| `perfold` unit (one repetition), with the cache | mean 2.4 h, median 3.0 h, max 3.7 h; 300 units, ~710 CPU·h | job 5331068, 2026-11-19 |
+| `pfbiomex` unit (one repetition) | mean 7.2 h, median 9.9 h, max 11.2 h (the degraded-voice units are the slowest); 144 units, ~1 036 CPU·h; peak 9.3 GB | jobs 5335100 + 5338456, 2026-11-23 |
+| `pfworld` unit (a whole profile, 3 repetitions) | mean 10.8 h, max 12.1 h; 150 units, ~1 614 CPU·h; peak 6.0 GB | job 5345042, 2026-11-24 |
+| `pfbxworld` unit (one repetition) | mean 11.2 h, max 12.5 h; peak 9.3 GB | job 5345820, first 208 of 270 units, 2026-11-25 |
 | Same voice unit, without the cache | 14 300–25 000 s, of which ~12 350 s is the handcrafted extraction | debug run, 2026-11-18 |
 
 **What can stop a phase** (each is a loud stop, never a skip):
