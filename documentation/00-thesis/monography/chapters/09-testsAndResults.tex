@@ -11,7 +11,10 @@
 	\autoref{chap:propApproach}.
 
 	\par \textbf{De onde vêm os números.} A Fase~00 tem \tn{p00.n.total}
-	configurações e a Fase~01, \tn{p01.n.total}; cada uma foi executada três
+	configurações e a Fase~01, \tn{pf01.n.total}, com o extrator e os
+	hiperparâmetros escolhidos dentro de cada dobra; as \tn{p01.n.total} da
+	configuração fixa, que a precedeu, entram como comparação
+	(\autoref{sec:perfoldVsFixed}). Cada uma foi executada três
 	vezes, em um processo de um único \textit{thread}, no \textit{cluster}
 	GridUnesp, com o mesmo código de extração e de classificação nas duas fases. Os resultados
 	aqui apresentados substituem todos os anteriores, que foram descartados por
@@ -110,9 +113,10 @@
 	\tn{p00.voice.stab.fold.alt.linear} deles usam a escala linear. A afirmação
 	que os dados sustentam para a voz é, portanto, ``descritores por banda sem etapa
 	cepstral, preferencialmente em escala linear'', e não ``a \textit{wavelet}
-	Haar é a melhor''. Como a Fase~01 usa o vencedor escolhido com todos os
-	locutores, há nela um viés de seleção otimista na voz; ele é pequeno diante
-	das diferenças discutidas adiante, mas existe e não foi removido.
+	Haar é a melhor''. É por essa instabilidade que a Fase~01 não usa o
+	vencedor escolhido com todos os locutores: cada dobra refaz a escolha com os
+	seus locutores de treino (\autoref{sec:fase01}), e o que as dobras
+	escolheram está na \autoref{sec:perfoldEscolhas}.
 
 	\par \textbf{Os extratores automatizados ficam atrás do manual nos três
 	sinais.} O melhor \textit{autoencoder} é o \tn{p00.voice.best.ae.label} na
@@ -228,10 +232,13 @@
 	\section{Fase 01 --- Autenticação}
 	\label{chap:testsResults:sec:Fase01}
 
-	\par A Fase~01 treina o classificador sobre o extrator vencedor da Fase~00 e
-	mede \ac{EER} e \ac{AUC} por dobra de validação cruzada, em quatro conjuntos
-	de execuções (\autoref{sec:fase01}): a grade principal, os controles, a
-	disfonia simulada e a comparação de extratores. As tabelas são geradas
+	\par A Fase~01 mede \ac{EER} e \ac{AUC} por dobra de validação cruzada, com
+	o extrator e os hiperparâmetros do classificador escolhidos dentro de cada
+	dobra, só com os seus locutores de treino (\autoref{sec:fase01}), em quatro
+	conjuntos de execuções: a grade principal, os controles, a disfonia simulada
+	e a comparação de extratores. A \autoref{sec:perfoldEscolhas} mostra o que as
+	dobras escolheram, e a \autoref{sec:perfoldVsFixed} compara os resultados com
+	os da configuração fixa que precedeu este protocolo. As tabelas são geradas
 	automaticamente a partir dos resultados (\autoref{apend:reprodutibilidade}).
 	Em todas, o \ac{EER} é a média das três repetições, e $\sigma$ é o desvio
 	padrão entre elas. Um \ac{EER} de $0{,}5$ e uma \ac{AUC} de $0{,}5$
@@ -249,70 +256,41 @@
 
 	\subsection{Grade principal}
 
-	\par A Tabela~\ref{tab:phase01auth} traz as \tn{p01.n.grid} configurações da
-	grade --- fonte $\times$ modo de texto $\times$ esquema de validação cruzada
-	$\times$ padronização --- ordenadas por \ac{EER} crescente. A melhor
-	configuração da grade é ``\tn{p01.best.label}'', com
-	$\text{EER} = \tn{p01.best.eer}$ e $\text{AUC} = \tn{p01.best.auc}$: longe do
-	acaso, e ainda longe de uma autenticação utilizável na prática. Quatro
-	padrões emergem da tabela.
+	\par A Tabela~\ref{tab:perfoldAuth} traz as \tn{pf01.n.grid} configurações da
+	grade --- fonte $\times$ modo de texto ---, ordenadas por \ac{EER} crescente.
+	A melhor é ``\tn{pf01.best.label}'', com $\text{EER} = \tn{pf01.best.eer}$ e
+	$\text{AUC} = \tn{pf01.best.auc}$: longe do acaso, e ainda longe de uma
+	autenticação utilizável na prática. Três padrões emergem da tabela.
 
-	\par \textbf{(i) O \ac{EEG} e as fusões ficam à frente da voz.} A primeira
-	configuração de voz aparece na \tn{p01.voice.first_rank}ª posição
-	($\text{EER} = \tn{p01.voice.best.eer}$); todas as anteriores são de
-	\ac{EEG} ou de fusão com características padronizadas. A diferença é grande
-	em tamanho de efeito (o $d$ de Cohen das \tn{siggroup.vsvoice.n} comparações
-	com a voz vai de $\tn{sig.vsvoice_dep.d.max}$ a
-	$\tn{sig.vsvoice_indep.d.min}$), mas \emph{nenhuma} dessas comparações é
-	significativa após a correção ($p_{\text{Holm}} \ge
-	\tn{siggroup.vsvoice.pholm.min}$; o menor $p$ sem correção é
-	$\tn{siggroup.vsvoice.p.min}$). A vantagem do \ac{EEG} sobre a voz é,
+	\par \textbf{(i) O \ac{EEG} e as fusões ficam à frente da voz.} As duas
+	configurações de voz são as duas últimas da grade (a primeira delas na
+	\tn{pf01.voice.first_rank}ª posição, com
+	$\text{EER} = \tn{pf01.grid.voice.dep.eer}$). A diferença é grande em
+	tamanho de efeito (o $d$ de Cohen das \tn{pfsiggroup.vsvoice.n} comparações
+	com a voz vai de $\tn{pfsig.vsvoice_dep.d.max}$ a
+	$\tn{pfsig.vsvoice_indep.d.min}$), mas \emph{nenhuma} dessas comparações é
+	significativa, nem sem correção (o menor $p$ sem correção é
+	$\tn{pfsiggroup.vsvoice.p.min}$). A vantagem do \ac{EEG} sobre a voz é,
 	portanto, uma tendência consistente, e não um resultado estabelecido. A
 	\autoref{sec:respostasQuestoes} discute por que ela pede cautela mesmo como
 	tendência.
 
 	\par \textbf{(ii) A fusão não se distingue do \ac{EEG} sozinho.} Com frases
-	vistas, a fusão tardia tem \ac{EER} de $\tn{p01.grid.lateimag.dep.flat.std.eer}$
-	(fala imaginada) e $\tn{p01.grid.latepron.dep.flat.std.eer}$ (pronunciada),
-	contra $\tn{p01.grid.eegimag.dep.flat.std.eer}$ e
-	$\tn{p01.grid.eegpron.dep.flat.std.eer}$ do \ac{EEG} sozinho. Nenhuma das
-	\tn{siggroup.fusion.n} comparações entre uma fusão e o \ac{EEG} da mesma
-	condição é significativa ($p_{\text{Holm}} \ge
-	\tn{siggroup.fusion.pholm.min}$), e com frases não vistas a ordem chega a se
-	inverter. A fusão supera a voz isolada na mesma medida em que o \ac{EEG} a
-	supera; os dados não mostram que somar a voz ao \ac{EEG} acrescente algo.
+	vistas, a fusão tardia tem \ac{EER} de $\tn{pf01.grid.lateimag.dep.eer}$
+	(fala imaginada) e $\tn{pf01.grid.latepron.dep.eer}$ (pronunciada), contra
+	$\tn{pf01.grid.eegimag.dep.eer}$ e $\tn{pf01.grid.eegpron.dep.eer}$ do
+	\ac{EEG} sozinho. Nenhuma das \tn{pfsiggroup.fusion.n} comparações entre uma
+	fusão e o \ac{EEG} da mesma condição é significativa ($p_{\text{Holm}} \ge
+	\tn{pfsiggroup.fusion.pholm.min}$), e com frases não vistas a ordem se
+	inverte na fala pronunciada ($\tn{pf01.grid.eegpron.indep.eer}$ do \ac{EEG}
+	contra $\tn{pf01.grid.latepron.indep.eer}$ da fusão tardia). Os dados não
+	mostram que somar a voz ao \ac{EEG} acrescente algo.
 
-	\par \textbf{(iii) A padronização é necessária.} As características
-	padronizadas têm \ac{EER} menor que as brutas em \tn{p01.std.better} das
-	\tn{p01.std.pairs} combinações de fonte, modo de texto e esquema de
-	validação. O efeito é pequeno na voz (média de $\tn{p01.std.voice.std}$
-	contra $\tn{p01.std.voice.raw}$) e decisivo no \ac{EEG} e nas fusões
-	($\tn{p01.std.eegfusion.std}$ contra $\tn{p01.std.eegfusion.raw}$): sem
-	padronização, essas fontes ficam entre $\tn{p01.std.eegfusion.raw.min}$ e
-	$\tn{p01.std.eegfusion.raw.max}$, perto do acaso. A explicação mais simples
-	é de escala: os seis descritores têm unidades diferentes (a energia e a
-	energia de Teager crescem com o quadrado da amplitude, a taxa de cruzamentos
-	por zero fica entre 0 e 1, a entropia é medida em bits), as energias do
-	\ac{EEG}, em unidades do amplificador, têm ordens de grandeza muito
-	diferentes das da voz, e sem padronização as de maior valor dominam a
-	entrada da rede. Essa explicação
-	não foi testada isoladamente.
-
-	\par \textbf{(iv) A validação plana dá \ac{EER} menor que a aninhada.} Isso
-	ocorre em \tn{p01.cv.flat_better} das \tn{p01.cv.pairs} combinações de fonte
-	e modo de texto com características padronizadas (média de
-	$\tn{p01.cv.mean.flat}$ contra $\tn{p01.cv.mean.nested}$). A direção é a
-	esperada: a aninhada reserva parte do treino para validação, e cada modelo
-	treina com menos dados. Como nenhum hiperparâmetro foi ajustado com os dados
-	de teste em nenhum dos dois esquemas, a validação plana não é, aqui, uma
-	estimativa otimista por seleção; a diferença mede o custo de reservar
-	dados.
-
-	\par \textbf{A condição do \ac{EEG} quase não muda o resultado.} O \ac{EEG}
-	de fala imaginada e o de fala pronunciada dão \ac{EER} próximos em todas as
-	fontes, e nenhuma das \tn{siggroup.cond.n} comparações entre as duas
-	condições é significativa ($p_{\text{Holm}} \ge
-	\tn{siggroup.cond.pholm.min}$). Para a proposta deste trabalho o achado é
+	\par \textbf{(iii) A condição do \ac{EEG} quase não muda o resultado.} O
+	\ac{EEG} de fala imaginada e o de fala pronunciada dão \ac{EER} próximos em
+	todas as fontes, e nenhuma das \tn{pfsiggroup.cond.n} comparações entre as
+	duas condições é significativa ($p_{\text{Holm}} \ge
+	\tn{pfsiggroup.cond.pholm.min}$). Para a proposta deste trabalho o achado é
 	favorável --- o \ac{EEG} de fala imaginada, que não exige fonação, autentica
 	tão bem quanto o de fala pronunciada ---, mas ele também é o que se esperaria
 	se o classificador estivesse reconhecendo características do registro de
@@ -339,44 +317,91 @@
 		\vspace{\TableGap}%
 	}
 
-	\Phaseonetable{tables/phase01_auth.csv}%
-		{Grade principal da Fase 01 (autenticação com a DSNN), ordenada por EER médio crescente}%
-		{tab:phase01auth}
+	\Phaseonetable{tables/perfold_auth.csv}%
+		{Grade principal da Fase 01 (autenticação com a DSNN; extrator e hiperparâmetros escolhidos em cada dobra), ordenada por EER médio crescente}%
+		{tab:perfoldAuth}
+
+	\subsection{O que as dobras escolheram}
+	\label{sec:perfoldEscolhas}
+
+	\par A Tabela~\ref{tab:perfoldSelection} mostra, para cada célula da grade e
+	dos controles, o extrator e o ponto da busca que as 15 dobras escolheram: o
+	mais escolhido, em quantas dobras, e quantos diferentes apareceram.
+
+	\par \textbf{No \ac{EEG}, a escolha do extrator é a mesma em todas as dobras;
+	na voz, não.} Nas duas condições do \ac{EEG}, as \tn{pf01.sel.eeg.folds}
+	dobras de todas as células escolheram o \tn{pf01.sel.eeg.mode.label}, o mesmo
+	vencedor da Fase~00 na base inteira. Na voz (e nas fusões, que leem a voz
+	com o extrator da voz), as dobras escolheram \tn{pf01.sel.voice.distinct}
+	extratores diferentes, todos manuais de Categoria~1; o
+	\tn{pf01.sel.voice.mode.label}, vencedor da Fase~00, é o mais escolhido, em
+	\tn{pf01.sel.voice.mode.folds.max} das \tn{pf01.sel.voice.folds} dobras. É o
+	que a estabilidade da Fase~00 antecipava
+	(\autoref{chap:testsResults:sec:Fase00}): a família e a escala são firmes, a
+	\textit{wavelet} varia.
+
+	\par \textbf{Os hiperparâmetros variam de dobra para dobra.} Cada célula
+	de rede escolheu de \tn{pf01.sel.grid.points.min} a
+	\tn{pf01.sel.grid.points.max} pontos diferentes da grade nas suas 15 dobras,
+	e nenhum ponto é escolhido pela maioria das dobras de célula alguma. Uma
+	leitura possível, não testada, é que a superfície da busca é quase plana:
+	vários pontos dão \ac{EER} de validação próximos, e a escolha entre eles
+	depende mais de quais locutores caíram na validação interna do que do ponto.
+
+	% Colunas: classifier,source,text,folds,extractor,n_extractors,grid_point,n_grid_points
+	\par\medskip
+	{\fontsize{7.4}{9}\selectfont\setlength{\tabcolsep}{2pt}
+	\tableZebraStripe
+	\begin{longtable}{@{}l>{\raggedright\arraybackslash}p{0.2\textwidth}l>{\raggedright\arraybackslash}p{0.22\textwidth}r>{\raggedright\arraybackslash}p{0.2\textwidth}r@{}}
+		\caption[O que as dobras escolheram]{Extrator e ponto da busca escolhidos pelas 15 dobras de cada célula: o mais escolhido (em quantas dobras) e o número de escolhas diferentes. Um ponto é largura/blocos/taxa de aprendizado/decaimento de peso; ``$n$ empatados'' indica $n$ pontos escolhidos o mesmo número de vezes; o cosseno não tem hiperparâmetros} \label{tab:perfoldSelection} \\
+		\tableHeaderRow \textbf{Classif.} & \textbf{Fonte} & \textbf{Frases} & \textbf{Extrator} & \textbf{Dif.} & \textbf{Ponto da busca} & \textbf{Dif.} \\
+		\endfirsthead
+		\tableHeaderRow \textbf{Classif.} & \textbf{Fonte} & \textbf{Frases} & \textbf{Extrator} & \textbf{Dif.} & \textbf{Ponto da busca} & \textbf{Dif.} \\
+		\endhead
+		\endfoot
+		\bottomrule
+		\endlastfoot
+		\csvreader{tables/perfold_selection.csv}{}%
+			{\csvcoli & \csvcolii & \csvcoliii & \csvcolv & \csvcolvi & \csvcolvii & \csvcolviii \\}%
+	\end{longtable}%
+	}
+	\vspace{\TableGap}
 
 	\subsection{Controles: o que a rede de pulsos acrescenta}
 
-	\par A Tabela~\ref{tab:phase01controls} compara, para cada fonte e modo de
+	\par A Tabela~\ref{tab:perfoldControls} compara, para cada fonte e modo de
 	texto, a \ac{DSNN} com seus dois controles: a rede gêmea não pulsante
-	(\ac{ANN}), que difere dela apenas no neurônio, e o cosseno direto sobre as
-	características, sem rede alguma.
+	(\ac{ANN}), que difere dela no neurônio e passa pela mesma busca, e o cosseno
+	direto sobre as características, sem rede alguma.
 
 	\par \textbf{A rede de pulsos não se distingue da rede gêmea.} A \ac{DSNN}
-	tem \ac{EER} menor que a \ac{ANN} em \tn{p01.ctrl.dsnn_better_ann} das
-	\tn{p01.ctrl.cells} combinações, com diferença média de
-	$\tn{p01.ctrl.dsnn_minus_ann.mean}$ (de $\tn{p01.ctrl.dsnn_minus_ann.min}$ a
-	$\tn{p01.ctrl.dsnn_minus_ann.max}$), e nenhuma das
-	\tn{siggroup.ctrl.ann.n} comparações é significativa ($p \ge
-	\tn{siggroup.ctrl.ann.p.min}$ mesmo sem correção). Trocar o neurônio de
-	pulso por uma ReLU não muda o desempenho de autenticação de forma
-	detectável.
+	tem \ac{EER} menor que a \ac{ANN} em \tn{pf01.ctrl.dsnn_better_ann} das
+	\tn{pf01.cells} combinações, com diferença média de
+	$\tn{pf01.ctrl.dsnn_minus_ann.mean}$ (de $\tn{pf01.ctrl.dsnn_minus_ann.min}$
+	a $\tn{pf01.ctrl.dsnn_minus_ann.max}$), e nenhuma das
+	\tn{pfsiggroup.ctrl.ann.n} comparações é significativa ($p \ge
+	\tn{pfsiggroup.ctrl.ann.p.min}$ mesmo sem correção). Em média, as duas
+	empatam ($\tn{pf01.ctrl.mean.dsnn}$ e $\tn{pf01.ctrl.mean.ann}$): trocar o
+	neurônio de pulso por uma ReLU, cada rede no seu melhor ponto da grade, não
+	muda o desempenho de autenticação de forma detectável.
 
 	\par \textbf{A rede acrescenta pouco ao extrator.} O cosseno direto tem
-	\ac{EER} médio de $\tn{p01.ctrl.mean.cosine}$, contra
-	$\tn{p01.ctrl.mean.dsnn}$ da \ac{DSNN} e $\tn{p01.ctrl.mean.ann}$ da
-	\ac{ANN}. A \ac{DSNN} é melhor em \tn{p01.ctrl.dsnn_better_cosine} das
-	\tn{p01.ctrl.cells} combinações, mas também aqui nenhuma das
-	\tn{siggroup.ctrl.cosine.n} comparações é significativa
-	($p_{\text{Holm}} \ge \tn{siggroup.ctrl.cosine.pholm.min}$). A maior parte
+	\ac{EER} médio de $\tn{pf01.ctrl.mean.cosine}$. A \ac{DSNN} é melhor em
+	\tn{pf01.ctrl.dsnn_better_cosine} das \tn{pf01.cells} combinações, mas
+	nenhuma das \tn{pfsiggroup.ctrl.cosine.n} comparações é significativa
+	($p_{\text{Holm}} \ge \tn{pfsiggroup.ctrl.cosine.pholm.min}$). A maior parte
 	do desempenho medido na Fase~01 já está nas características extraídas e
 	padronizadas; o classificador treinado contribui com uma melhora de alguns
-	pontos percentuais que os dados não permitem confirmar.
+	pontos percentuais que os dados desta base não permitem confirmar (a
+	BIOMEX-DB, com três vezes mais locutores, confirma parte dela,
+	\autoref{sec:resultadosBiomex}).
 
-	% Colunas: source,text,dsnn_eer,dsnn_std,ann_eer,ann_std,cosine_eer,(energia: ver tab:phase01energy)
+	% Colunas: source,text,dsnn_eer,dsnn_std,ann_eer,ann_std,cosine_eer,(energia: ver tab:perfoldEnergy)
 	\par\medskip
 	{\footnotesize\setlength{\tabcolsep}{4pt}
 	\tableZebraStripe
 	\begin{longtable}{@{}llrrrrr@{}}
-		\caption{EER da DSNN e dos dois controles, por fonte e modo de texto (validação plana, características padronizadas)} \label{tab:phase01controls} \\
+		\caption{EER da DSNN e dos dois controles, por fonte e modo de texto (extrator e hiperparâmetros escolhidos em cada dobra)} \label{tab:perfoldControls} \\
 		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} \\
 		\endfirsthead
 		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} \\
@@ -384,7 +409,7 @@
 		\endfoot
 		\bottomrule
 		\endlastfoot
-		\csvreader{tables/phase01_controls.csv}{}%
+		\csvreader{tables/perfold_controls.csv}{}%
 			{\csvcoli & \csvcolii & \dec{\csvcoliii} & \dec{\csvcoliv} & \dec{\csvcolv} & \dec{\csvcolvi} & \dec{\csvcolvii} \\}%
 	\end{longtable}%
 	}
@@ -392,35 +417,41 @@
 
 	\subsection{Energia de inferência}
 
-	\par A Tabela~\ref{tab:phase01energy} traz a energia estimada por amostra de
-	teste para a \ac{DSNN} e para a rede gêmea, estimada a partir da passagem de teste
+	\par A Tabela~\ref{tab:perfoldEnergy} traz a energia estimada por amostra de
+	teste para a \ac{DSNN} e para a rede gêmea, a partir da passagem de teste
 	(\autoref{sec:fase01}), e a razão entre as duas sob a estimativa primária e
-	sob as cinco variações de hipótese.
+	sob as cinco variações de hipótese. Cada valor é a média sobre as dobras, e
+	em cada dobra as duas redes têm o tamanho que a sua busca escolheu.
 
-	\par \textbf{A rede de pulsos gasta mais energia que a gêmea, em todas as
-	hipóteses.} Na estimativa primária, a \ac{DSNN} gasta de
-	$\tn{p01.energy.ratio.nj.min}$ a $\tn{p01.energy.ratio.nj.max}$ vezes a
-	energia da \ac{ANN} (na voz, $\tn{p01.energy.voice.dsnn.nj}$\,nJ contra
-	$\tn{p01.energy.voice.ann.nj}$\,nJ por amostra). A razão vai de
-	$\tn{p01.energy.ratio.all.min}$ a $\tn{p01.energy.ratio.all.max}$ conforme
-	a hipótese, e em nenhuma das combinações de fonte e hipótese a \ac{DSNN} é a
-	mais econômica. Contando apenas a aritmética, as duas redes quase empatam
-	(de $\tn{p01.energy.ratio.ops_nj.min}$ a $\tn{p01.energy.ratio.ops_nj.max}$
-	vezes); a diferença vem dos acessos à memória, que o modelo cobra a cada
-	evento de disparo.
+	\par \textbf{A rede de pulsos gasta mais energia que a gêmea.} Na estimativa
+	primária, a \ac{DSNN} gasta de $\tn{pf01.energy.ratio.nj.min}$ a
+	$\tn{pf01.energy.ratio.nj.max}$ vezes a energia da \ac{ANN} (na voz,
+	$\tn{pf01.energy.voice.dsnn.nj}$\,nJ contra
+	$\tn{pf01.energy.voice.ann.nj}$\,nJ por amostra), e o mesmo vale sob todas as
+	hipóteses de memória (a razão vai até $\tn{pf01.energy.ratio.all.max}$). A
+	única exceção é a contagem que ignora a memória: contando apenas a
+	aritmética, as duas redes quase empatam (de
+	$\tn{pf01.energy.ratio.ops_nj.min}$ a $\tn{pf01.energy.ratio.ops_nj.max}$
+	vezes), e no \ac{EEG} de fala imaginada a \ac{DSNN} fica um pouco abaixo da
+	gêmea ($\tn{pf01.energy.eegimag.ratio.ops_nj}$). Essa exceção vem do tamanho,
+	e não do neurônio: as buscas das duas redes escolheram, nessa fonte, redes
+	de tamanhos diferentes. A diferença que decide vem dos acessos à memória,
+	que o modelo cobra a cada evento de disparo.
 
 	\par A razão desse resultado é aritmética, e não um defeito da medição. A
 	rede gêmea faz uma única passagem; a \ac{DSNN} repete a sua por $T = 16$
-	passos de tempo, e só economiza onde os neurônios ficam em silêncio. Com
-	cerca de $\tn{p01.energy.voice.spikes}$ disparos por amostra, de
-	$\tn{p01.dsnn.spike.slots}$ possíveis (duas camadas pulsantes de 128 neurônios
-	em 16 passos), cerca de $\tn{p01.energy.voice.spike.share}$\,\% dos neurônios
-	disparam a cada passo: a atividade não é esparsa o bastante para
-	compensar os 16 passos. Como o \ac{EER} das duas redes não se distingue
-	(seção anterior), a escolha da rede de pulsos \textbf{não se justifica por
-	energia} nesta arquitetura e neste modelo de custo. O resultado vale para
-	uma estimativa analítica em tecnologia de 45\,nm, e não para um
-	\textit{hardware} neuromórfico específico, que não foi avaliado.
+	passos de tempo, e só economiza onde os neurônios ficam em silêncio. Na
+	configuração fixa, que tem uma arquitetura só e permite a conta exata, a
+	\ac{DSNN} da voz dá cerca de $\tn{p01.energy.voice.spikes}$ disparos por
+	amostra, de $\tn{p01.dsnn.spike.slots}$ possíveis (duas camadas pulsantes de
+	128 neurônios em 16 passos): cerca de
+	$\tn{p01.energy.voice.spike.share}$\,\% dos neurônios disparam a cada passo,
+	e a atividade não é esparsa o bastante para compensar os 16 passos. Como o
+	\ac{EER} das duas redes não se distingue (seção anterior), a escolha da rede
+	de pulsos \textbf{não se justifica por energia} nesta arquitetura e neste
+	modelo de custo. O resultado vale para uma estimativa analítica em
+	tecnologia de 45\,nm, e não para um \textit{hardware} neuromórfico
+	específico, que não foi avaliado.
 
 	% Colunas: source,dsnn_spikes,dsnn_nj,dsnn_nj_as_executed,dsnn_nj_sram8k,
 	% dsnn_nj_sram32k,dsnn_nj_sram1m,dsnn_ops_nj,ann_nj,(5 colunas ANN),
@@ -430,7 +461,7 @@
 	{\scriptsize\setlength{\tabcolsep}{1.5pt}
 	\tableZebraStripe
 	\begin{longtable}{@{}lrrrrrrrrr@{}}
-		\caption[Energia de inferência da DSNN e da rede gêmea]{Energia de inferência estimada por amostra (apenas o classificador; frases vistas, validação plana, características padronizadas). As seis últimas colunas são a razão DSNN/ANN sob cada hipótese: primária; primeira camada recalculada a cada passo; toda a memória em SRAM de 8\,KB, 32\,KB e 1\,MB; apenas aritmética} \label{tab:phase01energy} \\
+		\caption[Energia de inferência da DSNN e da rede gêmea]{Energia de inferência estimada por amostra (apenas o classificador; frases vistas; média sobre as dobras, cada uma com as redes que a sua busca escolheu). As seis últimas colunas são a razão DSNN/ANN sob cada hipótese: primária; primeira camada recalculada a cada passo; toda a memória em SRAM de 8\,KB, 32\,KB e 1\,MB; apenas aritmética} \label{tab:perfoldEnergy} \\
 		\tableHeaderRow \textbf{Fonte} & \textbf{Disparos} & \textbf{DSNN (nJ)} & \textbf{ANN (nJ)} & \textbf{Prim.} & \textbf{Exec.} & \textbf{8\,KB} & \textbf{32\,KB} & \textbf{1\,MB} & \textbf{Aritm.} \\
 		\endfirsthead
 		\tableHeaderRow \textbf{Fonte} & \textbf{Disparos} & \textbf{DSNN (nJ)} & \textbf{ANN (nJ)} & \textbf{Prim.} & \textbf{Exec.} & \textbf{8\,KB} & \textbf{32\,KB} & \textbf{1\,MB} & \textbf{Aritm.} \\
@@ -438,7 +469,7 @@
 		\endfoot
 		\bottomrule
 		\endlastfoot
-		\csvreader{tables/phase01_energy.csv}{}%
+		\csvreader{tables/perfold_energy.csv}{}%
 			{\csvcoli & \dec{\csvcolii} & \dec{\csvcoliii} & \dec{\csvcolix} & \dec{\csvcolxv} & \dec{\csvcolxvi} & \dec{\csvcolxvii} & \dec{\csvcolxviii} & \dec{\csvcolxix} & \dec{\csvcolxx} \\}%
 	\end{longtable}%
 	}
@@ -446,38 +477,39 @@
 
 	\subsection{Disfonia simulada}
 
-	\par A Tabela~\ref{tab:phase01dysphonia} mostra o \ac{EER} de cada fonte que
+	\par A Tabela~\ref{tab:perfoldDysphonia} mostra o \ac{EER} de cada fonte que
 	contém voz conforme a voz de teste é substituída pela sua versão sussurrada
 	(\autoref{sec:disfoniaSimulada}), do nível 0 (voz limpa) ao nível 1 (sussurro puro),
 	nos dois cenários: só as sondas degradadas, ou cadastro e sondas.
 
-	\par \textbf{A voz tende a piorar; as fusões quase não mudam.} Do nível 0 ao nível 1,
-	o \ac{EER} da voz sobe $\tn{p01.dysph.voice.probes.rise}$ quando só as sondas
-	são degradadas e $\tn{p01.dysph.voice.test.rise}$ quando o cadastro também é.
-	Nas fusões, a subida não passa de $\tn{p01.dysph.lateimag.test.rise}$. Esse
-	é o comportamento que motivou o trabalho: quando a voz se degrada, a fonte
-	que também tem \ac{EEG} se mantém.
+	\par \textbf{A voz tende a piorar; as fusões mudam menos.} Do nível 0 ao nível 1,
+	o \ac{EER} da voz sobe $\tn{pf01.dysph.voice.probes.rise}$ quando só as sondas
+	são degradadas e $\tn{pf01.dysph.voice.test.rise}$ quando o cadastro também é.
+	Nas fusões, a subida não passa de $\tn{pf01.dysph.latepron.test.rise}$ (fusão
+	tardia com \ac{EEG} de fala pronunciada, cadastro e sondas). Esse é o
+	comportamento que motivou o trabalho: quando a voz se degrada, a fonte que
+	também tem \ac{EEG} se mantém melhor.
 
 	\par Três ressalvas limitam essa leitura. Primeiro, nenhuma das
-	\tn{siggroup.dysph.n} comparações entre a voz limpa e o sussurro puro é
-	significativa ($p_{\text{Holm}} \ge \tn{siggroup.dysph.pholm.min}$): nem a
+	\tn{pfsiggroup.dysph.n} comparações entre a voz limpa e o sussurro puro é
+	significativa ($p_{\text{Holm}} \ge \tn{pfsiggroup.dysph.pholm.min}$): nem a
 	piora da voz está estabelecida. Segundo, a voz parte de um \ac{EER} já alto
-	($\tn{p01.grid.voice.dep.flat.std.eer}$), de modo que há pouco a perder; e
-	as fusões se mantêm porque seu desempenho já vinha quase todo do \ac{EEG}
-	(seção anterior), não porque as duas fontes se compensem. Terceiro, o
-	sussurro sintético remove a periodicidade e preserva os formantes; ele
-	modela uma voz soprosa ou afônica, e não a disfonia em geral. O experimento
-	não detectou dependência do sistema em relação à periodicidade da voz, o que
-	não é o mesmo que mostrar que ela não existe: não há margem de
-	equivalência declarada, e a voz já parte de um \ac{EER} alto. Ele também
-	não mostra como o sistema se comporta com locutores disfônicos reais.
+	($\tn{pf01.grid.voice.dep.eer}$), de modo que há pouco a perder; e as fusões
+	se mantêm porque seu desempenho já vinha quase todo do \ac{EEG} (seção
+	anterior), não porque as duas fontes se compensem. Terceiro, o sussurro
+	sintético remove a periodicidade e preserva os formantes; ele modela uma voz
+	soprosa ou afônica, e não a disfonia em geral. O experimento não detectou
+	dependência do sistema em relação à periodicidade da voz, o que não é o
+	mesmo que mostrar que ela não existe: não há margem de equivalência
+	declarada, e a voz já parte de um \ac{EER} alto. Ele também não mostra como
+	o sistema se comporta com locutores disfônicos reais.
 
 	% Colunas: source,scope,eer_l0,eer_l25,eer_l50,eer_l75,eer_l100
 	\par\medskip
 	{\small
 	\tableZebraStripe
 	\begin{longtable}{@{}llrrrrr@{}}
-		\caption{EER sob disfonia simulada, por nível de degradação da voz de teste (frases vistas, validação plana, características padronizadas)} \label{tab:phase01dysphonia} \\
+		\caption{EER sob disfonia simulada, por nível de degradação da voz de teste (frases vistas; extrator e hiperparâmetros escolhidos em cada dobra, sobre a voz limpa de treino)} \label{tab:perfoldDysphonia} \\
 		\tableHeaderRow \textbf{Fonte} & \textbf{Voz degradada} & \textbf{0} & \textbf{0,25} & \textbf{0,5} & \textbf{0,75} & \textbf{1} \\
 		\endfirsthead
 		\tableHeaderRow \textbf{Fonte} & \textbf{Voz degradada} & \textbf{0} & \textbf{0,25} & \textbf{0,5} & \textbf{0,75} & \textbf{1} \\
@@ -485,7 +517,7 @@
 		\endfoot
 		\bottomrule
 		\endlastfoot
-		\csvreader{tables/phase01_dysphonia.csv}{}%
+		\csvreader{tables/perfold_dysphonia.csv}{}%
 			{\csvcoli & \csvcolii & \dec{\csvcoliii} & \dec{\csvcoliv} & \dec{\csvcolv} & \dec{\csvcolvi} & \dec{\csvcolvii} \\}%
 	\end{longtable}%
 	}
@@ -500,7 +532,8 @@
 	cada nível é comparado com o controle, que só analisa e ressintetiza. A Tabela~\ref{tab:worldMargin}
 	traz a pergunta confirmatória: quanto cada nível muda a margem de verificação por locução
 	(semelhança com o próprio locutor menos a do impostor mais parecido, na mesma palavra) além
-	do que a ressíntese já muda. A unidade é a média de cada locutor
+	do que a ressíntese já muda, com as características do vencedor da Fase~00 na base inteira
+	(\autoref{sec:disfoniaSimulada}). A unidade é a média de cada locutor
 	(\tn{world.co.speakers} na base de \citeonline{10.1117/12.2255697},
 	\tn{world.bx.speakers} na BIOMEX-DB); valores negativos afastam a voz do seu locutor.
 
@@ -540,13 +573,19 @@
 	80\,\% para correlações a partir de \tn{world.floor.bx.power.r}; um piso mais fraco não está
 	excluído, e o resultado nulo da BIOMEX-DB continua sem explicação.
 
-	\par \textbf{No \ac{EER}, nada muda além da ressíntese.} Nenhuma das \tn{world.eer.n}
-	comparações entre um nível e o controle da sua célula é significativa
-	($p_{\text{Holm}} \ge \tn{world.eer.pholm.min}$), e nenhuma diferença passa de
-	\tn{world.eer.absmax}. As edições da fonte que mudam a margem por locução na base de Coretto
-	não chegam a mudar a taxa de erro do sistema. Como na \autoref{sec:disfoniaSimulada}, os níveis
-	são descritos pelo valor acústico medido, e não por uma severidade percebida: nenhum ouvinte os
-	avaliou.
+	\par \textbf{No \ac{EER}, nada muda além da ressíntese, nos dois protocolos.}
+	Com extrator e hiperparâmetros escolhidos em cada dobra, nenhuma das
+	\tn{world.pf.eer.n} comparações entre um nível e o controle da sua célula é
+	significativa (\tn{world.pf.co.eer.n} na base de Coretto,
+	\tn{world.pf.bx.eer.n} na BIOMEX-DB; $p_{\text{Holm}} \ge
+	\tn{world.pf.eer.pholm.min}$), e nenhuma diferença passa de
+	\tn{world.pf.eer.absmax}. Na configuração fixa, o mesmo: nenhuma das
+	\tn{world.eer.n} é significativa ($p_{\text{Holm}} \ge
+	\tn{world.eer.pholm.min}$), e nenhuma diferença passa de
+	\tn{world.eer.absmax}. As edições da fonte que mudam a margem por locução na
+	base de Coretto não chegam a mudar a taxa de erro do sistema. Como na
+	\autoref{sec:disfoniaSimulada}, os níveis são descritos pelo valor acústico
+	medido, e não por uma severidade percebida: nenhum ouvinte os avaliou.
 
 	\par\medskip
 	{\small
@@ -588,64 +627,154 @@
 	\subsection{Extratores comparados pelo classificador}
 
 	\par A Fase~00 compara extratores sem treinar classificador algum. A
-	Tabela~\ref{tab:phase01extractors} faz a comparação que faltava: o melhor
-	extrator de cada família, segundo a Fase~00, alimenta a mesma \ac{DSNN},
-	para cada sinal e cada modo de texto.
+	Tabela~\ref{tab:perfoldExtractors} faz a comparação que faltava: em cada
+	dobra, o melhor membro de cada família, pela ordenação sobre os locutores de
+	treino da dobra, alimenta a mesma busca e a mesma \ac{DSNN}, para cada sinal
+	e cada modo de texto.
 
-	\par \textbf{Pelo classificador, as três famílias não se distinguem.}
-	Nenhuma das \tn{siggroup.cmp.n} comparações entre o extrator manual e um
-	automatizado é significativa ($p_{\text{Holm}} \ge
-	\tn{siggroup.cmp.pholm.min}$; o menor $p$ sem correção é
-	$\tn{siggroup.cmp.p.min}$), e a direção da diferença muda de sinal para
-	sinal:
+	\par \textbf{Pelo classificador, nenhuma diferença entre famílias é
+	significativa, e a direção muda de sinal para sinal.} Nenhuma das
+	\tn{pfsiggroup.cmp.n} comparações entre o extrator manual e um automatizado
+	é significativa ($p_{\text{Holm}} \ge \tn{pfsiggroup.cmp.pholm.min}$; o
+	menor $p$ sem correção é $\tn{pfsiggroup.cmp.p.min}$):
 	\begin{itemize}
-		\item na \textbf{voz}, os dois automatizados ficam a menos de três
-		pontos percentuais do manual, um de cada lado (com frases vistas,
-		$\tn{p01.cmp.voice.dep.hc.eer}$ para o manual,
-		$\tn{p01.cmp.voice.dep.ae.eer}$ para o \textit{autoencoder} e
-		$\tn{p01.cmp.voice.dep.pca.eer}$ para a \ac{PCA});
-		\item no \textbf{\ac{EEG} de fala pronunciada}, o manual fica à frente
-		($\tn{p01.cmp.eegpron.dep.hc.eer}$ contra
-		$\tn{p01.cmp.eegpron.dep.ae.eer}$ e $\tn{p01.cmp.eegpron.dep.pca.eer}$);
-		\item no \textbf{\ac{EEG} de fala imaginada}, os automatizados ficam à
-		frente ($\tn{p01.cmp.eegimag.dep.hc.eer}$ contra
-		$\tn{p01.cmp.eegimag.dep.ae.eer}$ e $\tn{p01.cmp.eegimag.dep.pca.eer}$).
-		O \ac{EER} da \ac{PCA} nessa condição é o menor de todo o experimento,
-		abaixo do da melhor configuração da grade principal
-		($\tn{p01.best.eer}$).
+		\item na \textbf{voz}, o manual fica à frente dos dois automatizados nos
+		dois modos de texto (com frases vistas, $\tn{pf01.cmp.voice.dep.hc.eer}$
+		para o manual, $\tn{pf01.cmp.voice.dep.ae.eer}$ para o
+		\textit{autoencoder} e $\tn{pf01.cmp.voice.dep.pca.eer}$ para a
+		\ac{PCA});
+		\item no \textbf{\ac{EEG} de fala pronunciada}, também
+		($\tn{pf01.cmp.eegpron.dep.hc.eer}$ contra
+		$\tn{pf01.cmp.eegpron.dep.ae.eer}$ e $\tn{pf01.cmp.eegpron.dep.pca.eer}$
+		com frases vistas);
+		\item no \textbf{\ac{EEG} de fala imaginada}, a \ac{PCA} fica à frente do
+		manual nos dois modos ($\tn{pf01.cmp.eegimag.dep.pca.eer}$ contra
+		$\tn{pf01.cmp.eegimag.dep.hc.eer}$ com frases vistas;
+		$\tn{pf01.cmp.eegimag.indep.pca.eer}$ contra
+		$\tn{pf01.cmp.eegimag.indep.hc.eer}$ com não vistas). O \ac{EER} da
+		\ac{PCA} com frases não vistas é o menor de todo o experimento, abaixo
+		do da melhor configuração da grade principal ($\tn{pf01.best.eer}$).
 	\end{itemize}
 
-	\par \textbf{O critério paraconsistente não antecipou esse resultado.} Na
+	\par \textbf{O critério paraconsistente antecipou dois dos três sinais.} Na
 	Fase~00, o extrator manual ficou à frente do melhor automatizado por uma
 	margem cerca de dez vezes maior que a variação entre subconjuntos de
-	locutores, nos três sinais. Pelo \ac{EER}, essa vantagem não aparece na voz,
-	aparece no \ac{EEG} de fala pronunciada e se inverte no de fala imaginada. A
+	locutores, nos três sinais. Pelo \ac{EER}, essa vantagem aparece na voz e no
+	\ac{EEG} de fala pronunciada, e se inverte no de fala imaginada. A
 	separabilidade medida por $D_{\text{penalizado}}$ e o desempenho de
 	verificação medido pelo \ac{EER} são, nestes dados, grandezas diferentes:
 	a primeira olha a amplitude e a sobreposição de cada característica entre
 	classes, uma a uma; a segunda, o que um classificador consegue combinar a
 	partir de todas elas. Um extrator pode ter características que
 	individualmente se sobrepõem muito e que, em conjunto, separam os locutores.
-	A consequência para o método é direta: o critério paraconsistente serviu
-	para escolher entre extratores de uma mesma família (as Questões~1 e~2), mas
-	não deve ser usado, sozinho, para comparar famílias diferentes.
-
+	A diferença tem um custo concreto na grade principal: ali, cada dobra escolhe
+	o extrator entre as três famílias por $D_{\text{penalizado}}$, e no \ac{EEG}
+	de fala imaginada escolheu sempre o manual
+	(\autoref{sec:perfoldEscolhas}), embora a \ac{PCA} dê \ac{EER} menor nessa
+	condição. A regra de escolha, fixada antes da execução, foi mantida; o que
+	os dados indicam para o método é que o critério paraconsistente serve para
+	escolher entre extratores de uma mesma família (as Questões~1 e~2), mas não
+	deve ser usado, sozinho, para comparar famílias diferentes.
 
 	% Colunas: signal,text,hc_extractor,hc_eer,hc_std,ae_extractor,ae_eer,ae_std,
 	% pca_extractor,pca_eer,pca_std
 	{\fontsize{7.4}{9}\selectfont\setlength{\tabcolsep}{2pt}
 	\tableZebraStripe
-	\begin{longtable}{@{}ll@{\hspace{7pt}}rr@{\hspace{7pt}}lrr@{\hspace{7pt}}lrr@{}}
-		\caption[Extratores comparados pelo mesmo classificador]{EER do melhor extrator de cada família, pela mesma DSNN (validação plana, características padronizadas, 100 épocas). O extrator manual é o vencedor da Fase~00 (\tn{p00.voice.winner.label}) nos três sinais} \label{tab:phase01extractors} \\
-		\tableHeaderRow \textbf{Sinal} & \textbf{Frases} & \textbf{EER manual} & \textbf{$\sigma$} & \textbf{Autoencoder} & \textbf{EER} & \textbf{$\sigma$} & \textbf{PCA} & \textbf{EER} & \textbf{$\sigma$} \\
+	\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.07\textwidth}>{\raggedright\arraybackslash}p{0.065\textwidth}@{\hspace{5pt}}>{\raggedright\arraybackslash}p{0.11\textwidth}rr@{\hspace{5pt}}>{\raggedright\arraybackslash}p{0.11\textwidth}rr@{\hspace{5pt}}>{\raggedright\arraybackslash}p{0.08\textwidth}rr@{}}
+		\caption[Extratores comparados pelo mesmo classificador]{EER do melhor extrator de cada família, escolhido em cada dobra pela ordenação sobre os seus locutores de treino, pela mesma DSNN com a busca de hiperparâmetros. A coluna do extrator mostra o mais escolhido e em quantas das 15 dobras} \label{tab:perfoldExtractors} \\
+		\tableHeaderRow \textbf{Sinal} & \textbf{Frases} & \textbf{Manual} & \textbf{EER} & \textbf{$\sigma$} & \textbf{Autoencoder} & \textbf{EER} & \textbf{$\sigma$} & \textbf{PCA} & \textbf{EER} & \textbf{$\sigma$} \\
 		\endfirsthead
-		\tableHeaderRow \textbf{Sinal} & \textbf{Frases} & \textbf{EER manual} & \textbf{$\sigma$} & \textbf{Autoencoder} & \textbf{EER} & \textbf{$\sigma$} & \textbf{PCA} & \textbf{EER} & \textbf{$\sigma$} \\
+		\tableHeaderRow \textbf{Sinal} & \textbf{Frases} & \textbf{Manual} & \textbf{EER} & \textbf{$\sigma$} & \textbf{Autoencoder} & \textbf{EER} & \textbf{$\sigma$} & \textbf{PCA} & \textbf{EER} & \textbf{$\sigma$} \\
 		\endhead
 		\endfoot
 		\bottomrule
 		\endlastfoot
-		\csvreader{tables/phase01_extractors.csv}{}%
-			{\csvcoli & \csvcolii & \dec{\csvcoliv} & \dec{\csvcolv} & \csvcolvi & \dec{\csvcolvii} & \dec{\csvcolviii} & \csvcolix & \dec{\csvcolx} & \dec{\csvcolxi} \\}%
+		\csvreader{tables/perfold_extractors.csv}{}%
+			{\csvcoli & \csvcolii & \csvcoliii & \dec{\csvcoliv} & \dec{\csvcolv} & \csvcolvi & \dec{\csvcolvii} & \dec{\csvcolviii} & \csvcolix & \dec{\csvcolx} & \dec{\csvcolxi} \\}%
+	\end{longtable}%
+	}
+	\vspace{\TableGap}
+
+	\subsection{Comparação com a configuração fixa}
+	\label{sec:perfoldVsFixed}
+
+	\par O protocolo por dobra substituiu uma configuração fixa
+	(\autoref{sec:fase01}): o vencedor da Fase~00 escolhido na base inteira e um
+	classificador sem ajuste. A Tabela~\ref{tab:perfoldVsFixed} põe cada célula
+	dos dois protocolos lado a lado. A comparação é descritiva; nenhum teste foi
+	declarado para ela.
+
+	\par \textbf{Escolher dentro da dobra melhora a voz e piora a fusão.} Na
+	\ac{DSNN}, o \ac{EER} da voz cai nos dois modos de texto
+	($\tn{pf01.vsfixed.dsnn.voice.dep.diff}$ com frases vistas,
+	$\tn{pf01.vsfixed.dsnn.voice.indep.diff}$ com não vistas), e o de
+	\tn{pf01.vsfixed.dsnn.fusion.up} das \tn{pf01.vsfixed.dsnn.fusion.n} células
+	de fusão sobe, em média $\tn{pf01.vsfixed.dsnn.fusion.mean}$ e até
+	$\tn{pf01.vsfixed.dsnn.fusion.max}$; no \ac{EEG} sozinho, a média sobe
+	$\tn{pf01.vsfixed.dsnn.eeg.mean}$. Duas leituras cabem, e estes dados não
+	as separam. Na primeira, a configuração fixa era otimista para as fusões: o
+	extrator escolhido com todos os locutores e uma arquitetura que servia bem a
+	elas. Na segunda, a busca interna, com 9 locutores de treino e 3 de
+	validação, é ruidosa e às vezes escolhe pior do que a configuração fixa; a
+	instabilidade das escolhas (\autoref{sec:perfoldEscolhas}) é compatível com
+	ela. Nas duas, os números do protocolo por dobra são os que um sistema
+	montado sem ver os locutores de teste obteria, e é por isso que a tese os
+	cita.
+
+	\par \textbf{Os veredictos não mudam.} Na base de Coretto, nenhuma família
+	de testes declarada era significativa na configuração fixa, e nenhuma é no
+	protocolo por dobra. As conclusões das seções anteriores valem para os dois
+	protocolos; o que muda são os números de cada célula.
+
+	\par \textbf{Dois eixos que só a configuração fixa tem.} A grade da
+	configuração fixa cruzou fonte e modo de texto com o esquema de validação e a
+	padronização (Tabela~\ref{tab:phase01auth}). Os dois eixos ficam aqui como
+	ablações.
+
+	\par \emph{A padronização é necessária.} As características padronizadas
+	têm \ac{EER} menor que as brutas em \tn{p01.std.better} das
+	\tn{p01.std.pairs} combinações de fonte, modo de texto e esquema de
+	validação. O efeito é pequeno na voz (média de $\tn{p01.std.voice.std}$
+	contra $\tn{p01.std.voice.raw}$) e decisivo no \ac{EEG} e nas fusões
+	($\tn{p01.std.eegfusion.std}$ contra $\tn{p01.std.eegfusion.raw}$): sem
+	padronização, essas fontes ficam entre $\tn{p01.std.eegfusion.raw.min}$ e
+	$\tn{p01.std.eegfusion.raw.max}$, perto do acaso. A explicação mais simples
+	é de escala: os seis descritores têm unidades diferentes (a energia e a
+	energia de Teager crescem com o quadrado da amplitude, a taxa de cruzamentos
+	por zero fica entre 0 e 1, a entropia é medida em bits), as energias do
+	\ac{EEG}, em unidades do amplificador, têm ordens de grandeza muito
+	diferentes das da voz, e sem padronização as de maior valor dominam a
+	entrada da rede. Essa explicação não foi testada isoladamente. É por esse
+	resultado que o protocolo por dobra sempre padroniza.
+
+	\par \emph{A validação plana dá \ac{EER} menor que a aninhada.} Isso ocorre
+	em \tn{p01.cv.flat_better} das \tn{p01.cv.pairs} combinações de fonte e modo
+	de texto com características padronizadas (média de $\tn{p01.cv.mean.flat}$
+	contra $\tn{p01.cv.mean.nested}$). A direção é a esperada: a aninhada
+	reserva parte do treino para validação, e cada modelo treina com menos
+	dados. Como nenhum hiperparâmetro do classificador foi ajustado em nenhum
+	dos dois esquemas, a diferença mede o custo de reservar dados, e não um
+	otimismo por seleção.
+
+	\Phaseonetable{tables/phase01_auth.csv}%
+		{Grade principal da configuração fixa (vencedor da Fase 00 escolhido na base inteira, classificador sem ajuste), com os eixos de validação e padronização, ordenada por EER médio crescente}%
+		{tab:phase01auth}
+
+	% Colunas: classifier,source,text,perfold_eer,fixed_eer,difference
+	\par\medskip
+	{\footnotesize\setlength{\tabcolsep}{4pt}
+	\tableZebraStripe
+	\begin{longtable}{@{}lllrrr@{}}
+		\caption[Protocolo por dobra e configuração fixa]{EER de cada célula nos dois protocolos: por dobra (extrator e hiperparâmetros escolhidos em cada dobra) e fixo (vencedor da Fase~00 na base inteira, classificador sem ajuste, validação plana, características padronizadas). Diferença $=$ por dobra $-$ fixo; positiva quando o protocolo por dobra dá \ac{EER} maior} \label{tab:perfoldVsFixed} \\
+		\tableHeaderRow \textbf{Classificador} & \textbf{Fonte} & \textbf{Frases} & \textbf{Por dobra} & \textbf{Fixo} & \textbf{Diferença} \\
+		\endfirsthead
+		\tableHeaderRow \textbf{Classificador} & \textbf{Fonte} & \textbf{Frases} & \textbf{Por dobra} & \textbf{Fixo} & \textbf{Diferença} \\
+		\endhead
+		\endfoot
+		\bottomrule
+		\endlastfoot
+		\csvreader{tables/perfold_vs_fixed.csv}{}%
+			{\csvcoli & \csvcolii & \csvcoliii & \dec{\csvcoliv} & \dec{\csvcolv} & \dec{\csvcolvi} \\}%
 	\end{longtable}%
 	}
 	\vspace{\TableGap}
@@ -655,80 +784,95 @@
 
 	\par Esta seção responde a uma única pergunta: o que a Fase~01 concluiu na
 	base de \citeonline{10.1117/12.2255697} vale numa segunda base? O desenho está
-	na \autoref{sec:biomex}: os vencedores da Fase~00 foram congelados, e as
-	\tn{bx.n.total} configurações foram executadas numa única rodada na
-	BIOMEX-DB, sem nova seleção, com \tn{base.biomex.kept} locutores e as três
-	repetições de semente de cada configuração (\tn{bx.n.units}
-	execuções). Os testes de significância são os mesmos da Fase~01 (mesma
+	na \autoref{sec:biomex}: o método foi congelado --- candidatos, grade de
+	hiperparâmetros, busca interna, regra de escolha e configurações ---, e as
+	\tn{pfbx.n.total} configurações foram executadas numa única rodada na
+	BIOMEX-DB, com \tn{base.biomex.kept} locutores e as três repetições de
+	semente de cada configuração (\tn{pfbx.n.units} execuções). Cada dobra
+	escolheu o seu extrator e os seus hiperparâmetros com os seus voluntários de
+	treino. Os testes de significância são os mesmos da Fase~01 (mesma
 	referência, mesmo pareamento, mesma correção de Holm dentro de cada família),
 	restritos às fontes que a BIOMEX-DB tem, e foram declarados antes de qualquer
-	número da replicação ser lido. A Tabela~\ref{tab:biomexAuth} põe cada célula
-	ao lado da mesma célula da base de Coretto.
+	número da replicação ser lido. A Tabela~\ref{tab:pfbiomexAuth} põe cada
+	célula ao lado da mesma célula da base de Coretto, sob o mesmo protocolo.
 
-	\par \textbf{Os números se repetem.} O \ac{EER} médio da \ac{DSNN} nas
-	\tn{bx.cells} células é $\tn{bx.mean.dsnn}$, contra $\tn{bx.coretto.mean.dsnn}$
-	nas mesmas células da outra base; célula a célula, a diferença vai de
-	$\tn{bx.vs.coretto.diff.min}$ a $\tn{bx.vs.coretto.diff.max}$, e a BIOMEX-DB
-	tem o \ac{EER} menor em \tn{bx.vs.coretto.lower} das \tn{bx.cells}. A melhor
-	célula é a mesma nas duas bases (\tn{bx.best.label}, $\ac{EER} =
-	\tn{bx.best.eer}$), e a pior também (\tn{bx.worst.label}). Como na outra base,
-	toda célula de \ac{EEG} ou de fusão fica à frente das duas células de voz.
+	\par \textbf{As escolhas das dobras repetem o padrão.} No \ac{EEG}, as
+	\tn{pfbx.sel.eeg.folds} dobras de todas as células escolheram o
+	\tn{pfbx.sel.eeg.mode.label}, como na outra base. Na voz, as dobras
+	escolheram \tn{pfbx.sel.voice.distinct} extratores diferentes, e aqui a
+	\ac{PCA} está entre eles (Tabela~\ref{tab:pfbiomexSelection}).
 
-	\par \textbf{A fusão tardia passa a superar a voz.} Na outra base, nenhuma
-	fonte era significativamente melhor que a voz. Na BIOMEX-DB, a fusão tardia é,
-	nos dois modos de texto: frases vistas, $\Delta =
-	\tn{bxsig.vsvoice_dep.dsnn_latepron_dep_flat_std.delta}$, $p_{\text{Holm}} =
-	\tn{bxsig.vsvoice_dep.dsnn_latepron_dep_flat_std.pholm}$; frases não vistas,
-	$\Delta = \tn{bxsig.vsvoice_indep.dsnn_latepron_indep_flat_std.delta}$,
-	$p_{\text{Holm}} = \tn{bxsig.vsvoice_indep.dsnn_latepron_indep_flat_std.pholm}$.
-	O \ac{EEG} sozinho não é ($p_{\text{Holm}} \ge
-	\tn{bxsig.vsvoice_dep.dsnn_eegpron_dep_flat_std.pholm}$ com frases vistas e
-	$\tn{bxsig.vsvoice_indep.dsnn_eegpron_indep_flat_std.pholm}$ com não vistas).
-	A leitura que os dados permitem é a de poder estatístico, e não a de
-	contradição: na outra base, a mesma comparação tinha
-	$\Delta = \tn{sig.vsvoice_dep.dsnn_latepron_dep_flat_std.delta}$ com frases
-	vistas, com \tn{base.coretto.subjects} locutores; com
-	\tn{base.biomex.kept}, uma diferença dessa ordem passa a ser detectável. A
-	ressalva da \autoref{sec:biomex} vale aqui com força: o \ac{EEG} de fala
-	pronunciada carrega atividade muscular, de modo que o ganho da fusão é o de
-	somar à voz um registro do ato de falar, e não necessariamente atividade
-	cerebral.
+	\par \textbf{Os números são da mesma ordem.} O \ac{EER} médio da \ac{DSNN}
+	nas \tn{pfbx.cells} células é $\tn{pfbx.mean.dsnn}$, contra
+	$\tn{pfbx.coretto.mean.dsnn}$ nas mesmas células da outra base; célula a
+	célula, a diferença vai de $\tn{pfbx.vs.coretto.diff.min}$ a
+	$\tn{pfbx.vs.coretto.diff.max}$, e a BIOMEX-DB tem o \ac{EER} menor em
+	\tn{pfbx.vs.coretto.lower} das \tn{pfbx.cells}. A pior célula é a mesma nas
+	duas bases (\tn{pfbx.worst.label}); a melhor não: na BIOMEX-DB é
+	\tn{pfbx.best.label} ($\ac{EER} = \tn{pfbx.best.eer}$), e na outra base,
+	entre estas células, \tn{pfbx.coretto.best.label}. Ao contrário da outra base,
+	a voz com frases vistas fica à frente de parte das células de \ac{EEG} e de
+	fusão (\tn{pfbx.voice.first_rank}ª posição de \tn{pfbx.cells}).
+
+	\par \textbf{A fusão tardia fica à frente da voz, sem significância.} Nos
+	dois modos de texto, a fusão tardia tem \ac{EER} menor que a voz (frases
+	vistas, $\Delta = \tn{pfbxsig.vsvoice_dep.dsnn_latepron_dep.delta}$,
+	$p_{\text{Holm}} = \tn{pfbxsig.vsvoice_dep.dsnn_latepron_dep.pholm}$; frases
+	não vistas, $\Delta = \tn{pfbxsig.vsvoice_indep.dsnn_latepron_indep.delta}$,
+	$p_{\text{Holm}} = \tn{pfbxsig.vsvoice_indep.dsnn_latepron_indep.pholm}$),
+	mas nenhuma das \tn{pfbxsiggroup.vsvoice.n} comparações com a voz é
+	significativa após a correção, como na outra base. A ressalva da
+	\autoref{sec:biomex} vale aqui: o \ac{EEG} de fala pronunciada carrega
+	atividade muscular, de modo que um ganho da fusão seria o de somar à voz um
+	registro do ato de falar, e não necessariamente atividade cerebral.
 
 	\par \textbf{A fusão não supera o \ac{EEG} sozinho}, como na outra base:
-	nenhuma das \tn{bxsiggroup.fusion.n} comparações é significativa
-	($p_{\text{Holm}} \ge \tn{bxsiggroup.fusion.pholm.min}$).
+	nenhuma das \tn{pfbxsiggroup.fusion.n} comparações é significativa
+	($p_{\text{Holm}} \ge \tn{pfbxsiggroup.fusion.pholm.min}$).
 
 	\par \textbf{A rede de pulsos continua indistinguível da gêmea, e a rede
-	passa a superar o cosseno.} Nenhuma das \tn{bxsiggroup.ctrl.ann.n}
+	passa a superar o cosseno.} Nenhuma das \tn{pfbxsiggroup.ctrl.ann.n}
 	comparações entre a \ac{DSNN} e a \ac{ANN} é significativa, nem sem correção
-	($p \ge \tn{bxsiggroup.ctrl.ann.p.min}$); o \ac{EER} médio das duas é
-	$\tn{bx.mean.dsnn}$ e $\tn{bx.mean.ann}$. Já o cosseno direto ($\ac{EER}$
-	médio $\tn{bx.mean.cosine}$) fica atrás da \ac{DSNN} em todas as
-	\tn{bx.cells} células, e a diferença é significativa em
-	\tn{bxsiggroup.ctrl.cosine.significant} delas. Na outra base, nenhuma era: o
-	que lá era ``uma melhora de alguns pontos percentuais que os dados não
-	permitem confirmar'' se confirma com três vezes mais locutores. A energia
-	aponta na mesma direção da outra base: a \ac{DSNN} gasta de $\tn{bx.energy.ratio.min}$ a
-	$\tn{bx.energy.ratio.max}$ vezes a energia da gêmea (na base de Coretto, de
-	$\tn{p01.energy.ratio.nj.min}$ a $\tn{p01.energy.ratio.nj.max}$), e em nenhuma célula é a
-	mais econômica.
+	($p \ge \tn{pfbxsiggroup.ctrl.ann.p.min}$); o \ac{EER} médio das duas é
+	$\tn{pfbx.mean.dsnn}$ e $\tn{pfbx.mean.ann}$. Já o cosseno direto
+	($\ac{EER}$ médio $\tn{pfbx.mean.cosine}$) fica atrás da \ac{DSNN} em todas
+	as \tn{pfbx.cells} células, e a diferença é significativa em
+	\tn{pfbxsiggroup.ctrl.cosine.significant} delas. Na outra base, nenhuma era:
+	o que lá era ``uma melhora de alguns pontos percentuais que os dados não
+	permitem confirmar'' se confirma em parte com três vezes mais locutores. A
+	energia aponta na mesma direção da outra base: a \ac{DSNN} gasta de
+	$\tn{pfbx.energy.ratio.min}$ a $\tn{pfbx.energy.ratio.max}$ vezes a energia
+	da gêmea (na base de Coretto, de $\tn{pf01.energy.ratio.nj.min}$ a
+	$\tn{pf01.energy.ratio.nj.max}$), e em nenhuma célula é a mais econômica.
 
-	\par \textbf{A disfonia simulada e o modo de texto não têm efeito
-	significativo}, como na outra base. A Tabela~\ref{tab:biomexDysphonia}
-	mostra a mesma forma: do nível 0 ao 1, o \ac{EER} da voz sobe
-	$\tn{bx.dysph.voice.probes.rise}$ (só sondas) e
-	$\tn{bx.dysph.voice.test.rise}$ (cadastro e sondas), mais que o de qualquer
-	fusão, mas nenhuma das \tn{bxsiggroup.dysph.n} comparações é significativa
-	($p_{\text{Holm}} \ge \tn{bxsiggroup.dysph.pholm.min}$). Frases não vistas
-	dão \ac{EER} maior em todas as fontes, sem significância em nenhuma
-	($p_{\text{Holm}} \ge \tn{bxsiggroup.text.pholm.min}$).
+	\par \textbf{A disfonia simulada não tem efeito significativo}, como na
+	outra base. A Tabela~\ref{tab:pfbiomexDysphonia} mostra a forma: do nível 0
+	ao 1, o \ac{EER} da voz sobe $\tn{pfbx.dysph.voice.probes.rise}$ (só sondas)
+	e $\tn{pfbx.dysph.voice.test.rise}$ (cadastro e sondas), o da fusão tardia
+	sobe quase o mesmo ($\tn{pfbx.dysph.latepron.probes.rise}$ e
+	$\tn{pfbx.dysph.latepron.test.rise}$), e o da fusão precoce quase não muda;
+	nenhuma das \tn{pfbxsiggroup.dysph.n} comparações é significativa
+	($p_{\text{Holm}} \ge \tn{pfbxsiggroup.dysph.pholm.min}$).
+
+	\par \textbf{O modo de texto passa a ter efeito em duas fontes.} Frases não
+	vistas dão \ac{EER} maior em todas as fontes, e a diferença é significativa
+	na voz ($\Delta = \tn{pfbxsig.text_voice.dsnn_voice_indep.delta}$,
+	$p_{\text{Holm}} = \tn{pfbxsig.text_voice.dsnn_voice_indep.pholm}$) e na
+	fusão tardia ($\Delta = \tn{pfbxsig.text_latepron.dsnn_latepron_indep.delta}$,
+	$p_{\text{Holm}} = \tn{pfbxsig.text_latepron.dsnn_latepron_indep.pholm}$).
+	Esse resultado pede uma ressalva de método: os dois modos têm conjuntos de
+	teste diferentes, e o teste usado, o de Mann--Whitney, trata as 15 dobras
+	como independentes, o que torna o seu $p$ otimista
+	(\autoref{sec:respostasQuestoes}, Questão~4). As duas fontes em que o efeito
+	aparece são as que leem a voz, o que é coerente com a voz depender mais do
+	enunciado que o \ac{EEG}.
 
 	% Colunas: source,text,coretto_dsnn_eer,dsnn_eer,dsnn_std,ann_eer,ann_std,cosine_eer,dsnn_nj,ann_nj,dsnn_over_ann
 	\par\medskip
 	{\footnotesize\setlength{\tabcolsep}{3pt}
 	\tableZebraStripe
 	\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.15\textwidth}>{\raggedright\arraybackslash}p{0.11\textwidth}rrrrrrr@{}}
-		\caption[Replicação na BIOMEX-DB]{EER na BIOMEX-DB, ao lado da mesma célula da DSNN na base de Coretto (vencedores da Fase~00 congelados; validação plana, características padronizadas). A última coluna é a razão entre a energia de inferência da DSNN e a da rede gêmea} \label{tab:biomexAuth} \\
+		\caption[Replicação na BIOMEX-DB]{EER na BIOMEX-DB, ao lado da mesma célula da DSNN na base de Coretto, sob o mesmo protocolo (extrator e hiperparâmetros escolhidos em cada dobra). A última coluna é a razão entre a energia de inferência da DSNN e a da rede gêmea} \label{tab:pfbiomexAuth} \\
 		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{Coretto} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} & \textbf{Energia} \\
 		\endfirsthead
 		\tableHeaderRow \textbf{Fonte} & \textbf{Frases} & \textbf{Coretto} & \textbf{DSNN} & \textbf{$\sigma$} & \textbf{ANN gêmea} & \textbf{$\sigma$} & \textbf{Cosseno} & \textbf{Energia} \\
@@ -736,7 +880,7 @@
 		\endfoot
 		\bottomrule
 		\endlastfoot
-		\csvreader{tables/biomex_auth.csv}{}%
+		\csvreader{tables/pfbiomex_auth.csv}{}%
 			{\csvcoli & \csvcolii & \dec{\csvcoliii} & \dec{\csvcoliv} & \dec{\csvcolv} & \dec{\csvcolvi} & \dec{\csvcolvii} & \dec{\csvcolviii} & \dec{\csvcolxi} \\}%
 	\end{longtable}%
 	}
@@ -747,7 +891,7 @@
 	{\footnotesize\setlength{\tabcolsep}{3pt}
 	\tableZebraStripe
 	\begin{longtable}{@{}>{\raggedright\arraybackslash}p{0.17\textwidth}>{\raggedright\arraybackslash}p{0.13\textwidth}rrrrrrr@{}}
-		\caption[Disfonia simulada na BIOMEX-DB]{EER na BIOMEX-DB sob disfonia simulada, por nível de degradação da voz de teste (frases vistas, validação plana, características padronizadas); as duas últimas colunas são a subida do \ac{EER} do nível 0 ao 1, nesta base (``Subida'') e na outra (``Coretto'', Tabela~\ref{tab:phase01dysphonia})} \label{tab:biomexDysphonia} \\
+		\caption[Disfonia simulada na BIOMEX-DB]{EER na BIOMEX-DB sob disfonia simulada, por nível de degradação da voz de teste (frases vistas; extrator e hiperparâmetros escolhidos em cada dobra); as duas últimas colunas são a subida do \ac{EER} do nível 0 ao 1, nesta base (``Subida'') e na outra (``Coretto'', Tabela~\ref{tab:perfoldDysphonia})} \label{tab:pfbiomexDysphonia} \\
 		\tableHeaderRow \textbf{Fonte} & \textbf{Voz degradada} & \textbf{0} & \textbf{0,25} & \textbf{0,5} & \textbf{0,75} & \textbf{1} & \textbf{Subida} & \textbf{Coretto} \\
 		\endfirsthead
 		\tableHeaderRow \textbf{Fonte} & \textbf{Voz degradada} & \textbf{0} & \textbf{0,25} & \textbf{0,5} & \textbf{0,75} & \textbf{1} & \textbf{Subida} & \textbf{Coretto} \\
@@ -755,20 +899,44 @@
 		\endfoot
 		\bottomrule
 		\endlastfoot
-		\csvreader{tables/biomex_dysphonia.csv}{}%
+		\csvreader{tables/pfbiomex_dysphonia.csv}{}%
 			{\csvcoli & \csvcolii & \dec{\csvcoliii} & \dec{\csvcoliv} & \dec{\csvcolv} & \dec{\csvcolvi} & \dec{\csvcolvii} & \dec{\csvcolviii} & \dec{\csvcolix} \\}%
 	\end{longtable}%
 	}
 	\vspace{\TableGap}
 
+	% Colunas: classifier,source,text,folds,extractor,n_extractors,grid_point,n_grid_points
+	\par\medskip
+	{\fontsize{7.4}{9}\selectfont\setlength{\tabcolsep}{2pt}
+	\tableZebraStripe
+	\begin{longtable}{@{}l>{\raggedright\arraybackslash}p{0.2\textwidth}l>{\raggedright\arraybackslash}p{0.24\textwidth}r>{\raggedright\arraybackslash}p{0.2\textwidth}r@{}}
+		\caption[O que as dobras escolheram na BIOMEX-DB]{Extrator e ponto da busca escolhidos pelas 15 dobras de cada célula na BIOMEX-DB (mesma leitura da Tabela~\ref{tab:perfoldSelection})} \label{tab:pfbiomexSelection} \\
+		\tableHeaderRow \textbf{Classif.} & \textbf{Fonte} & \textbf{Frases} & \textbf{Extrator} & \textbf{Dif.} & \textbf{Ponto da busca} & \textbf{Dif.} \\
+		\endfirsthead
+		\tableHeaderRow \textbf{Classif.} & \textbf{Fonte} & \textbf{Frases} & \textbf{Extrator} & \textbf{Dif.} & \textbf{Ponto da busca} & \textbf{Dif.} \\
+		\endhead
+		\endfoot
+		\bottomrule
+		\endlastfoot
+		\csvreader{tables/pfbiomex_selection.csv}{}%
+			{\csvcoli & \csvcolii & \csvcoliii & \csvcolv & \csvcolvi & \csvcolvii & \csvcolviii \\}%
+	\end{longtable}%
+	}
+	\vspace{\TableGap}
+
 	\par \textbf{Em resumo}, das conclusões da Fase~01 que a BIOMEX-DB permite
-	testar, cinco se repetem (fusão não supera o \ac{EEG}; rede de pulsos
-	indistinguível da gêmea e mais cara que ela; disfonia e modo de texto sem
-	efeito significativo) e duas mudam, ambas na direção de um efeito que a outra
-	base não tinha poder para detectar: a fusão tardia supera a voz, e a rede
-	treinada supera o cosseno direto. Nenhuma conclusão se inverte. A replicação
-	não testa o que depende de fala imaginada, nem a comparação de extratores, que
-	não foi executada nela.
+	testar, cinco se repetem (a fusão não supera o \ac{EEG}; a fusão tardia não
+	se distingue significativamente da voz; a rede de pulsos é indistinguível da
+	gêmea e mais cara que ela; a disfonia simulada não tem efeito significativo)
+	e duas mudam, ambas de não significativo para significativo: a rede treinada
+	supera o cosseno direto, e as frases não vistas pioram a voz e a fusão
+	tardia. Nenhuma conclusão se inverte. Na configuração fixa, a
+	replicação tinha lido outra coisa em dois pontos: lá a fusão tardia superava
+	a voz significativamente nos dois modos de texto, e o modo de texto não tinha
+	efeito significativo em fonte alguma. As duas leituras que mudam com o
+	protocolo são justamente as de menor margem estatística, e a tese adota a do
+	protocolo por dobra. A replicação não testa o que depende de fala
+	imaginada, nem a comparação de extratores, que não foi executada nela.
 
 	\section{Retomada das questões de pesquisa}
 	\label{sec:respostasQuestoes}
@@ -837,8 +1005,9 @@
 
 	\subsection*{Questão 3 --- Autoencoders superam as técnicas manuais?}
 
-	\par \textbf{Não superam; e, medidos pelo classificador, também não ficam
-	atrás.} A resposta depende de como se mede, e as duas medidas discordam.
+	\par \textbf{Não de forma estabelecida; e, medidos pelo classificador, também
+	não ficam atrás de forma estabelecida.} A resposta depende de como se mede,
+	e as duas medidas só concordam em parte.
 
 	\par \emph{Pelo critério paraconsistente} (Fase~00), a extração manual vence
 	com folga nos três sinais: $\tn{p00.voice.winner.dpen}$ contra
@@ -850,26 +1019,33 @@
 	três.
 
 	\par \emph{Pelo desempenho de autenticação} (Fase~01,
-	Tabela~\ref{tab:phase01extractors}), as três famílias não se distinguem: o
-	manual tem \ac{EER} menor que o \textit{autoencoder} em
-	\tn{p01.cmp.hc_better_ae} das \tn{p01.cmp.cells} combinações de sinal e modo
-	de texto, e menor que a \ac{PCA} em \tn{p01.cmp.hc_better_pca}; nenhuma
-	diferença é significativa. A afirmação que os dados sustentam é que, nesta
-	base e com este classificador, \textbf{a extração automatizada não se
-	distingue da manual na autenticação}, com um vetor de 8 a 32
-	características. Não se distinguir não é ser equivalente: nenhuma margem
-	de equivalência foi declarada antes da execução, e uma diferença menor que
-	a que estes testes detectam continua possível.
+	Tabela~\ref{tab:perfoldExtractors}), nenhuma diferença entre famílias é
+	significativa, e a direção muda de sinal para sinal: o manual tem \ac{EER}
+	menor que o \textit{autoencoder} em \tn{pf01.cmp.hc_better_ae} das
+	\tn{pf01.cmp.cells} combinações de sinal e modo de texto, e menor que a
+	\ac{PCA} em \tn{pf01.cmp.hc_better_pca}. Na voz e no \ac{EEG} de fala
+	pronunciada, o manual fica à frente; no \ac{EEG} de fala imaginada, a
+	\ac{PCA}, com o menor \ac{EER} do experimento. A afirmação que os dados
+	sustentam é que, nesta base e com este classificador, \textbf{a extração
+	automatizada não supera a manual de forma estabelecida na autenticação}, com
+	um vetor de 8 a 32 características, e que o seu único ganho, no \ac{EEG} de
+	fala imaginada, não é significativo. Não se distinguir não é ser
+	equivalente: nenhuma margem de equivalência foi declarada antes da execução,
+	e uma diferença menor que a que estes testes detectam continua possível.
 
 	\par Duas observações completam a resposta. Primeiro, a \ac{PCA} acompanha
-	os \textit{autoencoders} nas duas medidas: tem \ac{EER} menor que o
-	\textit{autoencoder} em \tn{p01.cmp.pca_better_ae} das \tn{p01.cmp.cells}
+	ou supera os \textit{autoencoders}: tem \ac{EER} menor que o
+	\textit{autoencoder} em \tn{pf01.cmp.pca_better_ae} das \tn{pf01.cmp.cells}
 	combinações. O treino de um modelo não linear não se justificou diante de
 	uma projeção linear do mesmo espectro. Segundo, o \textit{autoencoder}
-	escolhido pela Fase~00 foi, nos três sinais, o convencional
-	(\tn{p00.voice.best.ae.label}), e não o de pulsos: o \ac{SNN}-AE não chegou
-	a ser levado ao classificador, e nada se pode afirmar sobre o seu desempenho
-	de autenticação.
+	escolhido foi quase sempre o convencional: na base inteira, a Fase~00
+	escolheu o \tn{p00.voice.best.ae.label} nos três sinais, e nas dobras da
+	comparação o \ac{SNN}-AE (com codificação \texttt{latency}) venceu só
+	\tn{pf01.cmp.ae.snn} das \tn{pf01.cmp.ae.folds} escolhas ---
+	\tn{pf01.cmp.ae.snn.voice} na voz, \tn{pf01.cmp.ae.snn.eegpron} no \ac{EEG}
+	de fala pronunciada e \tn{pf01.cmp.ae.snn.eegimag} no de fala imaginada.
+	Ele chegou ao classificador em poucas dobras, e nada se pode afirmar
+	separadamente sobre o seu desempenho de autenticação.
 
 	\par A comparação entre as duas medidas só existe porque a entrada dos
 	extratores automatizados foi corrigida (\autoref{sec:aeEntrada}).
@@ -880,32 +1056,36 @@
 
 	\subsection*{Questão 4 --- O desempenho é afetado pela dependência de texto?}
 
-	\par \textbf{Pouco, na direção esperada, e sem significância.} Os dois modos
-	treinam com as mesmas cinco frases e diferem apenas em o teste usar essas
-	frases ou outras cinco (\autoref{sec:fase01}). Com validação plana e
-	características padronizadas, o \ac{EER} médio das \tn{p01.text.sources}
-	fontes é de $\tn{p01.text.mean.seen}$ com frases vistas e
-	$\tn{p01.text.mean.unseen}$ com frases não vistas. As frases vistas dão
-	\ac{EER} menor em \tn{p01.text.seen_better} das \tn{p01.text.sources}
-	fontes; a diferença vai de $\tn{p01.text.delta.min}$ a
-	$\tn{p01.text.delta.max}$, e nenhuma das \tn{siggroup.text.n} comparações é
-	significativa ($p \ge \tn{siggroup.text.p.min}$). Como os conjuntos de teste
-	dos dois modos são diferentes, essas comparações não são pareadas e usam o
-	teste de Mann--Whitney, que trata as 15 dobras como independentes e é, por
-	isso, otimista: se nem ele encontra diferença, a ausência de efeito
-	detectável é robusta.
+	\par \textbf{Pouco, na direção esperada, e sem significância na base de
+	Coretto; na BIOMEX-DB, nas fontes que leem a voz.} Os dois modos treinam com
+	as mesmas frases e diferem apenas em o teste usar essas frases ou outras
+	(\autoref{sec:fase01}). Na base de Coretto, o \ac{EER} médio das
+	\tn{pf01.text.sources} fontes é de $\tn{pf01.text.mean.seen}$ com frases
+	vistas e $\tn{pf01.text.mean.unseen}$ com frases não vistas. As frases
+	vistas dão \ac{EER} menor em \tn{pf01.text.seen_better} das
+	\tn{pf01.text.sources} fontes; a diferença vai de $\tn{pf01.text.delta.min}$
+	a $\tn{pf01.text.delta.max}$, e nenhuma das \tn{pfsiggroup.text.n}
+	comparações é significativa ($p \ge \tn{pfsiggroup.text.p.min}$). Como os
+	conjuntos de teste dos dois modos são diferentes, essas comparações não são
+	pareadas e usam o teste de Mann--Whitney, que trata as 15 dobras como
+	independentes e é, por isso, otimista: se nem ele encontra diferença, a
+	ausência de efeito detectável é robusta. Na BIOMEX-DB, as frases não vistas
+	dão \ac{EER} maior em todas as fontes, e a diferença é significativa na voz
+	e na fusão tardia (\autoref{sec:resultadosBiomex}); pelo mesmo motivo, esse
+	resultado é mais fraco do que o seu $p$ sugere.
 
 	\par A leitura é que o sistema reconhece sobretudo o locutor, e não o
-	enunciado: testar com frases que a rede nunca viu custa, em média, pouco
-	mais de um ponto percentual de \ac{EER}. A ressalva é o alcance da
+	enunciado: na base de Coretto, testar com frases que a rede nunca viu custa,
+	em média, menos de um ponto percentual de \ac{EER}. A ressalva é o alcance da
 	afirmação: os enunciados são vogais e palavras isoladas de um vocabulário de
 	onze itens, e ``frases não vistas'' significa, aqui, outros itens desse
 	mesmo vocabulário, ditos pelos mesmos locutores na mesma gravação.
 
 	\subsection*{Uma ressalva sobre os resultados de EEG}
 
-	\par O \ac{EEG} supera a voz em todas as comparações deste capítulo, e a
-	condição do \ac{EEG} --- fala pronunciada ou imaginada --- quase não importa.
+	\par Na base de Coretto, o \ac{EEG} supera a voz em todas as células deste
+	capítulo, e a condição do \ac{EEG} --- fala pronunciada ou imaginada --- quase
+	não importa.
 	Antes de ler isso como ``o \ac{EEG} é melhor biometria que a voz'', é preciso
 	considerar uma explicação mais simples, que este experimento não consegue
 	descartar: o classificador pode estar reconhecendo \textbf{a gravação}, e

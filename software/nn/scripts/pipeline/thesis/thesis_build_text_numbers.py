@@ -722,6 +722,14 @@ def perfold(n: Numbers, profiles: pathlib.Path, results: pathlib.Path,
         n.num(f"pf01.cmp.{fam}.max", max(vals))
     n.count("pf01.cmp.pca_better_ae",
             sum(1 for c in cmp_cells if cm[c + ("pca",)]["mean_eer"] < cm[c + ("ae",)]["mean_eer"]))
+    # Which autoencoder the folds of the comparison chose: the ANN-AE or the SNN-AE.
+    ae_choices = {sig: [c["extractor"] for (s, _t, fam), r in cm.items() if fam == "ae" and s == sig
+                        for c in r["choices"]] for sig in SIGNALS}
+    n.count("pf01.cmp.ae.folds", sum(len(v) for v in ae_choices.values()))
+    n.count("pf01.cmp.ae.snn", sum(e.startswith("SNN-AE") for v in ae_choices.values() for e in v))
+    for sig, v in ae_choices.items():
+        n.count(f"pf01.cmp.ae.snn.{sig}", sum(e.startswith("SNN-AE") for e in v))
+        n.count(f"pf01.cmp.ae.folds.{sig}", len(v))
 
     selection_summary(n, "pf01", sets)
 
@@ -831,6 +839,7 @@ def world_perfold(n: Numbers, out_dir: pathlib.Path) -> None:
     n.count("world.pf.eer.n", len(rows))
     n.count("world.pf.eer.sig", sum(r["significant"] == "1" for r in rows))
     n.num("world.pf.eer.absmax", max(abs(float(r["delta"])) for r in rows), 3)
+    n.num("world.pf.eer.pholm.min", min(float(r["p_holm"]) for r in rows), 3)
 
 
 def ae_input(n: Numbers, path: pathlib.Path) -> None:
@@ -1096,11 +1105,13 @@ def world_analysis(n: Numbers, out_dir: pathlib.Path) -> None:
 
 # Profile sets the prose counts that no results reader above counts: directory in the manifest
 # -> key. A set missing from the manifest (or empty) is refused.
-MANIFEST_SETS = {"pilot": "pilot.n.total", "world": "world.n.co", "bxworld": "world.n.bx"}
+MANIFEST_SETS = {"pilot": "pilot.n.total", "world": "world.n.co", "bxworld": "world.n.bx",
+                 "pfworld": "world.n.pf.co", "pfbxworld": "world.n.pf.bx"}
 
 
 def manifest_counts(n: Numbers, manifest: pathlib.Path) -> None:
-    """pilot.n.total, world.n.co, world.n.bx: the profiles profiles.manifest lists per set."""
+    """pilot.n.total, world.n.co, world.n.bx, world.n.pf.co, world.n.pf.bx: the profiles
+    profiles.manifest lists per set."""
     if not manifest.is_file():
         fail(f"{manifest} is missing; run scripts/pipeline/thesis/00_thesis_generate_profiles.py")
     entries = [line.strip() for line in manifest.read_text(encoding="utf-8").splitlines()
@@ -1159,47 +1170,13 @@ CLAIMS = [
      lambda v, t: all(v(f"p00.{s}.c1.best") < v(f"p00.{s}.c2.best")
                       and v(f"p00.{s}.c2.mean") < v(f"p00.{s}.c1.mean")
                       for s in ("eegpron", "eegimag"))),
-    ("ch9: every standardized EEG/fusion cell of the grid ranks before the first voice cell",
-     lambda v, t: v("p01.voice.first_rank") == 25),
-    ("ch9: no comparison with voice is significant",
-     lambda v, t: v("siggroup.vsvoice.significant") == 0),
-    ("ch9: no fusion differs significantly from its EEG; with unseen phrases an EEG is ahead "
-     "of its late fusion",
-     lambda v, t: v("siggroup.fusion.significant") == 0
-     and v("p01.grid.eegpron.indep.flat.std.eer") < v("p01.grid.latepron.indep.flat.std.eer")),
     ("ch9: standardization lowers the EER in every cell",
      lambda v, t: v("p01.std.better") == v("p01.std.pairs")),
     ("ch9: flat CV gives the lower EER in most cells",
      lambda v, t: v("p01.cv.flat_better") >= 0.75 * v("p01.cv.pairs")),
-    ("ch9: the EEG condition makes no significant difference",
-     lambda v, t: v("siggroup.cond.significant") == 0),
-    ("ch9: the DSNN differs significantly from neither control",
-     lambda v, t: v("siggroup.ctrl.significant") == 0),
-    ("ch9: mean EER orders DSNN < ANN < cosine",
-     lambda v, t: v("p01.ctrl.mean.dsnn") < v("p01.ctrl.mean.ann") < v("p01.ctrl.mean.cosine")),
-    ("ch9: the DSNN is never the cheaper network, under any check",
-     lambda v, t: v("p01.energy.dsnn_cheaper") == 0),
-    ("ch9: under full whisper voice rises more than any fusion, whose largest rise is "
-     "late fusion (imagined), enrolment and probes",
-     lambda v, t: all(v("p01.dysph.lateimag.test.rise") >= v(f"p01.dysph.{s}.{sc}.rise")
-                      for s in ("earlypron", "earlyimag", "latepron", "lateimag")
-                      for sc in ("probes", "test"))
-     and v("p01.dysph.voice.probes.rise") > v("p01.dysph.lateimag.test.rise")),
-    ("ch9: no degradation effect is significant",
-     lambda v, t: v("siggroup.dysph.significant") == 0),
     ("ch9/ch10/abstract: through the classifier no automated extractor differs "
      "significantly from the handcrafted one",
      lambda v, t: v("siggroup.cmp.significant") == 0),
-    ("ch9: voice, both automated extractors within 0.03 EER of the handcrafted one, one on "
-     "each side (seen phrases)",
-     lambda v, t: abs(v("p01.cmp.voice.dep.ae.eer") - v("p01.cmp.voice.dep.hc.eer")) < 0.03
-     and abs(v("p01.cmp.voice.dep.pca.eer") - v("p01.cmp.voice.dep.hc.eer")) < 0.03
-     and (v("p01.cmp.voice.dep.ae.eer") - v("p01.cmp.voice.dep.hc.eer"))
-     * (v("p01.cmp.voice.dep.pca.eer") - v("p01.cmp.voice.dep.hc.eer")) < 0),
-    ("ch9: pronounced EEG, handcrafted ahead of both; imagined EEG, behind both (both text modes)",
-     lambda v, t: all(v(f"p01.cmp.eegpron.{x}.hc.eer") < v(f"p01.cmp.eegpron.{x}.{f}.eer")
-                      and v(f"p01.cmp.eegimag.{x}.hc.eer") > v(f"p01.cmp.eegimag.{x}.{f}.eer")
-                      for x in ("dep", "indep") for f in ("ae", "pca"))),
     ("ch9/ch10: PCA on imagined EEG, seen phrases, is the lowest EER of the whole experiment",
      lambda v, t: v("p01.cmp.eegimag.dep.pca.eer") == v("p01.min.eer")),
     ("ch9 Q3: the autoencoder Phase 00 picked is the ANN-AE on the three signals",
@@ -1222,43 +1199,12 @@ CLAIMS = [
     ("ch8: BIOMEX-DB is upsampled to the Coretto rates (written at 44.1 kHz / 1024 Hz)",
      lambda v, t: v("base.biomex.voice.sample.rate") == 44100
      and v("base.biomex.eeg.sample.rate") == 1024),
-    ("ch9 bx: the best and the worst cell are the same on both bases",
-     lambda v, t: v("bx.same_best_as_coretto") == 1 and v("bx.same_worst_as_coretto") == 1),
-    ("ch9 bx: every EEG/fusion cell ranks before both voice cells",
-     lambda v, t: v("bx.voice.first_rank") == v("bx.cells") - 1),
-    ("ch9 bx: late fusion beats voice significantly in both text modes; EEG alone does not",
+    ("ch9 bx (fixed configuration, as the comparison): late fusion beat voice significantly in "
+     "both text modes, EEG alone did not; and no text-mode effect was significant",
      lambda v, t: all(v(f"bxsig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.pholm") < 0.05
                       and v(f"bxsig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta") < 0
                       and v(f"bxsig.vsvoice_{x}.dsnn_eegpron_{x}_flat_std.pholm") >= 0.05
-                      for x in ("dep", "indep"))),
-    ("ch9 bx: on Coretto the same late-fusion-vs-voice difference was of the same order "
-     "(same sign, at least half the BIOMEX size), so the change is one of power",
-     lambda v, t: all(v(f"sig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta") < 0
-                      and abs(v(f"sig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta"))
-                      >= 0.5 * abs(v(f"bxsig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta"))
-                      for x in ("dep", "indep"))),
-    ("ch9 bx: no fusion differs significantly from its EEG",
-     lambda v, t: v("bxsiggroup.fusion.significant") == 0),
-    ("ch9 bx: the DSNN differs from its ANN twin in no cell, not even nominally",
-     lambda v, t: v("bxsiggroup.ctrl.ann.significant") == 0
-     and v("bxsiggroup.ctrl.ann.nominal") == 0),
-    ("ch9 bx: cosine is behind the DSNN in every cell, significantly in some, all in the "
-     "DSNN's favour",
-     lambda v, t: v("bx.ctrl.dsnn_better_cosine") == v("bx.cells")
-     and v("bxsiggroup.ctrl.cosine.significant") > 0
-     and v("bxsiggroup.ctrl.cosine.significant")
-     == v("bxsiggroup.ctrl.cosine.significant_ref_better")),
-    ("ch9 bx: the DSNN is never the cheaper network",
-     lambda v, t: v("bx.energy.dsnn_cheaper") == 0),
-    ("ch9 bx: under full whisper voice rises more than any fusion; no degradation effect is "
-     "significant",
-     lambda v, t: min(v("bx.dysph.voice.probes.rise"), v("bx.dysph.voice.test.rise"))
-     > max(v(f"bx.dysph.{s}.{sc}.rise") for s in ("earlypron", "latepron")
-           for sc in ("probes", "test"))
-     and v("bxsiggroup.dysph.significant") == 0),
-    ("ch9 bx: unseen phrases give the higher EER in every source, none significantly",
-     lambda v, t: all(v(f"bxsig.text_{s}.dsnn_{s}_indep_flat_std.delta") > 0
-                      for s in ("voice", "eegpron", "earlypron", "latepron"))
+                      for x in ("dep", "indep"))
      and v("bxsiggroup.text.significant") == 0),
     ("ch9/ch10/abstract bx: of the Coretto conclusions BIOMEX-DB can test, five repeat (fusion "
      "vs EEG, DSNN vs ANN, energy, dysphonia, text mode) and exactly two change (late fusion vs "
@@ -1358,9 +1304,6 @@ CLAIMS = [
      lambda v, t: v("world.floor.bx.supported") == 0 and v("world.floor.bx.contradicted") == 0
      and v("world.floor.bx.r") > 0 and v("world.floor.co.r") > 0
      and v("world.floor.bx.r") < v("world.floor.bx.power.r")),
-    ("ch9 Q4: seen phrases give the lower EER in most sources, none significantly",
-     lambda v, t: v("p01.text.seen_better") > v("p01.text.sources") / 2
-     and v("siggroup.text.significant") == 0 and v("siggroup.text.nominal") == 0),
     # --- The per-fold protocol (the primary result since 2026-11-18) ---------------------
     ("pf ch9: on EEG every fold of every cell chose the same extractor, the Phase 00 winner; on "
      "voice the 15 folds chose several, all non-cepstral handcrafted, the winner the most often",
@@ -1483,6 +1426,17 @@ CLAIMS = [
     ("pf ch9 WORLD: under the per-fold protocol too no EER comparison is significant on either "
      "base, and none moves the EER by 0.02",
      lambda v, t: v("world.pf.eer.sig") == 0 and v("world.pf.eer.absmax") < 0.02),
+    ("pf ch9: with unseen phrases pronounced EEG is ahead of its late fusion",
+     lambda v, t: v("pf01.grid.eegpron.indep.eer") < v("pf01.grid.latepron.indep.eer")),
+    ("pf ch9 Q3: PCA is ahead of the autoencoder in most cells",
+     lambda v, t: v("pf01.cmp.pca_better_ae") > v("pf01.cmp.cells") / 2),
+    ("pf ch9 Q3: the SNN-AE won few of the comparison's autoencoder choices, none on imagined EEG",
+     lambda v, t: 0 < v("pf01.cmp.ae.snn") < v("pf01.cmp.ae.folds") / 4
+     and v("pf01.cmp.ae.snn.eegimag") == 0),
+    ("pf ch9 Q4: on Coretto unseen phrases cost less than one percentage point of EER on average",
+     lambda v, t: 0 < v("pf01.text.mean.unseen") - v("pf01.text.mean.seen") < 0.01),
+    ("pf ch9 bx: unlike Coretto, voice with seen phrases ranks ahead of part of the EEG/fusion cells",
+     lambda v, t: v("pfbx.voice.first_rank") < v("pfbx.cells") - 1),
 ]
 
 
