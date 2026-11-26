@@ -775,6 +775,27 @@ cap. 7), ficha catalográfica, dedicatória/agradecimentos/epígrafe, data da de
 
 ---
 
+## Situação em 2026-11-26: o protocolo por dobra é o resultado principal
+
+O item 5 está resolvido pela solução rigorosa, e foi além dela. A Fase~01 passou a escolher,
+dentro de cada dobra e só com os locutores de treino, o extrator (ordenação por
+$D_{\text{pen}}$ entre todos os candidatos da Fase~00, com *autoencoders* e PCA
+reajustados) e os hiperparâmetros do classificador (busca interna de 36 pontos, GroupKFold de 4
+dobras). O pré-registro está em `software/nn/.wiki/Experiments/Thesis-Per-Fold-Protocol.md`. As
+quatro fases rodaram no GridUnesp (perfold, pfbiomex, pfworld e pfbxworld, de 19 a 26/11), e os
+caps. 8, 9 e 10, os resumos, a tabela do estado da arte (cap. 7) e o Apêndice B foram reescritos
+com os números por dobra (commits `ea4a03cb9`, `19ae511f2` e o seguinte). Dois itens de
+Limitações saíram ("o extrator é escolhido com todos os locutores" e "os hiperparâmetros não foram
+ajustados") e dois entraram (busca compacta; margem WORLD com o extrator da base inteira). A
+configuração fixa ficou como comparação (cap. 9, `sec:perfoldVsFixed`).
+
+O que mudou nas conclusões: na base de Coretto, nenhum veredicto. Na comparação de extratores, o
+manual passa à frente na voz, e a PCA continua à frente no EEG de fala imaginada (o menor EER
+agora é com frases não vistas). Na BIOMEX-DB, a fusão tardia contra a voz deixa de ser
+significativa, e o modo de texto passa a ser significativo na voz e na fusão tardia (por
+Mann--Whitney, que é otimista). Contra a configuração fixa, a voz melhora e 7 das 8 células de
+fusão pioram.
+
 ## Leitura integral do PDF (2026-11-17)
 
 Leitura das 175 páginas da versão de 17/11 (depois da grade WORLD e do teste de piso). Páginas

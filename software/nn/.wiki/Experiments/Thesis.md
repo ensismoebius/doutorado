@@ -30,8 +30,8 @@ The experiment consists of two stages:
 > ([Thesis per-fold protocol](Thesis-Per-Fold-Protocol.md)). `perfold`, `pfbiomex` and `pfworld`
 > have run and are committed with their tables (`perfold_*.csv`, `pfbiomex_*.csv`,
 > `world_eer_perfold.csv`) and declared tests (`10_`, `11_`, `08_ --protocol per-fold`), and
-> `pfbxworld` (2026-11-26) with them. The fixed-configuration results below become the comparison. The
-> thesis text has not been rewritten for it yet.
+> `pfbxworld` (2026-11-26) with them. The fixed-configuration results below become the comparison.
+> The thesis text quotes the per-fold numbers since 2026-11-26 (ch. 8-10 and the abstracts).
 
 > **Follow-up search:** because the hand-picked autoencoder profiles lose to handcrafted
 > features on `D_penalized` (the winner of every signal in `winners.json` is handcrafted), the [paraconsistentGA](ParaconsistentGA.md)

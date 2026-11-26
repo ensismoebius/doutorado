@@ -4,8 +4,9 @@ Status: **design agreed with the author 2026-11-18; stages (a)-(f) of §6 implem
 and run on `thesis-per-fold-protocol`.** Runs of record (deploy `271cbb5b`, one CPU per task):
 `perfold` 300/300 units (job 5331068), `pfbiomex` 144/144 (5335100 + rerun 5338456 at 16G),
 `pfworld` 150/150 (5345042), `pfbxworld` 270/270 (5345820, 2026-11-26). Tables and the
-declared tests are generated for all four (§6 amendments); the thesis text still quotes
-the fixed-configuration results.
+declared tests are generated for all four (§6 amendments). The thesis text quotes them as the
+primary result since 2026-11-26 (ch. 8-10, abstracts; `pf01.*`, `pfbx.*`, `world.pf.*` keys of
+`thesis_build_text_numbers.py`); the fixed configuration is its comparison section.
 This page is the rule. It is committed before any code that produces a result, and a result
 never changes it: a deviation is written here as a dated amendment, with its reason, before the
 run it affects.

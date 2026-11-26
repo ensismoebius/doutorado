@@ -1496,8 +1496,8 @@
 				\citeonline{holler2019age} & \ac{EEG} & 60 & verificação, mesma sessão e entre sessões; coeficientes autorregressivos & \ac{EER} 5,34\% (mesma sessão); 22\% (entre sessões) \\
 				\citeonline{fallahi2025advancing} & \ac{EEG} & 345 & verificação entre sessões; redes profundas & \ac{EER} 6,7\% (1 dia) a 14,3\% (1 ano) \\
 				\citeonline{morenorodriguez2021biomex} & voz e \ac{EEG} síncronos (14 canais), fala pronunciada & 51 & identificação bimodal & acurácia 97,6\% \\
-				Esta tese & voz e \ac{EEG} (6 canais), fala pronunciada e imaginada & 15 & verificação, locutores de teste fora do treino, sessão única; \ac{DTWPT} e \ac{DSNN} & \ac{EER} $\tn{p01.best.eer}$ (fusão); $\tn{p01.voice.best.eer}$ (voz) \\
-				Esta tese (replicação na BIOMEX-DB) & voz e \ac{EEG} (14 canais), fala pronunciada & \tn{base.biomex.kept} & mesmo protocolo, vencedores congelados, sem nova seleção & \ac{EER} $\tn{bx.best.eer}$ (fusão); $\tn{bx.dsnn.voice.dep.eer}$ (voz, frases vistas) \\
+				Esta tese & voz e \ac{EEG} (6 canais), fala pronunciada e imaginada & 15 & verificação, locutores de teste fora do treino, extrator e hiperparâmetros escolhidos em cada dobra, sessão única; \ac{DTWPT} e \ac{DSNN} & \ac{EER} $\tn{pf01.best.eer}$ (fusão); $\tn{pf01.grid.voice.dep.eer}$ (voz) \\
+				Esta tese (replicação na BIOMEX-DB) & voz e \ac{EEG} (14 canais), fala pronunciada & \tn{base.biomex.kept} & mesmo protocolo, método congelado, escolhas dentro de cada dobra & \ac{EER} $\tn{pfbx.best.eer}$ (fusão); $\tn{pfbx.dsnn.voice.dep.eer}$ (voz, frases vistas) \\
 			\end{longtable}
 			}
 		% packages.tex sets \LTpost to -30pt; without this the next paragraph overlaps the last row.

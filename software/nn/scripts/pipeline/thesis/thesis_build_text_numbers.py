@@ -1174,15 +1174,8 @@ CLAIMS = [
      lambda v, t: v("p01.std.better") == v("p01.std.pairs")),
     ("ch9: flat CV gives the lower EER in most cells",
      lambda v, t: v("p01.cv.flat_better") >= 0.75 * v("p01.cv.pairs")),
-    ("ch9/ch10/abstract: through the classifier no automated extractor differs "
-     "significantly from the handcrafted one",
-     lambda v, t: v("siggroup.cmp.significant") == 0),
-    ("ch9/ch10: PCA on imagined EEG, seen phrases, is the lowest EER of the whole experiment",
-     lambda v, t: v("p01.cmp.eegimag.dep.pca.eer") == v("p01.min.eer")),
     ("ch9 Q3: the autoencoder Phase 00 picked is the ANN-AE on the three signals",
      lambda v, t: all(t(f"p00.{s}.best.ae.label").startswith("ANN-AE") for s in S3)),
-    ("abstract: the best cell of the main grid is late fusion with imagined-speech EEG",
-     lambda v, t: t("p01.best.label").startswith("Fusão tardia (imaginada)")),
     ("ch8: every Coretto trial equals the Zenodo copy",
      lambda v, t: v("base.coretto.mirror.equal") == v("base.coretto.trials")),
     ("ch8: the base holds one S01 pronounced /o/ trial more than the paper's Table 4",
@@ -1206,18 +1199,6 @@ CLAIMS = [
                       and v(f"bxsig.vsvoice_{x}.dsnn_eegpron_{x}_flat_std.pholm") >= 0.05
                       for x in ("dep", "indep"))
      and v("bxsiggroup.text.significant") == 0),
-    ("ch9/ch10/abstract bx: of the Coretto conclusions BIOMEX-DB can test, five repeat (fusion "
-     "vs EEG, DSNN vs ANN, energy, dysphonia, text mode) and exactly two change (late fusion vs "
-     "voice, network vs cosine), each from not significant to significant",
-     lambda v, t: [v("bxsiggroup.fusion.significant") == 0 and v("siggroup.fusion.significant") == 0,
-                   v("bxsiggroup.ctrl.ann.significant") == 0 and v("siggroup.ctrl.ann.significant") == 0,
-                   v("bx.energy.dsnn_cheaper") == 0 and v("p01.energy.dsnn_cheaper") == 0,
-                   v("bxsiggroup.dysph.significant") == 0 and v("siggroup.dysph.significant") == 0,
-                   v("bxsiggroup.text.significant") == 0 and v("siggroup.text.significant") == 0,
-                   ].count(True) == 5
-     and v("siggroup.vsvoice.significant") == 0 and v("bxsiggroup.vsvoice.significant") > 0
-     and v("siggroup.ctrl.cosine.significant") == 0
-     and v("bxsiggroup.ctrl.cosine.significant") > 0),
     ("ch8 cal: tremor does what is asked",
      lambda v, t: v("cal.tremor.ratio") >= 0.95),
     ("ch8 cal: jitter reads below the request, the same on both speakers",
