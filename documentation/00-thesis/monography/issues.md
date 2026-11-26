@@ -985,7 +985,7 @@ no código ou no histórico.
 | 165 | PCA "sem treino" | procede (é ajustada por dobra) | "sem treino iterativo" |
 | 89 | "30 meses" | procede (≈ 31,5) | "terminava em 30/03/2024, cerca de 31 meses antes da atualização" |
 | 93 | "Constante nas referências…" sem verbo | procede | frase reescrita |
-| 90 | busca *spiking*: "nenhum sobre identificação", mas lin2025 é citado | depende do autor: provavelmente as 32 são do Athena e lin2025 veio da busca na web | **pendente: confirmar a origem e explicitar** |
+| 90 | busca *spiking*: "nenhum sobre identificação", mas lin2025 é citado | procede: o autor confirmou que lin2025 veio da busca na web | "32 no Athena" e a origem de lin2025 explicitadas no item da busca |
 | 182 | perfeito com EER 0,75 | o número é o do teste sintético (4 pontuações por lado, b22f07c1) | **opcional: dizer "no teste sintético"** |
 | 79, 79, 121 | $\ell$, "depHe", "ROC3", "12 P" | não procedem: artefatos da extração | nada |
 | 111 | "duas escolhas" e a categoria | não procede: o texto separa com "Além disso" | nada |
