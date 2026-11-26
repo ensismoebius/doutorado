@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.213440,0.868622,73118.071,124.252,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_rough-j2_rep2/per-fold-fused-early/fold_0.bin
+per-fold-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.268852,0.814762,50545.126,85.367,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_rough-j2_rep2/per-fold-fused-early/fold_1.bin
+per-fold-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.267828,0.812373,103926.846,164.144,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_rough-j2_rep2/per-fold-fused-early/fold_2.bin
+per-fold-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.472131,0.556238,24254.514,40.151,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_rough-j2_rep2/per-fold-fused-early/fold_3.bin
+per-fold-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.241830,0.831561,45734.164,73.679,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_rough-j2_rep2/per-fold-fused-early/fold_4.bin

@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.379167,0.664998,71767.499,120.619,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_aphonic-r05_rep1/per-fold-fused-early/fold_0.bin
+per-fold-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.301587,0.753248,13193.229,23.348,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_aphonic-r05_rep1/per-fold-fused-early/fold_1.bin
+per-fold-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.305357,0.768407,156349.075,254.275,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_aphonic-r05_rep1/per-fold-fused-early/fold_2.bin
+per-fold-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.364451,0.673600,23668.426,41.585,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_aphonic-r05_rep1/per-fold-fused-early/fold_3.bin
+per-fold-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.371429,0.666245,13067.032,24.071,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_aphonic-r05_rep1/per-fold-fused-early/fold_4.bin

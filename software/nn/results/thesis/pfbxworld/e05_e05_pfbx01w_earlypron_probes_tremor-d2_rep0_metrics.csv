@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.257800,0.827664,48234.948,84.548,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_tremor-d2_rep0/per-fold-fused-early/fold_0.bin
+per-fold-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.411680,0.649195,22874.788,40.841,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_tremor-d2_rep0/per-fold-fused-early/fold_1.bin
+per-fold-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.207516,0.880520,25285.947,47.226,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_tremor-d2_rep0/per-fold-fused-early/fold_2.bin
+per-fold-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.292892,0.786848,47429.698,86.330,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_tremor-d2_rep0/per-fold-fused-early/fold_3.bin
+per-fold-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.227496,0.841064,102790.749,182.850,results/thesis/pfbxworld/models/e05_pfbx01w_earlypron_probes_tremor-d2_rep0/per-fold-fused-early/fold_4.bin

@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.281746,0.793946,49633.876,85.038,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_probes_rough-j4_rep1/per-fold-fused-late/fold_0.bin
+per-fold-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.309921,0.755600,74275.844,127.305,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_probes_rough-j4_rep1/per-fold-fused-late/fold_1.bin
+per-fold-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.292063,0.781175,49258.113,80.255,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_probes_rough-j4_rep1/per-fold-fused-late/fold_2.bin
+per-fold-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.395701,0.665283,24759.958,43.646,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_probes_rough-j4_rep1/per-fold-fused-late/fold_3.bin
+per-fold-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.298413,0.764294,48948.865,79.090,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_probes_rough-j4_rep1/per-fold-fused-late/fold_4.bin
