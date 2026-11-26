@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-26 — reproducing the thesis: one guide, one command
+
+- `.wiki/Tutorials/Reproducing-the-Thesis.md` (Tutorial 3): from a clone to the thesis numbers,
+  step by step, in two paths: A rebuilds every derived file from the committed results, B runs
+  the experiments again (order, commands, measured costs, how close a run on other hardware
+  comes). Every script, result folder and ch. 9 table is listed with what writes and reads it.
+- `scripts/pipeline/thesis/thesis_rebuild_from_results.sh`: path A in one command (calibration
+  re-check in a scratch folder, ranking, profiles, tables, significance, WORLD analyses, base
+  facts, text numbers, PDF), then every rebuilt file against git through
+  `thesis_compare_rebuild.py` (byte-identical, or JSON within a stated relative tolerance with
+  named wall-clock keys ignored; 7 tests in `CompareRebuild`). `--check` exits 1 on a different
+  result, `--no-calibration` skips the hour-long re-check. Measured 2026-11-26: `REPRODUCED`;
+  every file byte-identical except `world_floor.json` (16th digit, summation order) and the
+  calibration's wall-clock `seconds`; steps 2-11 about 5 min, the calibration 1 h 47 min.
+- `run_thesis_profiles.sh`: the automatic post-processing after a clean Phase 00 called
+  `00_thesis_generate_profiles.py --winners` without the `--calibration` it requires, so it
+  stopped with an error; it now passes it (the calibration runs before Phase 00).
+- Wiki: the documented `01_thesis_phase00_rank.py` commands (Running Thesis Profiles § 2, the
+  Re-run Runbook smoke) lacked the required `--stability-out`; stale statements fixed (Re-run
+  Runbook current state, Thesis Document's per-fold tables "not yet in the text").
+- `documentation/00-thesis/monography/README.md`: the folder map of the thesis. Thesis appendix B
+  names the two reproduction paths and the rebuild script. Links from the root README, the wiki
+  Home, Getting Started, `documentation/README.md`, the experiment README and `scripts/README.md`.
+- `thesis_grid_status.py`: the unit column is as wide as the longest unit name shown, never cut
+  (a split phase's `.rep<N>` suffix was cut off at 36 characters).
+- `05_thesis_dysphonia_calibration.py` stopped in its verification pass
+  (`unknown parameters ['break_kind']`): since the C++ binding moved to
+  `scripts/lib/thesis_dysphonia_lib.py` (238617afc, 2026-11-16) it refuses any parameter it does
+  not know, and the voice-break levels still passed their kind among the numeric parameters.
+  The committed `calibration.json` predates that move (438c38df6), so nothing of record changed;
+  the script had simply not run since. Found by the first run of the rebuild script.
+- CI (clang-tidy 21, `bugprone-unchecked-optional-access`): 7 optional accesses after an
+  `ASSERT_TRUE(x.has_value())` in `thesis_per_fold_gtest.cpp` and `thesis_protocol_gtest.cpp`
+  now use the `if (!x.has_value()) { GTEST_FAIL() << …; }` form the rest of the suite uses
+  (clang-tidy does not read the gtest macro as a check). They came in with the per-fold branch,
+  which reached CI only at the merge.
+
 ## 2026-11-26 — pfbxworld results; the thesis text quotes the per-fold protocol
 
 ### Results

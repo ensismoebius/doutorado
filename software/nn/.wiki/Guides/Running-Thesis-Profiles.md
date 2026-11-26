@@ -1,5 +1,7 @@
 # Running Thesis Profiles (Experiment05)
 
+**To reproduce the thesis results step by step, start at [Reproducing the thesis results](../Tutorials/Reproducing-the-Thesis.md);** this page is the reference for every runner option.
+
 How to run the thesis pipeline end-to-end: Phase 00 (feature-vector construction +
 paraconsistent ranking) → Phase 01 (DSNN authentication) → the BIOMEX-DB replication. All
 commands run from `software/nn/`. What happens to the results afterwards (tables, tests,
@@ -183,7 +185,7 @@ so they are only valid after Phase 00 ran and its winners were written in.
 1 phase00 ──► (automatic, on a clean pass) 2 rank ─► 3 regenerate profiles ─► 4 Phase 00 tables
 5 phase01 ──► 6 Phase 01 tables, significance
 7 biomex  ──► 8 BIOMEX tables, significance
-9 WORLD dysphonia: a calibration (before 3) ─► b pilot ─► c identity margin ─► d grid ─► e floor
+9 WORLD dysphonia: a calibration (before 1: step 3 needs it) ─► b pilot ─► c identity margin ─► d grid ─► e floor
 10 per-fold protocol (cluster): warm the feature cache ─► perfold ─► pfbiomex ─► pfworld ─► pfbxworld
 then: the thesis numbers (Thesis Document guide)
 ```
@@ -222,7 +224,8 @@ On a pass with **zero failures** the runner then runs steps 2–4 itself
 python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
   --profiles-dir src/experiments/thesis/profiles/phase00 \
   --results-dir  results/thesis/phase00 \
-  --out          results/thesis/phase00/winners.json
+  --out          results/thesis/phase00/winners.json \
+  --stability-out results/thesis/phase00/winner_stability.csv
 ```
 
 Selects on `d_penalized` (not raw `d_truth`, which a collapsed latent can game; see
@@ -332,7 +335,7 @@ BIN=out/build/max-performance/src/experiments/thesis
 cmake --build out/build/max-performance --target thesis thesis_features -j$(nproc)
 ```
 
-**a. Calibration** (minutes, no training; Praat 6.1.38 through parselmouth). Finds, on real
+**a. Calibration** (about an hour: 48 min in the run of record; no training; Praat 6.1.38 through parselmouth). Finds, on real
 vowels, the request of each rough/tremor level that yields the measured target.
 
 ```bash

@@ -922,9 +922,13 @@ post_process_phase00() {
     echo "[post] regenerating the phase01 and biomex profiles with the winners"
     # --fused is a design choice with no default: the fused (voice+EEG) runs inherit the
     # voice winner, the audio-dominant source -- the choice the thesis makes.
+    # --calibration is required with --winners (the WORLD levels carry the calibrated
+    # requests): run 05_thesis_dysphonia_calibration.py before Phase 00. It needs only the
+    # Coretto base: about an hour, no training.
     "$py" scripts/pipeline/thesis/00_thesis_generate_profiles.py \
         --winners      results/thesis/phase00/winners.json \
-        --fused        voice || { rc=$?; return $rc; }
+        --fused        voice \
+        --calibration  results/thesis/dysphonia_calibration/calibration.json || { rc=$?; return $rc; }
 
     echo "[post] regenerating the thesis phase00 tables"
     "$py" scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \

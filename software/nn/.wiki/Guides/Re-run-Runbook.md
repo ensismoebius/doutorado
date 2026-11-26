@@ -5,10 +5,12 @@ Commands to regenerate every experimental result, in dependency order. Everythin
 agent from launching these without explicit confirmation, by design. Run them yourself.
 Commands run from `software/nn/` unless a `cd` is shown.
 
-> **Current state (2026-11-13).** The thesis results of record are the runs of 2026-11-12/13
-> under the revised protocol ([Experiment05 › Status](../Experiments/Thesis.md#overview)): Phase 00,
-> Phase 01 and BIOMEX-DB, committed in `results/thesis/`. The table below is *why the July re-run
-> happened*; its counts are July's (the grid has changed since).
+> **Current state (2026-11-26).** The thesis results of record are committed in `results/thesis/`:
+> the per-fold protocol (`perfold`, `pfbiomex`, `pfworld`, `pfbxworld`, the primary result) and
+> the fixed configuration (`phase00`, `phase01`, `biomex`, `pilot`, `world`, `bxworld`). The
+> step-by-step guide to reproduce them, from the committed results or from scratch, is
+> [Reproducing the thesis results](../Tutorials/Reproducing-the-Thesis.md). The table below is
+> *why the July re-run happened*; its counts are July's (the grid has changed since).
 >
 > This page is the permanent home of the former repo-root `run.md`. See
 > [Engineering Fixes Log](./Engineering-Fixes-Log.md) for *why* a re-run was needed at
@@ -66,7 +68,8 @@ destructive arguments** (see the warnings in [Running Experiment05 Profiles › 
 python3 scripts/pipeline/thesis/01_thesis_phase00_rank.py \
   --profiles-dir src/experiments/thesis/profiles/smoke/phase00 \
   --results-dir  results/thesis/smoke \
-  --out          /tmp/smoke_winners.json
+  --out          /tmp/smoke_winners.json \
+  --stability-out /tmp/smoke_winner_stability.csv
 
 # Do NOT pass a smoke winners file to 00_thesis_generate_profiles.py: it writes the real tree.
 # (GeneratedTree in test_thesis_phase_scripts.py would then fail: the manifest names another file.)

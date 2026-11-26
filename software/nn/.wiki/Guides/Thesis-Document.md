@@ -23,7 +23,7 @@ results/thesis/{phase00,phase01,biomex}/   (committed run outputs)
 
 results/thesis/{perfold,pfbiomex,pfworld,pfbxworld}/   (the per-fold protocol, 2026-11-18)
         ├─ ..._phase01_auth_tables.py --protocol per-fold ─► tables/perfold_*.csv ─┐ csvreader
-        ├─ ..._biomex_tables.py --protocol per-fold ───────► tables/pfbiomex_*.csv ┘ (not yet in the text)
+        ├─ ..._biomex_tables.py --protocol per-fold ───────► tables/pfbiomex_*.csv ┘ in ch. 9
         ├─ 10_/11_..._significance.sh ─► results/.../significance_*.csv
         ├─ 08_thesis_world_analysis.py --protocol per-fold ─► world_eer_perfold.csv, sig_pf*world_*.csv
         └─► thesis_build_text_numbers.py (the same run as above: keys pf01.*, pfsig.*, pfbx.*,
@@ -97,6 +97,11 @@ committed.
    "beats", a "no significant difference"), add the assertion to `CLAIMS` next to the others.
 
 ## Results to text
+
+`scripts/pipeline/thesis/thesis_rebuild_from_results.sh` runs every step below (and the
+per-fold ones after it) in order, then the PDF, and with `--check` fails if any rebuilt file
+differs from git ([Reproducing the thesis results § 5](../Tutorials/Reproducing-the-Thesis.md#5-path-a--rebuild-everything-from-the-committed-results)).
+The steps, for a partial re-run:
 
 After any run that changes results (from `software/nn/`, in this order: each step reads what
 the one before wrote):

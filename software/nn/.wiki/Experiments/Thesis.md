@@ -2,7 +2,8 @@
 
 > **Thesis primary experiment.**  
 > Thesis: *Autenticação Biométrica de Locutores Drasticamente Disfônicos Aprimorada pela Imagined Speech*  
-> Author: André Furlan — UNESP | Advisor: Prof. Dr. Rodrigo Capobianco Guido | Funding: FAPESP 2021/12407-4
+> Author: André Furlan — UNESP | Advisor: Prof. Dr. Rodrigo Capobianco Guido | Funding: FAPESP 2021/12407-4  
+> **To reproduce the results step by step:** [Reproducing the thesis results](../Tutorials/Reproducing-the-Thesis.md).
 
 ---
 

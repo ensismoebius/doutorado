@@ -16,6 +16,7 @@ and in the wiki. Start with the table below.
 | build the framework and run a test | [Getting Started](software/nn/.wiki/Tutorials/Getting-Started.md) → [Build System](software/nn/.wiki/Guides/Build-System.md) |
 | find **where** to change something | [How to Change Anything](software/nn/.wiki/Guides/How-To-Change-Anything.md) — one table, task → files → tests → docs |
 | understand the research | [Research Context](software/nn/.wiki/Research-Context.md) → [Experiment05 (thesis)](software/nn/.wiki/Experiments/Thesis.md) |
+| **reproduce the thesis results**, step by step | [Reproducing the thesis results](software/nn/.wiki/Tutorials/Reproducing-the-Thesis.md) |
 | run the thesis experiment | [Running Thesis Profiles](software/nn/.wiki/Guides/Running-Thesis-Profiles.md) |
 | build or verify the data bases | [Data Bases](software/nn/.wiki/Guides/Data-Bases.md) |
 | edit the thesis text, tables or figures | [Thesis Document](software/nn/.wiki/Guides/Thesis-Document.md) |

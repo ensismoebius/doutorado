@@ -1003,6 +1003,59 @@ METRICS_HEADER = ("feature_set,classifier,text_mode,fold,accuracy,f1,precision,r
                   "specificity,eer,auc,train_ms,infer_ms,model_path\n")
 
 
+class CompareRebuild(unittest.TestCase):
+    """thesis_compare_rebuild.py tells a different result from float rounding and wall-clock
+    fields: thesis_rebuild_from_results.sh --check fails on the first and passes the others."""
+
+    SCRIPT = os.path.join(PIPELINE_DIR, "thesis_compare_rebuild.py")
+
+    def compare(self, committed, rebuilt, *opts, suffix=".json"):
+        with tempfile.TemporaryDirectory() as d:
+            a = pathlib.Path(d, "committed")          # no suffix, as `git show` writes it
+            b = pathlib.Path(d, "rebuilt" + suffix)
+            a.write_text(committed)
+            b.write_text(rebuilt)
+            return subprocess.run([sys.executable, self.SCRIPT, *opts, str(a), str(b)],
+                                  check=False, capture_output=True, text=True)
+
+    def test_identical_bytes(self):
+        r = self.compare('{"r": 0.5}', '{"r": 0.5}', "--rel-tol", "0")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("identical", r.stdout)
+
+    def test_last_digits_of_a_float_are_the_same_result(self):
+        # the measured case: world_floor.json, numpy summation order
+        r = self.compare('{"r": 0.7091564366639}', '{"r": 0.7091564366639003}',
+                         "--rel-tol", "1e-12")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("equal within", r.stdout)
+
+    def test_a_changed_value_is_a_different_result(self):
+        r = self.compare('{"r": 0.7091564366639}', '{"r": 0.7091}', "--rel-tol", "1e-12")
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("/r", r.stdout)
+
+    def test_wall_clock_key_only_when_named(self):
+        a, b = '{"seconds": 2900.9, "x": [1, 2]}', '{"seconds": 6402.9, "x": [1, 2]}'
+        self.assertEqual(self.compare(a, b, "--rel-tol", "1e-12").returncode, 1)
+        r = self.compare(a, b, "--rel-tol", "1e-12", "--ignore-key", "seconds")
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_structure_counts_and_strings_are_exact(self):
+        for a, b in (('{"x": [1, 2]}', '{"x": [1, 2, 3]}'), ('{"n": 3}', '{"n": 4}'),
+                     ('{"k": "a"}', '{"k": "b"}'), ('{"a": 1}', '{"a": 1, "b": 2}')):
+            self.assertEqual(self.compare(a, b, "--rel-tol", "1e-12").returncode, 1, (a, b))
+
+    def test_other_files_must_be_byte_identical(self):
+        r = self.compare("x,0.7091564366639\n", "x,0.7091564366639003\n", "--rel-tol", "1e-12",
+                         suffix=".csv")
+        self.assertEqual(r.returncode, 1, r.stdout)
+
+    def test_the_tolerance_must_be_stated(self):
+        r = self.compare('{"r": 1}', '{"r": 1}')
+        self.assertNotEqual(r.returncode, 0)
+
+
 class TextNumbersPerFold(unittest.TestCase):
     """The per-fold keys of thesis_build_text_numbers.py: the stability of the choices is
     counted, a mode is named only when every cell agrees on it, and the per-fold WORLD file

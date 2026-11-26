@@ -42,7 +42,8 @@ extractor and degradation as `thesis`; the identity and WORLD analyses
 [`.wiki/Experiments/Thesis.md`](../../../.wiki/Experiments/Thesis.md).** How to run the
 profiles: [Running Thesis Profiles](../../../.wiki/Guides/Running-Thesis-Profiles.md). How results
 become thesis text: [Thesis Document](../../../.wiki/Guides/Thesis-Document.md). This README is
-the map of this folder.
+the map of this folder. **To reproduce the thesis results step by step:**
+[Reproducing the thesis results](../../../.wiki/Tutorials/Reproducing-the-Thesis.md).
 
 ## Build and run (from `software/nn`)
 

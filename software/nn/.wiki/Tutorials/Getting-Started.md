@@ -133,6 +133,7 @@ The switch between phases is one field in the profile: `classifier.enabled`.
 |---|---|
 | Understand the tensor type everything is built on | [Tensor](../Core/Tensor.md) · [plain-language version](../Core/Plain/Tensor.md) |
 | Add your own layer to the framework | [Tutorial 2 — Adding a Layer](./Adding-a-Layer.md) |
+| Reproduce the thesis results (one command from the committed results, or every run again) | [Tutorial 3 — Reproducing the thesis results](./Reproducing-the-Thesis.md) |
 | Run the full experiment (hours, not seconds) | [Running Experiment05 Profiles](../Guides/Running-Thesis-Profiles.md) |
 | Understand the α/β/D_truth scoring you just saw | [Paraconsistent](../Core/Plain/Paraconsistent.md) |
 | Understand spiking neurons | [SNN and Surrogate Gradients](../Concepts/Plain/SNN-and-Surrogate-Gradients.md) |

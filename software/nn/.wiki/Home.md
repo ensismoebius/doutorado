@@ -43,6 +43,9 @@ These are step-by-step and every command in them has been run as written:
    real experiment. ~20 minutes, mostly waiting on the compiler.
 2. **[Adding a Layer](./Tutorials/Adding-a-Layer.md)** — the layer contract, a worked example
    with a gradient check, and the mistakes that catch everyone.
+3. **[Reproducing the thesis results](./Tutorials/Reproducing-the-Thesis.md)** — from a clone to
+   the thesis numbers: rebuild every table and number from the committed results in one command,
+   or run the experiments again (that half quotes the runs of record); every script and file on the way.
 
 Then follow one of these reading paths depending on what you came for:
 
@@ -52,6 +55,7 @@ Then follow one of these reading paths depending on what you came for:
 | **Understand spiking networks** | [SNN and Surrogate Gradients (plain)](./Concepts/Plain/SNN-and-Surrogate-Gradients.md) → [Membrane Dynamics](./Concepts/Membrane-Dynamics.md) → [Time-Major Layout](./Concepts/Time-Major-Layout.md) |
 | **Work on the framework** | [Getting Started](./Tutorials/Getting-Started.md) → [Architecture](./Architecture.md) → [Tensor](./Core/Tensor.md) → [Layers](./Core/Layers.md) |
 | **Find where a change goes** | [How to Change Anything](./Guides/How-To-Change-Anything.md) — task → files → test → docs |
+| **Reproduce the thesis** | [Reproducing the thesis results](./Tutorials/Reproducing-the-Thesis.md) |
 | **Re-run the experiments** | [Data Bases](./Guides/Data-Bases.md) → [Running Thesis Profiles](./Guides/Running-Thesis-Profiles.md) → [Re-run Runbook](./Guides/Re-run-Runbook.md) |
 | **Edit the thesis** | [Thesis Document](./Guides/Thesis-Document.md) |
 | **Know why the code is like this** | [Engineering Fixes Log](./Guides/Engineering-Fixes-Log.md) |

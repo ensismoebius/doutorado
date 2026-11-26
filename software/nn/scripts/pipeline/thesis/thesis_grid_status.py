@@ -413,9 +413,16 @@ def frame(args, split):
             lines.append("  memory  peak of finished tasks {}".format(gb(max(peak))))
 
         if running:
-            lines.append("  {:>4}  {:<36} {:>7}  {:<23} {:>9}  {:>8}  {:>10}  {:>23}  {:>7}".format(
+            # The unit column is as wide as the longest name it shows, never cut: a split
+            # phase's unit ends in ".rep<N>", the only part that tells its repetitions apart,
+            # and a fixed width cut exactly that off (pfbx01w_earlypron_probes_aphonic-r05 is
+            # already 36 characters before the suffix).
+            shown = sorted(running)[:args.max_rows]
+            width = max([len("unit")] + [len(logs.get(task, {}).get("current") or "-")
+                                         for task in shown])
+            lines.append("  {:>4}  {:<{w}} {:>7}  {:<23} {:>9}  {:>8}  {:>10}  {:>23}  {:>7}".format(
                 "task", "unit", "folds", "task progress", "unit time", "per fold", "~task left",
-                "task time / limit", "memory"))
+                "task time / limit", "memory", w=width))
             now = time.time()
             for i, (task, row) in enumerate(sorted(running.items())):
                 if i >= args.max_rows:
@@ -435,14 +442,14 @@ def frame(args, split):
                         flag = "  NEAR LIMIT"
                     elif left is not None and row["elapsed"] + left > limit:
                         flag = "  MAY HIT LIMIT"
-                lines.append("  {:>4}  {:<36} {:>7}  {:<23} {:>9}  {:>8}  {:>10}  {:>10} / {:<10}  {:>7}{}"
-                             .format(task, unit[:36],
+                lines.append("  {:>4}  {:<{w}} {:>7}  {:<23} {:>9}  {:>8}  {:>10}  {:>10} / {:<10}  {:>7}{}"
+                             .format(task, unit,
                                      "{}/{}".format(folds[0], folds[1]) if folds else "-",
                                      "{} {:>3.0f}%".format(bar(progress, 1.0, 16), 100 * progress)
                                      if progress is not None else "-",
                                      hms(unit_time), human_span(pace), human_span(left),
                                      hms(row["elapsed"]), hms(limit),
-                                     gb(rss_now.get(row["raw"])), flag))
+                                     gb(rss_now.get(row["raw"])), flag, w=width))
     return "\n".join(lines)
 
 

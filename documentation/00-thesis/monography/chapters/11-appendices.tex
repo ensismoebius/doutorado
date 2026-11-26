@@ -72,6 +72,22 @@
 		que guarda, na mesma revisão deste texto, o código, a configuração de cada
 		execução e os resultados brutos.
 
+		\par Há dois caminhos de reprodução, que respondem a perguntas diferentes. O
+		primeiro confere se as tabelas e o texto decorrem das execuções: a partir dos
+		resultados registrados, o comando
+		\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak thesis\_rebuild\_\allowbreak from\_\allowbreak results.sh -{}-check}
+		confere a calibração da disfonia e refaz, na ordem, a ordenação da Fase~00, os
+		perfis, as tabelas, os testes de significância, as análises da disfonia por edição
+		da fonte, os fatos das bases, os números do texto e este documento, sem treinar
+		nada, e falha se algum arquivo refeito for um resultado diferente do registrado
+		(diferenças apenas no último algarismo de um número em ponto flutuante, ou num
+		campo de tempo de execução, não contam como resultado diferente). O segundo repete as
+		execuções, o que custa milhares de horas de CPU e exige um aglomerado
+		computacional; na mesma máquina, compilação e número de \textit{threads}, a
+		saída é idêntica byte a byte, e em outra máquina os números mudam nas últimas
+		casas decimais. O guia passo a passo dos dois caminhos, com cada programa e
+		arquivo, está em \texttt{.wiki/\allowbreak Tutorials/\allowbreak Reproducing-\allowbreak the-\allowbreak Thesis.md}.
+
 		{\small
 		\tableZebraStripe
 		\begin{longtable}{@{}Y{0.30\textwidth}Y{0.64\textwidth}@{}}
@@ -91,6 +107,7 @@
 			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak 10\_thesis\_\allowbreak perfold\_\allowbreak significance.sh}, \texttt{03\_thesis\_\allowbreak phase01\_\allowbreak significance.sh} & Executam os testes de significância de cada família de comparações declarada, no protocolo por dobra e na configuração fixa. \\
 			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak thesis\_build\_\allowbreak phase00\_\allowbreak paraconsistent\_\allowbreak tables.py}, \texttt{thesis\_build\_\allowbreak phase01\_\allowbreak auth\_\allowbreak tables.py}, \texttt{thesis\_build\_\allowbreak biomex\_\allowbreak tables.py} & Geram as tabelas do \autoref{chap:testsResults} a partir dos resultados; os dois últimos exigem o protocolo (\texttt{-{}-protocol per-fold} ou \texttt{fixed}) e recusam um resultado do outro. \\
 			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak thesis\_build\_\allowbreak text\_\allowbreak numbers.py} & Gera cada número citado no texto e verifica as afirmações qualitativas que dependem deles; uma afirmação que deixa de valer impede a geração. \\
+			\raggedright\texttt{scripts/\allowbreak pipeline/\allowbreak thesis/\allowbreak thesis\_rebuild\_\allowbreak from\_\allowbreak results.sh} & Refaz, a partir dos resultados registrados e na ordem de dependência, todos os arquivos derivados deles (perfis, tabelas, testes, análises, números do texto e o documento) e os compara com o repositório; com \texttt{-{}-check}, uma diferença interrompe a execução. \\
 			\raggedright\texttt{scripts/\allowbreak analysis/\allowbreak thesis\_ae\_\allowbreak input\_\allowbreak reference.py} & Calcula, com SciPy e PyTorch, a \autoref{tab:aeInput}. \\
 			\raggedright\texttt{scripts/\allowbreak analysis/\allowbreak thesis\_eeg\_\allowbreak band\_\allowbreak power.py} & Mede, com SciPy, a distribuição da potência do \ac{EEG} da base (\autoref{tab:potenciaEeg}). \\
 			\raggedright\texttt{scripts/\allowbreak data/\allowbreak coretto\_verify\_\allowbreak mirror.py} & Compara cada tentativa da base de \citeonline{10.1117/12.2255697} com a cópia independente do Zenodo (\autoref{sec:conferenciaCoretto}) e, se não houver diferença, grava um selo com as contagens. \\
