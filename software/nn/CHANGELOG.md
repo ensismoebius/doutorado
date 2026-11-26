@@ -11,7 +11,9 @@ All notable changes to this project will be documented in this file.
   distinct extractors over 15 folds (f619bf648).
 - `pfbiomex` (jobs 5335100 + 5338456, 144/144): four families change verdict (c1e4ecf1e).
 - `pfworld` (job 5345042, 150/150): Part B (EER) 0 of 140 tests significant, as with the fixed
-  configuration (657f8da3c). `pfbxworld` (job 5345820) running.
+  configuration (657f8da3c).
+- `pfbxworld` (job 5345820, 270/270, 2026-11-26): Part B on BIOMEX-DB 0 of 84 significant (min
+  p_holm 0.716), as with the fixed configuration (c058f4978).
 
 ### Analysis scripts (`scripts/pipeline/thesis/`)
 
