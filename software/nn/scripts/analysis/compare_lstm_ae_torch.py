@@ -12,7 +12,7 @@ Input: the *_target_{train,val}_windows.npy + *_meta.csv a meeting01 run writes 
 results (valid_length gives the mask).
 
 Usage:
-    software/nn/.venv/bin/python software/nn/scripts/analysis/compare_lstm_ae_torch.py \
+    ~/.venv/bin/python software/nn/scripts/analysis/compare_lstm_ae_torch.py \
         --results DIR --prefix meeting01_loso_fsdd_fold0 --hidden 64 --layers 1 --epochs 15
 """
 from __future__ import annotations

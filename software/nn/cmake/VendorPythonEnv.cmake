@@ -2,16 +2,17 @@
 ## VendorPythonEnv.cmake
 ##
 ## Purpose
-## - Bootstrap the project-level Python venv (`.venv` at the repo root) used by
+## - Provide the Python venv (default: the machine's single shared `$HOME/.venv`) used by
 ##   pipeline/testing scripts (numpy, scipy, torch, snntorch, ...) so
 ##   `scripts/pipeline/**/*.sh` and `scripts/testing/gen_*_refs.py` don't depend on
 ##   whatever bare `python3` happens to resolve to on the system PATH.
 ##
 ## Notes / pitfalls
-## - This is a SEPARATE venv from the one in VendorMatplotlibCpp.cmake: that one lives
-##   under CMAKE_BINARY_DIR and is linked into C++ demos via Python3::Python/NumPy. This
-##   one lives at CMAKE_SOURCE_DIR/.venv (gitignored) and is invoked as an external
-##   interpreter by shell/python pipeline scripts — see scripts/requirements.txt.
+## - By default this is the SAME venv as VendorMatplotlibCpp.cmake's: `$HOME/.venv`, the
+##   machine's one shared Python env (disk space: one torch install, not one per checkout).
+##   It is invoked as an external interpreter by shell/python pipeline scripts — see
+##   scripts/requirements.txt. Override with -DPYTHON_ENV_DIR=... ; a venv outside this
+##   source/build tree is only created when missing, never deleted or `--clear`ed.
 ## - Reinstalling requirements on every configure would make `cmake --preset=...`
 ##   painfully slow (torch is a multi-hundred-MB download even CPU-only). A stamp file
 ##   records the SHA-256 of requirements.txt; pip install only reruns when that hash
@@ -20,11 +21,30 @@
 
 option(
     PYTHON_ENV_CREATE_VENV
-    "Create/maintain the project .venv (numpy/scipy/torch/...) during configure"
+    "Create/maintain the Python venv (default shared ~/.venv; numpy/scipy/torch/...) during configure"
     ON
 )
 
-set(PYTHON_ENV_DIR "${CMAKE_SOURCE_DIR}/.venv" CACHE PATH "Project Python venv directory")
+if(NOT "$ENV{HOME}" STREQUAL "")
+    set(_pyenv_default_dir "$ENV{HOME}/.venv")
+else()
+    set(_pyenv_default_dir "${CMAKE_SOURCE_DIR}/.venv")
+endif()
+set(PYTHON_ENV_DIR "${_pyenv_default_dir}" CACHE PATH "Python venv directory (default: shared ~/.venv)")
+# Build dirs configured before the switch to the shared env cached the old in-repo default.
+if(PYTHON_ENV_DIR STREQUAL "${CMAKE_SOURCE_DIR}/.venv" AND NOT EXISTS "${CMAKE_SOURCE_DIR}/.venv")
+    set(PYTHON_ENV_DIR "${_pyenv_default_dir}" CACHE PATH "Python venv directory (default: shared ~/.venv)" FORCE)
+endif()
+# Only a venv inside this source/build tree may be deleted and recreated. A shared
+# one outside it (default: ~/.venv, the machine's single Python env used by every
+# tool) is never removed or `--clear`ed — a broken one is a FATAL_ERROR instead.
+string(FIND "${PYTHON_ENV_DIR}/" "${CMAKE_SOURCE_DIR}/" _pyenv_in_src)
+string(FIND "${PYTHON_ENV_DIR}/" "${CMAKE_BINARY_DIR}/" _pyenv_in_bin)
+if(_pyenv_in_src EQUAL 0 OR _pyenv_in_bin EQUAL 0)
+    set(_pyenv_owned TRUE)
+else()
+    set(_pyenv_owned FALSE)
+endif()
 set(PYTHON_ENV_REQUIREMENTS "${CMAKE_SOURCE_DIR}/scripts/requirements.txt" CACHE FILEPATH
     "Requirements file installed into the project venv")
 
@@ -51,6 +71,11 @@ if(PYTHON_ENV_CREATE_VENV)
             ERROR_QUIET
         )
         if(NOT _pyenv_probe_res EQUAL 0)
+            if(NOT _pyenv_owned)
+                message(FATAL_ERROR "PYTHON_ENV: shared venv at ${PYTHON_ENV_DIR} is broken. "
+                    "Refusing to delete it (other tools use it); repair it by hand, e.g. "
+                    "`python3 -m venv --upgrade ${PYTHON_ENV_DIR}`.")
+            endif()
             message(WARNING "PYTHON_ENV: existing venv at ${PYTHON_ENV_DIR} is broken, recreating")
             file(REMOVE_RECURSE "${PYTHON_ENV_DIR}")
             set(_pyenv_needs_bootstrap TRUE)
@@ -62,7 +87,8 @@ if(PYTHON_ENV_CREATE_VENV)
     endif()
 
     file(SHA256 "${PYTHON_ENV_REQUIREMENTS}" _pyenv_req_hash)
-    set(_pyenv_stamp "${PYTHON_ENV_DIR}/.requirements.sha256")
+    # Project-named: the shared venv may carry stamps from several projects.
+    set(_pyenv_stamp "${PYTHON_ENV_DIR}/.${PROJECT_NAME}-requirements.sha256")
 
     set(_pyenv_needs_install ${_pyenv_needs_bootstrap})
     if(NOT _pyenv_needs_install)
@@ -83,10 +109,15 @@ if(PYTHON_ENV_CREATE_VENV)
         # `python -m venv` does not overwrite files that already exist, so a
         # stale/partial tree left behind by an earlier interrupted or broken
         # bootstrap would otherwise persist across repeated "repair" attempts.
-        file(REMOVE_RECURSE "${PYTHON_ENV_DIR}")
+        if(_pyenv_owned)
+            file(REMOVE_RECURSE "${PYTHON_ENV_DIR}")
+            set(_pyenv_clear --clear)
+        else()
+            set(_pyenv_clear "")
+        endif()
 
         execute_process(
-            COMMAND "${_PYENV_SYSTEM_PYTHON}" -m venv --clear "${PYTHON_ENV_DIR}"
+            COMMAND "${_PYENV_SYSTEM_PYTHON}" -m venv ${_pyenv_clear} "${PYTHON_ENV_DIR}"
             RESULT_VARIABLE _pyenv_venv_res
         )
         if(NOT _pyenv_venv_res EQUAL 0)

@@ -152,9 +152,9 @@ test can `set_weights()`:
 ### Regenerate / extend
 
 ```bash
-software/nn/.venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-software/nn/.venv/bin/python -m pip install snntorch spikingjelly
-software/nn/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
+~/.venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+~/.venv/bin/python -m pip install snntorch spikingjelly
+~/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
 ctest --test-dir out/build/max-performance -R PyTorchParity   # XTensor/Device
 ```
 
@@ -213,7 +213,7 @@ a different, stronger guarantee.
 ### Regenerate
 
 ```bash
-software/nn/.venv/bin/python software/nn/scripts/testing/gen_independent_refs.py
+~/.venv/bin/python software/nn/scripts/testing/gen_independent_refs.py
 ctest --test-dir out/build/max-performance -R IndependentCrossCheck
 ```
 

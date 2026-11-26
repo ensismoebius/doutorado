@@ -8,7 +8,7 @@ outputs / gradients as float32 arrays into a single .npz. The C++ test
 runs forward/backward, and asserts EXPECT_NEAR against these references.
 
 Run (developer step; requires torch — CI consumes the committed .npz):
-    software/nn/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
+    ~/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
 
 Output: software/nn/src/core/tensor/tests/fixtures/pytorch_refs.npz
 """

@@ -47,7 +47,7 @@ LISTED in the output with its reason (never dropped without a trace). A level wh
 not reached on a voice is reported as such, not clamped.
 
 Run from software/nn (EXPERIMENT_CONFIRMED is not needed: no training, minutes):
-    .venv/bin/python scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py \\
+    ~/.venv/bin/python scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py \\
         --db ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite \\
         --subjects S10 S03 --jobs 10 --out-dir results/thesis/dysphonia_calibration
 """
@@ -70,7 +70,7 @@ try:
     import parselmouth
 except ImportError as exc:  # no fallback measurer: another program gives other numbers
     raise SystemExit("05_thesis_dysphonia_calibration: parselmouth (Praat) is required: "
-                     ".venv/bin/python -m pip install praat-parselmouth") from exc
+                     "~/.venv/bin/python -m pip install praat-parselmouth") from exc
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 NN = os.path.normpath(os.path.join(HERE, "..", "..", ".."))

@@ -26,7 +26,7 @@ Covered:
                         this deliberately skips.
 
 Run (developer step; requires only numpy, already in this project's venv):
-    software/nn/.venv/bin/python software/nn/scripts/testing/gen_independent_refs.py
+    ~/.venv/bin/python software/nn/scripts/testing/gen_independent_refs.py
 
 Output: software/nn/src/core/layers/tests/fixtures/independent_refs.npz
 """

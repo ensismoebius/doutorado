@@ -17,7 +17,7 @@
  * happens to be "primary" in that build.
  *
  * Regenerate after touching a covered layer:
- *   software/nn/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
+ *   ~/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
  */
 #include <gtest/gtest.h>
 

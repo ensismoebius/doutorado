@@ -907,7 +907,7 @@ post_process_phase00() {
     # These three scripts are stdlib-only, so python3 suffices; still prefer the
     # project venv when present so every pipeline entry point uses one interpreter.
     py="python3"
-    [ -x ".venv/bin/python3" ] && py=".venv/bin/python3"
+    [ -x "$HOME/.venv/bin/python3" ] && py="$HOME/.venv/bin/python3"
 
     echo
     echo "=== phase00 post-processing ==="

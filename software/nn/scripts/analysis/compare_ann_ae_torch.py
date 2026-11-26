@@ -15,7 +15,7 @@ results (valid_length gives the mask). Not the C++ trainer: batch 1, Adam, early
 with patience, the best-val weights restored.
 
 Usage:
-    software/nn/.venv/bin/python software/nn/scripts/analysis/compare_ann_ae_torch.py \
+    ~/.venv/bin/python software/nn/scripts/analysis/compare_ann_ae_torch.py \
         --results DIR --prefix meeting01_loso_fsdd_fold0 --latent 16
 """
 from __future__ import annotations

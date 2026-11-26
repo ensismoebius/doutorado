@@ -29,8 +29,8 @@ open) -- NOT a reconnect-per-poll loop. This project's Fail2Ban lockout concern
 automatically; press 'r' to reconnect by hand when you actually want to.
 
 Usage:
-  .venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py
-  .venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py --interval 30
+  ~/.venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py
+  ~/.venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py --interval 30
 
 Credentials/connection config are handled by gridunesp_config.py (shared with
 gridunesp_status_remote.py's one-shot GA collector and the web dashboard backend):
@@ -64,7 +64,7 @@ except ImportError:
     print("gridunesp_tui.py: 'textual' is not installed -- this is a LOCAL-machine-only\n"
           "dependency (never needed on GridUnesp itself). Install it:\n"
           "  pip install 'textual>=0.80'\n"
-          "or, if this checkout has a .venv: .venv/bin/pip install -r scripts/requirements.txt",
+          "or, into the shared venv: ~/.venv/bin/pip install -r scripts/requirements.txt",
           file=sys.stderr)
     raise SystemExit(1)
 

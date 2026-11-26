@@ -15,7 +15,7 @@ Two cases, both with weights drawn much wider than the training init (std 0.4 / 
 The mask has zero entries in the last frames (a zero-padded window tail), as in training.
 
 Run (developer step; needs torch -- CI consumes the committed .npz):
-    software/nn/.venv/bin/python software/nn/scripts/testing/gen_lstm_ae_refs.py
+    ~/.venv/bin/python software/nn/scripts/testing/gen_lstm_ae_refs.py
 
 Output: software/nn/src/core/models/lstm/tests/fixtures/lstm_ae_refs.npz
 """

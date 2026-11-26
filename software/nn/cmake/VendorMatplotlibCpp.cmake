@@ -10,8 +10,10 @@
 ## - Includes: matplotlib-cpp headers + Python + NumPy include dirs.
 ##
 ## Notes / pitfalls
-## - When `MATPLOTLIBCPP_CREATE_VENV=ON`, this runs `python -m venv` and `pip install` at
-##   *configure* time and sets `Python3_EXECUTABLE` in the cache to point to the venv.
+## - When `MATPLOTLIBCPP_CREATE_VENV=ON`, this ensures numpy + matplotlib are in the venv
+##   at *configure* time and sets `Python3_EXECUTABLE` in the cache to point to it. The
+##   venv defaults to the machine's single shared env `$HOME/.venv` (same one as
+##   VendorPythonEnv.cmake); it is only created if missing and never deleted.
 ##   This is convenient locally but can be undesirable in hermetic CI.
 ## - `matplotlib_cpp` (lowercase) may also be defined by the upstream FetchContent project;
 ##   this file disables clang-tidy for that target as it is third-party code.
@@ -31,7 +33,25 @@ option(
 )
 
 set(MATPLOTLIBCPP_SRC_DIR "${CMAKE_BINARY_DIR}/_deps/matplotlib-cpp-src")
-set(MATPLOTLIBCPP_VENV_DIR "${CMAKE_BINARY_DIR}/venv")
+# One shared Python env per machine ($HOME/.venv) instead of a per-build-dir venv.
+# Falls back to an in-build venv only when HOME is unset (hermetic CI).
+if(NOT DEFINED MATPLOTLIBCPP_VENV_DIR)
+    if(NOT "$ENV{HOME}" STREQUAL "")
+        set(MATPLOTLIBCPP_VENV_DIR "$ENV{HOME}/.venv")
+    else()
+        set(MATPLOTLIBCPP_VENV_DIR "${CMAKE_BINARY_DIR}/venv")
+    endif()
+endif()
+# Only a venv inside this source/build tree may be deleted and recreated. A shared
+# one outside it (default: ~/.venv, the machine's single Python env used by every
+# tool) is never removed or `--clear`ed — a broken one is a FATAL_ERROR instead.
+string(FIND "${MATPLOTLIBCPP_VENV_DIR}/" "${CMAKE_SOURCE_DIR}/" _mpl_venv_in_src)
+string(FIND "${MATPLOTLIBCPP_VENV_DIR}/" "${CMAKE_BINARY_DIR}/" _mpl_venv_in_bin)
+if(_mpl_venv_in_src EQUAL 0 OR _mpl_venv_in_bin EQUAL 0)
+    set(_mpl_venv_owned TRUE)
+else()
+    set(_mpl_venv_owned FALSE)
+endif()
 
 # ------------------------------------------------------------
 # Fetch matplotlib-cpp (header-only)
@@ -100,6 +120,11 @@ if(MATPLOTLIBCPP_CREATE_VENV)
             ERROR_QUIET
         )
         if(NOT _venv_probe_res EQUAL 0)
+            if(NOT _mpl_venv_owned)
+                message(FATAL_ERROR "MATPLOTLIBCPP: shared venv at ${MATPLOTLIBCPP_VENV_DIR} is broken. "
+                    "Refusing to delete it (other tools use it); repair it by hand, e.g. "
+                    "`python3 -m venv --upgrade ${MATPLOTLIBCPP_VENV_DIR}`.")
+            endif()
             message(WARNING "MATPLOTLIBCPP: existing venv at ${MATPLOTLIBCPP_VENV_DIR} is broken, recreating")
             file(REMOVE_RECURSE "${MATPLOTLIBCPP_VENV_DIR}")
             set(_venv_needs_bootstrap TRUE)
@@ -113,10 +138,15 @@ if(MATPLOTLIBCPP_CREATE_VENV)
         # stale/partial tree left behind by an earlier interrupted or broken
         # bootstrap (e.g. a half-copied `pip` package missing __main__.py)
         # would otherwise persist across repeated "repair" attempts.
-        file(REMOVE_RECURSE "${MATPLOTLIBCPP_VENV_DIR}")
+        if(_mpl_venv_owned)
+            file(REMOVE_RECURSE "${MATPLOTLIBCPP_VENV_DIR}")
+            set(_mpl_venv_clear --clear)
+        else()
+            set(_mpl_venv_clear "")
+        endif()
 
         execute_process(
-            COMMAND "${_SYSTEM_PYTHON_EXECUTABLE}" -m venv --clear "${MATPLOTLIBCPP_VENV_DIR}"
+            COMMAND "${_SYSTEM_PYTHON_EXECUTABLE}" -m venv ${_mpl_venv_clear} "${MATPLOTLIBCPP_VENV_DIR}"
             RESULT_VARIABLE _venv_res
         )
         if(NOT _venv_res EQUAL 0)
@@ -130,7 +160,17 @@ if(MATPLOTLIBCPP_CREATE_VENV)
         if(NOT _pip_upd_res EQUAL 0)
             message(FATAL_ERROR "Failed to upgrade pip in venv.")
         endif()
+    endif()
 
+    # A shared venv is not bootstrapped here, so check the packages separately.
+    execute_process(
+        COMMAND "${_VENV_PY}" -c "import numpy, matplotlib"
+        RESULT_VARIABLE _mpl_pkgs_res
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
+    if(NOT _mpl_pkgs_res EQUAL 0)
+        message(STATUS "MATPLOTLIBCPP: installing numpy/matplotlib into ${MATPLOTLIBCPP_VENV_DIR}")
         execute_process(
             COMMAND "${_VENV_PY}" -m pip install numpy matplotlib
             RESULT_VARIABLE _pip_inst_res

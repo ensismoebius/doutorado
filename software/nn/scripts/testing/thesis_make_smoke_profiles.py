@@ -10,7 +10,7 @@ every profile's code path quickly and surfaces runtime errors that compilation
 cannot catch.
 
 Run:
-    software/nn/.venv/bin/python software/nn/scripts/testing/thesis_make_smoke_profiles.py
+    ~/.venv/bin/python software/nn/scripts/testing/thesis_make_smoke_profiles.py
 Then drive them with scripts/testing/run_thesis_smoke.sh.
 """
 import glob

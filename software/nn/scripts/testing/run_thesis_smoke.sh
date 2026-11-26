@@ -6,7 +6,7 @@
 #
 # Requires: the thesis binary built, and the dataset (dataset.root) present.
 # Long-running (~315 runs). Regenerate the smoke profiles with
-#   .venv/bin/python scripts/testing/thesis_make_smoke_profiles.py
+#   ~/.venv/bin/python scripts/testing/thesis_make_smoke_profiles.py
 # after editing any real profile.
 #
 # On a terminal, each profile shows its live bars (dataset/feature/epochs/folds).
