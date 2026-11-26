@@ -32,6 +32,7 @@ The keys (printed with --list):
     p00.<signal>.ae.beta.min|max, .pca.beta.min|max
     p00.<signal>.enc.<direct|latency|poisson>.mean|best
     p00.n.<signal>, p00.n.total             profile counts
+    p00.gapratio.min|max                    (best automated dpen - winner dpen) / winner sigma_loc
     p01.grid.<source>.<text>.<cv>.<std>.<m> the DSNN grid; m eer|eersd|auc|aucsd|rank
     p01.ann.<source>.<text>.<m>, p01.cosine.<source>.<text>.<m>
     p01.dysph.<source>.<scope>.<level>.eer  whisper level 25|50|75|100 (level 0 = the grid cell)
@@ -208,6 +209,7 @@ def phase00(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
         n.count(f"{prefix}.wins", row["fold_wins"])
 
     total = 0
+    gap_ratios = []
     for s in SIGNALS:
         every = []
         for fam in FAMILIES:
@@ -230,6 +232,12 @@ def phase00(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
         # The extractor with the smallest UNPENALIZED distance: it differs from the winner
         # when the penalty on contradiction decides the selection.
         cells(f"p00.{s}.mind", min(every, key=lambda r: r["mean_d_truth"]))
+        # The gap from the winner to the best automated extractor (AE or PCA), in units of the
+        # winner's sigma_loc: ch9 quotes its range over the three signals.
+        auto = min((tables[f"{fam}_{s}"][0] for fam in ("ae", "pca")),
+                   key=lambda r: r["mean_d_penalized"])
+        gap_ratios.append((auto["mean_d_penalized"] - ranked[0]["mean_d_penalized"])
+                          / ranked[0]["loso_sd"])
 
         # Winner stability over the speaker subsets (the subsets every profile scored).
         for kind in ("fold", "loso"):
@@ -304,6 +312,8 @@ def phase00(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
     bests = [float(n.values[f"p00.voice.scale.{x}.best"][1]) for x in ("linear", "mel", "bark")]
     n.num("p00.voice.scale.spread", max(bests) - min(bests))
     n.count("p00.n.total", total)
+    n.num("p00.gapratio.min", min(gap_ratios), digits=1)
+    n.num("p00.gapratio.max", max(gap_ratios), digits=1)
 
 
 def phase01(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
@@ -1127,6 +1137,16 @@ def manifest_counts(n: Numbers, manifest: pathlib.Path) -> None:
 # sentence (as the thesis says it), and a condition on the keys; v(key) is the value as a
 # number, t(key) as text. Keep the two in step: change a sentence, change its claim.
 S3 = ("voice", "eegpron", "eegimag")
+# The Coretto cells whose EEG and voice features come from the handcrafted extractor and are
+# standardized ({} is the signal): the fixed configuration's grid (both CV schemes), its ANN and
+# cosine controls, the per-fold grid and controls, and both handcrafted comparison arms.
+_HC_STD_CELLS = [f"{p}.{k}.{{}}.{m}.eer" for p in ("p01", "pf01") for k in ("ann", "cosine")
+                 for m in ("dep", "indep")]
+_HC_STD_CELLS += [f"p01.grid.{{}}.{m}.{cv}.std.eer" for m in ("dep", "indep")
+                  for cv in ("flat", "nested")]
+_HC_STD_CELLS += [f"pf01.grid.{{}}.{m}.eer" for m in ("dep", "indep")]
+_HC_STD_CELLS += [f"{p}.cmp.{{}}.{m}.hc.eer" for p in ("p01", "pf01") for m in ("dep", "indep")]
+
 CLAIMS = [
     ("ch4: the DSNN fires in about a third of its spike slots, which the text calls not sparse",
      lambda v, t: 25 <= v("p01.energy.voice.spike.share") <= 45),
@@ -1155,6 +1175,21 @@ CLAIMS = [
                       and v(f"p00.{s}.best.pca.dpen") < v(f"p00.{s}.best.ae.dpen") for s in S3)),
     ("ch9: the handcrafted winner is ahead of the best automated extractor on the three signals",
      lambda v, t: all(v(f"p00.{s}.winner.dpen") < v(f"p00.{s}.best.pca.dpen") for s in S3)),
+    ("ch9: that gap is 8-11 times the winner's sigma_loc, the larger sigma_loc of the two",
+     lambda v, t: 8 <= v("p00.gapratio.min") and v("p00.gapratio.max") <= 11
+     and all(v(f"p00.{s}.winner.loso") >= max(v(f"p00.{s}.best.ae.loso"),
+                                              v(f"p00.{s}.best.pca.loso")) for s in S3)),
+    ("ch9 EEG caveat: with the handcrafted extractor and standardized features, both EEG "
+     "conditions beat the voice in every Coretto cell (fixed and per-fold protocols)",
+     lambda v, t: all(v(c.format(e)) < v(c.format("voice"))
+                      for c in _HC_STD_CELLS for e in ("eegpron", "eegimag"))),
+    ("ch9 EEG caveat: without standardization the voice beats both EEG conditions in every cell",
+     lambda v, t: all(v(f"p01.grid.voice.{m}.{cv}.raw.eer") < v(f"p01.grid.{e}.{m}.{cv}.raw.eer")
+                      for m in ("dep", "indep") for cv in ("flat", "nested")
+                      for e in ("eegpron", "eegimag"))),
+    ("ch9 EEG caveat: with an autoencoder or PCA and seen phrases the voice beats pronounced EEG",
+     lambda v, t: all(v(f"{p}.cmp.voice.dep.{fam}.eer") < v(f"{p}.cmp.eegpron.dep.{fam}.eer")
+                      for p in ("p01", "pf01") for fam in ("ae", "pca"))),
     ("ch9: the three ANN-AE are the first three autoencoders on the three signals",
      lambda v, t: all(t(f"p00.{s}.ae.{r}.label").startswith("ANN-AE")
                       for s in S3 for r in (1, 2, 3))),

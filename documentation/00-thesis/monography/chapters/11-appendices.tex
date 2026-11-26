@@ -515,7 +515,7 @@
 		Com \( \lambda = 0{,}1 \), o termo de regularização vale \( 0{,}1 \times (1^2 + 0{,}5^2 + (-0{,}3)^2 + 0{,}8^2) = 0{,}1 \times (1 + 0{,}25 + 0{,}09 + 0{,}64) = 0{,}1 \times 1{,}98 = 0{,}198 \).
 		Durante o treinamento, o otimizador atualiza os pesos considerando tanto a perda de dados quanto o termo de regularização. O termo de regularização incentiva pesos menores, prevenindo o sobreajuste.
 
-		\par O exemplo acima soma a penalidade diretamente à perda, que é a forma clássica da regularização L2. O \textit{framework} implementa uma forma equivalente, porém mais estável quando combinada com o otimizador Adam: o \textbf{decaimento de peso desacoplado} (\textit{decoupled weight decay}), proposto por \citeonline{loshchilov2019decoupled} no algoritmo AdamW.
+		\par O exemplo acima soma a penalidade diretamente à perda, que é a forma clássica da regularização L2. O \textit{framework} implementa outra forma, equivalente à L2 apenas sob o gradiente descendente simples e, com o otimizador Adam, diferente dela e mais estável: o \textbf{decaimento de peso desacoplado} (\textit{decoupled weight decay}), proposto por \citeonline{loshchilov2019decoupled} no algoritmo AdamW.
 
 		\par A ideia é simples: em vez de modificar o gradiente, encolhe-se cada peso por uma pequena fração a cada passo de treinamento, logo após a atualização normal do otimizador. Sejam $\theta$ um peso qualquer da rede, $\eta$ a taxa de aprendizado e $\lambda$ o parâmetro que controla a força do decaimento:
 		\begin{equation}

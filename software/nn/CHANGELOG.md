@@ -23,6 +23,14 @@ All notable changes to this project will be documented in this file.
   the choices; Phase 01 flowchart, listing and pipeline figures redrawn (19ae511f2).
 - Ch. 10, both abstracts, the ch. 7 state-of-the-art rows and appendix B on the per-fold
   numbers; `issues.md` item 5 resolved (77b73d98f).
+- Fourth independent read of the whole PDF (`opencode/big-pickle`, 9 chunks): 18 corrections
+  checked against the sources, the tables and the code. Statements the data contradicted: the
+  EEG beats the voice only with the handcrafted extractor and standardized features; the
+  folds' unanimous EEG choice covers the grid and controls, not the AE/PCA comparison arms; the
+  handcrafted-vs-automated gap is 8.7-10.1 times the winner's sigma_loc (keys
+  `p00.gapratio.min|max`); the BPTT listing's gradient of W lacked the output term; decoupled
+  weight decay is not equivalent to L2 under Adam; the latency bound applies to the spike
+  instant, not to the frame mean. 4 new claims (83 hold). Record in `issues.md`.
 - Findings that changed: on Coretto no verdict; against the fixed configuration the voice
   EER falls and 7 of 8 fusion cells rise; the handcrafted extractor is ahead on voice and
   overt-speech EEG, PCA on imagined-speech EEG (lowest EER, unseen phrases); on BIOMEX-DB

@@ -128,8 +128,9 @@
 	$\tn{p00.eegpron.best.pca.dpen}$ e $\tn{p00.eegimag.best.pca.dpen}$. O
 	extrator manual vencedor tem $\tn{p00.voice.winner.dpen}$,
 	$\tn{p00.eegpron.winner.dpen}$ e $\tn{p00.eegimag.winner.dpen}$. A distância
-	entre o manual e o melhor automatizado é de cerca de dez vezes o
-	$\sigma_{\text{loc}}$ de qualquer um deles, e $\sigma_{\text{loc}}$ mede
+	entre o manual e o melhor automatizado vai de $\tn{p00.gapratio.min}$ a
+	$\tn{p00.gapratio.max}$ vezes o $\sigma_{\text{loc}}$ do vencedor manual, o
+	maior dos dois, e $\sigma_{\text{loc}}$ mede
 	justamente quanto $d_{\text{pen}}$ muda quando mudam os locutores observados:
 	pelo critério paraconsistente, a
 	ordem entre as famílias não depende de quais locutores foram observados.
@@ -324,13 +325,13 @@
 	\subsection{O que as dobras escolheram}
 	\label{sec:perfoldEscolhas}
 
-	\par A Tabela~\ref{tab:perfoldSelection} mostra, para cada célula da grade e
-	dos controles, o extrator e o ponto da busca que as 15 dobras escolheram: o
+	\par A Tabela~\ref{tab:perfoldSelection} mostra, para cada célula da grade, dos
+	controles e da comparação de extratores, o extrator e o ponto da busca que as 15 dobras escolheram: o
 	mais escolhido, em quantas dobras, e quantos diferentes apareceram.
 
 	\par \textbf{No \ac{EEG}, a escolha do extrator é a mesma em todas as dobras;
 	na voz, não.} Nas duas condições do \ac{EEG}, as \tn{pf01.sel.eeg.folds}
-	dobras de todas as células escolheram o \tn{pf01.sel.eeg.mode.label}, o mesmo
+	dobras de todas as células da grade e dos controles escolheram o \tn{pf01.sel.eeg.mode.label}, o mesmo
 	vencedor da Fase~00 na base inteira. Na voz (e nas fusões, que leem a voz
 	com o extrator da voz), as dobras escolheram \tn{pf01.sel.voice.distinct}
 	extratores diferentes, todos manuais de Categoria~1; o
@@ -544,7 +545,7 @@
 	reduz a margem a 10\,\% ($\tn{world.co.tremor-d10.mean}$), e os saltos de altura não a
 	alteram. Os trechos afônicos, ao contrário, \emph{aumentam} a margem em relação ao controle,
 	tanto mais quanto mais frequentes (até $\tn{world.co.aphonic-r2.mean}$). Esse sinal é relativo
-	ao controle, que reduziu a margem em $\tn{world.co.controlclean.mean}$ em relação à voz
+	ao controle, que mudou a margem em $\tn{world.co.controlclean.mean}$ em relação à voz
 	original: uma hipótese, não testada, é que cada trecho afônico substitui ciclos que a
 	ressíntese distorceria. Mesmo o efeito mais forte da rugosidade é menor que o do sussurro mais
 	leve sobre a voz limpa ($\tn{margin.whisper.mean}$).
@@ -1083,8 +1084,11 @@
 
 	\subsection*{Uma ressalva sobre os resultados de EEG}
 
-	\par Na base de Coretto, o \ac{EEG} supera a voz em todas as células deste
-	capítulo, e a condição do \ac{EEG} --- fala pronunciada ou imaginada --- quase
+	\par Na base de Coretto, com o extrator manual e as características
+	padronizadas, o \ac{EEG} supera a voz em todas as células deste capítulo
+	(sem a padronização, a voz fica à frente em todas, Tabela~\ref{tab:phase01auth};
+	com \textit{autoencoder} ou \ac{PCA} e frases vistas, a voz fica à frente do
+	\ac{EEG} de fala pronunciada), e a condição do \ac{EEG} --- fala pronunciada ou imaginada --- quase
 	não importa.
 	Antes de ler isso como ``o \ac{EEG} é melhor biometria que a voz'', é preciso
 	considerar uma explicação mais simples, que este experimento não consegue

@@ -11,7 +11,7 @@ void inicializa_kaiming(float W[n_out][n_in], float b[n_out],
     for (int i = 0; i < n_out; i++) {
         for (int j = 0; j < n_in; j++) {
             float u = sorteia_uniforme_0_1();   /* u em [0, 1)          */
-            W[i][j] = -limite + 2.0f * limite * u; /* u em [-l, +l]     */
+            W[i][j] = -limite + 2.0f * limite * u; /* W em [-l, +l]     */
         }
         b[i] = 0.0f;                            /* vies comeca em zero  */
     }
