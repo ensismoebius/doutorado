@@ -25,13 +25,14 @@ results/thesis/{perfold,pfbiomex,pfworld,pfbxworld}/   (the per-fold protocol, 2
         ├─ ..._phase01_auth_tables.py --protocol per-fold ─► tables/perfold_*.csv ─┐ csvreader
         ├─ ..._biomex_tables.py --protocol per-fold ───────► tables/pfbiomex_*.csv ┘ (not yet in the text)
         ├─ 10_/11_..._significance.sh ─► results/.../significance_*.csv
-        └─ 08_thesis_world_analysis.py --protocol per-fold ─► world_eer_perfold.csv, sig_pf*world_*.csv
+        ├─ 08_thesis_world_analysis.py --protocol per-fold ─► world_eer_perfold.csv, sig_pf*world_*.csv
+        └─► thesis_build_text_numbers.py (the same run as above: keys pf01.*, pfsig.*, pfbx.*,
+            pfbxsig.*, world.pf.*, and their CLAIMS)
 ```
 
-**The per-fold branch does not reach the prose yet.** `thesis_build_text_numbers.py` reads only
-the fixed-configuration protocol, so every `\tn` and every CLAIM still describes the fixed
-results; the per-fold tables are generated and committed, but no chapter typesets them. Rewriting
-the text for the per-fold protocol (keys, CLAIMS, ch. 8/9) is an open item.
+Both protocols feed `thesis_build_text_numbers.py`: the per-fold keys are the primary result,
+the fixed ones (`p01.*`, `bx.*`, `sig.*`) the comparison and the ablations (CV scheme,
+standardization) the per-fold grid does not have.
 
 All paths below are relative to the repository root unless stated.
 
@@ -87,7 +88,8 @@ committed.
 
 1. Find the key: `python3 software/nn/scripts/pipeline/thesis/thesis_build_text_numbers.py <the arguments of § Results to text> --list`.
    The key families are listed in the script's docstring (`p00.*`, `p01.*`, `bx.*`, `sig.*`,
-   `base.*`, `aeinput.*`).
+   `base.*`, `aeinput.*`, and the per-fold `pf01.*`, `pfsig.*`, `pfbx.*`, `pfbxsig.*`,
+   `world.pf.*`).
 2. If it does not exist, add it to the function of that family in the script (it reads the
    same collectors as the table scripts, so it refuses an incomplete result set), regenerate,
    and run `python3 software/nn/scripts/testing/test_thesis_phase_scripts.py`.
@@ -128,6 +130,8 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --phase00-profiles src/experiments/thesis/profiles/phase00 --phase00-results results/thesis/phase00 \
   --phase01-profiles src/experiments/thesis/profiles/phase01 --phase01-results results/thesis/phase01 \
   --biomex-profiles  src/experiments/thesis/profiles/biomex  --biomex-results  results/thesis/biomex \
+  --perfold-profiles src/experiments/thesis/profiles/perfold --perfold-results results/thesis/perfold \
+  --pfbiomex-profiles src/experiments/thesis/profiles/pfbiomex --pfbiomex-results results/thesis/pfbiomex \
   --ae-input-reference results/thesis/ae_input_reference.csv --base-facts results/thesis/base_facts.csv \
   --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \
   --identity-pilot results/thesis/pilot/pilot_verdict.json \
@@ -141,7 +145,7 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
 ```
 
 The per-fold results ([Thesis per-fold protocol](../Experiments/Thesis-Per-Fold-Protocol.md))
-have their own tables and tests. They do not feed step 4 yet:
+have their own tables and tests; run them before step 4, which reads them too:
 
 ```bash
 python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol per-fold \

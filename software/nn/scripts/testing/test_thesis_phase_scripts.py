@@ -18,6 +18,7 @@ import importlib.util
 import json
 import re
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -1000,6 +1001,63 @@ def p01_profile(tag, modality, fusion_mode=None):
 
 METRICS_HEADER = ("feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,"
                   "specificity,eer,auc,train_ms,infer_ms,model_path\n")
+
+
+class TextNumbersPerFold(unittest.TestCase):
+    """The per-fold keys of thesis_build_text_numbers.py: the stability of the choices is
+    counted, a mode is named only when every cell agrees on it, and the per-fold WORLD file
+    is required with both bases."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tn = _load(os.path.join(PIPELINE_DIR, "thesis_build_text_numbers.py"), "tn_under_test")
+
+    @staticmethod
+    def run_of(extractors, grids):
+        return {"choices": [{"extractor": e, "grid": g} for e, g in zip(extractors, grids)]}
+
+    def sets(self, voice_extractors, eeg_extractor="Haar + Linear (c1)"):
+        g = ["64/0/1e-03/0e+00", "128/1/1e-03/0e+00", "256/2/3e-04/1e-04"]
+        voice = self.run_of(voice_extractors, g)
+        eeg = self.run_of([eeg_extractor] * 3, g)
+        cos = {"choices": [{"extractor": e, "grid": None} for e in voice_extractors]}
+        return {"grid": {("voice", "dep"): voice, ("eegpron", "dep"): eeg},
+                "ann": {("voice", "dep"): voice, ("eegpron", "dep"): eeg},
+                "cosine": {("voice", "dep"): cos}}
+
+    def test_stability_counts_and_mode(self):
+        n = self.tn.Numbers()
+        self.tn.selection_summary(n, "pf01", self.sets(["A (c1)", "A (c1)", "B (c1)"]))
+        val = {k: v[1] for k, v in n.values.items()}
+        self.assertEqual(val["pf01.sel.voice.extractors.max"], "2")
+        self.assertEqual(val["pf01.sel.eeg.extractors.max"], "1")
+        self.assertEqual(val["pf01.sel.voice.mode.label"], "A (c1)")
+        self.assertEqual(val["pf01.sel.voice.mode.folds.min"], "2")
+        self.assertEqual(val["pf01.sel.voice.c1only"], "1")
+        self.assertEqual(val["pf01.sel.grid.points.min"], "3")
+
+    def test_no_mode_label_when_tied(self):
+        n = self.tn.Numbers()
+        self.tn.selection_summary(n, "pf01", self.sets(["A (c1)", "B (c1)", "PCA (k = 8)"]))
+        self.assertNotIn("pf01.sel.voice.mode.label", n.values)   # a 3-way tie names no mode
+        self.assertEqual(n.values["pf01.sel.voice.c1only"][1], "0")
+
+    def test_world_perfold_requires_both_bases(self):
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(SystemExit):
+                self.tn.world_perfold(self.tn.Numbers(), pathlib.Path(d))
+            path = os.path.join(d, "world_eer_perfold.csv")
+            head = "base,source,scope,level,eer_control,eer_level,delta,p,p_holm,significant\n"
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(head + "coretto2017,voice,test,rough-j1,0.3,0.31,0.01,0.5,1.0,0\n")
+            with self.assertRaises(SystemExit):          # no biomex2021 rows: refused
+                self.tn.world_perfold(self.tn.Numbers(), pathlib.Path(d))
+            with open(path, "a", encoding="utf-8") as f:
+                f.write("biomex2021,voice,test,rough-j1,0.3,0.28,-0.02,0.04,0.9,0\n")
+            n = self.tn.Numbers()
+            self.tn.world_perfold(n, pathlib.Path(d))
+            self.assertEqual(n.values["world.pf.eer.n"][1], "2")
+            self.assertEqual(n.values["world.pf.eer.absmax"][1], "0.020")
 
 
 class CrossProfileSignificance(unittest.TestCase):

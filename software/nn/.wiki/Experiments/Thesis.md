@@ -405,6 +405,8 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --ae-input-reference results/thesis/ae_input_reference.csv \
   --base-facts results/thesis/base_facts.csv \
   --biomex-profiles src/experiments/thesis/profiles/biomex --biomex-results results/thesis/biomex \
+  --perfold-profiles src/experiments/thesis/profiles/perfold --perfold-results results/thesis/perfold \
+  --pfbiomex-profiles src/experiments/thesis/profiles/pfbiomex --pfbiomex-results results/thesis/pfbiomex \
   --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \
   --identity-pilot results/thesis/pilot/pilot_verdict.json \
   --identity-margin results/thesis/identity_margin/identity_margin_verdict.json \
