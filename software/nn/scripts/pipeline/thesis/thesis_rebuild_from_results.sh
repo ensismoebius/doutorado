@@ -18,7 +18,7 @@
 # Usage (from anywhere; it works in software/nn):
 #   scripts/pipeline/thesis/thesis_rebuild_from_results.sh                  # rebuild, then compare
 #   scripts/pipeline/thesis/thesis_rebuild_from_results.sh --check          # ... exit 1 on a real difference
-#   scripts/pipeline/thesis/thesis_rebuild_from_results.sh --no-calibration # skip step 1 (about 1-2 h)
+#   scripts/pipeline/thesis/thesis_rebuild_from_results.sh --no-calibration # skip step 1 (about 50 min)
 #   scripts/pipeline/thesis/thesis_rebuild_from_results.sh --no-pdf         # stop before latexmk
 #
 # The calibration (step 1) is recomputed in a scratch folder and compared with the committed one;
@@ -35,7 +35,7 @@
 # numpy/scipy for the *_significance.sh scripts; latexmk + pdflatex + bibtex for the PDF; both
 # bases in ~/Documentos/academico/UNESP/doutorado/databases (.wiki/Guides/Data-Bases.md). It
 # trains nothing. Measured on the author's machine (2026-11-26, 12 cores): steps 2-11 about
-# 5 min, the calibration 1 h 47 min (48 min in the run of record); result REPRODUCED.
+# 5 min, the calibration 48 min on an idle machine (as in the run of record); result REPRODUCED.
 #
 # Nothing is skipped: a missing input stops the script at that step, with the step's name.
 set -euo pipefail

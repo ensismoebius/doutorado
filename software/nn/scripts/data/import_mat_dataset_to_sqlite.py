@@ -432,7 +432,8 @@ def process_subject(conn, subject_path, subject_name):
 
 def main():
     if len(sys.argv) != 3:
-        print("Usage: python scripts/import_mat_dataset_to_sqlite.py <dataset_root> <output_db>")
+        print("Usage: python3 scripts/data/import_mat_dataset_to_sqlite.py <dataset_root> <output_db>",
+              file=sys.stderr)
         sys.exit(1)
     root, db_path = sys.argv[1:3]
     conn = sqlite3.connect(db_path)

@@ -31,7 +31,7 @@ So there are two ways to reproduce the thesis, and they answer different questio
 |---|---|---|
 | Question it answers | do the tables and the text really follow from the runs? | do the runs themselves come out the same? |
 | What you run | one script, `thesis_rebuild_from_results.sh` | every profile again, then A |
-| Cost | about 5 minutes, plus 1–2 h to re-check the calibration (§ 5) | more than 6 400 CPU-hours for the four per-fold phases alone: a cluster (§ 6.7) |
+| Cost | about 5 minutes, plus about 50 min to re-check the calibration (§ 5) | more than 6 400 CPU-hours for the four per-fold phases alone: a cluster (§ 6.7) |
 | What to expect | **byte-identical** tables, numbers and profiles | numbers close to, but not bit-identical with, the thesis, unless you use the same machine, build and thread count (§ 6.8) |
 | Needs | the two bases, Python, LaTeX | the same, plus the C++ build and a Slurm cluster |
 
@@ -129,8 +129,8 @@ REPRODUCED: every rebuilt profile, result-derived file and table is the committe
 The script trains nothing.
 
 **Measured** on the author's machine (2026-11-26, 12 cores): about 5 minutes for steps 2–11,
-and 1 h 47 min for the calibration (step 1) on a machine busy with other work (the run of
-record took 48 min). Result: `REPRODUCED`.
+and 48 min for the calibration (step 1) with the machine otherwise idle (1 h 47 min while it
+was busy with other work; the run of record took 48 min too). Result: `REPRODUCED`.
 
 **What "the same" means.** Most rebuilt files are byte-identical. Two kinds of difference are
 not a different result, and `thesis_compare_rebuild.py` tells them apart from one that is:
@@ -163,7 +163,7 @@ Each step reads what an earlier one wrote. The table is the same order as the sc
 | 10 | `latexmk` in `documentation/00-thesis/monography/` | the chapters, tables, figures | `monografia.pdf` | — |
 | 11 | `scripts/pipeline/thesis/thesis_compare_rebuild.py`, once per changed file | the rebuilt file and its committed version (`git show HEAD:<path>`) | a verdict per file | `REPRODUCED` / `NOT REPRODUCED` |
 
-Step 1 is the slow one (about an hour) and only re-checks a committed file; `--no-calibration`
+Step 1 is the slow one (about 50 minutes) and only re-checks a committed file; `--no-calibration`
 skips it.
 
 Step 9 is also a test of the text. Besides the numbers it checks 83 qualitative sentences of the
@@ -281,7 +281,8 @@ and, on the cluster, the 150 `world` and 90 `bxworld` profiles (§ 6.7).
 
 ### 6.7 On the cluster (GridUnesp, Slurm)
 
-One phase = one array of one-CPU tasks of `scripts/pipeline/thesis/thesis_gridunesp.sbatch`.
+One phase = one array of `scripts/pipeline/thesis/thesis_gridunesp.sbatch`; each task asks for
+1 CPU, 16 GB and 1 day on the `short` partition (the warm array: 1 CPU, 8 GB, 8 h).
 `scripts/pipeline/meeting01/gridunesp_deploy.sh` copies the tree, builds on a compute node and
 sends the bases ([GridUnesp Deployment](../Guides/GridUnesp-Deployment.md)).
 
@@ -293,7 +294,7 @@ sends the bases ([GridUnesp Deployment](../Guides/GridUnesp-Deployment.md)).
 | `world`, `bxworld` | `THESIS_PHASE=world sbatch --array=0-149 …`, `THESIS_PHASE=bxworld sbatch --array=0-89 …` | not recorded as a total |
 | feature cache (before any per-fold phase, once per deploy) | `sbatch --array=0-10 scripts/pipeline/thesis/thesis_warm_feature_cache.sbatch` | 8 min to 3 h 47 min per task |
 | `perfold` | `THESIS_PHASE=perfold sbatch --array=0-99 …` | ~710 CPU·h |
-| `pfbiomex` | `THESIS_PHASE=pfbiomex sbatch --array=0-47 --mem=16G …` | ~1 036 CPU·h, peak 9.3 GB |
+| `pfbiomex` | `THESIS_PHASE=pfbiomex sbatch --array=0-47 …` | ~1 036 CPU·h, peak 9.3 GB |
 | `pfworld` | `THESIS_PHASE=pfworld sbatch --array=0-149 …` | ~1 614 CPU·h |
 | `pfbxworld` | `THESIS_PHASE=pfbxworld sbatch --array=0-269 …` | ~3 063 CPU·h (one unit per task: ~11 h, max 13.9 h) |
 

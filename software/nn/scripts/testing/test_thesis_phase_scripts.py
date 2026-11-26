@@ -1003,6 +1003,40 @@ METRICS_HEADER = ("feature_set,classifier,text_mode,fold,accuracy,f1,precision,r
                   "specificity,eer,auc,train_ms,infer_ms,model_path\n")
 
 
+class DysphoniaRequestSplit(unittest.TestCase):
+    """thesis_dysphonia_lib.split_request: the calibration's requests carry a voice_breaks
+    level's kind among its numeric parameters, and the C++ binding refuses any key it does not
+    know. Passing a request through unsplit stopped the calibration for ten days unnoticed,
+    because no CI test ran it (it needs Praat). This needs neither Praat nor a compiler."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.dl = _load(os.path.join(NN, "scripts", "lib", "thesis_dysphonia_lib.py"),
+                       "thesis_dysphonia_lib_under_test")
+
+    def test_voice_breaks_kind_is_taken_apart(self):
+        numeric, kind = self.dl.split_request(
+            "voice_breaks", {"break_kind": "aphonic", "breaks_per_second": 1.0, "break_ms": 120})
+        self.assertEqual(kind, "aphonic")
+        self.assertEqual(numeric, {"breaks_per_second": 1.0, "break_ms": 120})
+        self.assertFalse(set(numeric) - set(self.dl.PARAMS))
+
+    def test_other_profiles_pass_through(self):
+        params = {"jitter_pct": 1.0, "shimmer_db": 0.4}
+        self.assertEqual(self.dl.split_request("rough", params), (params, "pitch_jump"))
+        self.assertEqual(self.dl.split_request("resynthesis_control", {}), ({}, "pitch_jump"))
+
+    def test_refusals(self):
+        bad = (("voice_breaks", {"breaks_per_second": 1.0}),             # no kind
+               ("voice_breaks", {"break_kind": "hum", "break_ms": 120}),  # unknown kind
+               ("tremor", {"break_kind": "aphonic", "rate_hz": 5.0}),     # kind off voice_breaks
+               ("rough", {"jitter": 1.0}),                                # unknown parameter
+               ("whisper", {}))                                           # unknown profile
+        for profile, params in bad:
+            with self.assertRaises(ValueError, msg=(profile, params)):
+                self.dl.split_request(profile, params)
+
+
 class CompareRebuild(unittest.TestCase):
     """thesis_compare_rebuild.py tells a different result from float rounding and wall-clock
     fields: thesis_rebuild_from_results.sh --check fails on the first and passes the others."""

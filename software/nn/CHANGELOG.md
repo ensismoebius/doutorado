@@ -13,9 +13,10 @@ All notable changes to this project will be documented in this file.
   facts, text numbers, PDF), then every rebuilt file against git through
   `thesis_compare_rebuild.py` (byte-identical, or JSON within a stated relative tolerance with
   named wall-clock keys ignored; 7 tests in `CompareRebuild`). `--check` exits 1 on a different
-  result, `--no-calibration` skips the hour-long re-check. Measured 2026-11-26: `REPRODUCED`;
+  result, `--no-calibration` skips the ~50-minute re-check. Measured 2026-11-26: `REPRODUCED`;
   every file byte-identical except `world_floor.json` (16th digit, summation order) and the
-  calibration's wall-clock `seconds`; steps 2-11 about 5 min, the calibration 1 h 47 min.
+  calibration's wall-clock `seconds`; steps 2-11 about 5 min, the calibration 48 min on an idle
+  machine (1 h 47 min on a busy one). A second calibration run with `split_request`: identical.
 - `run_thesis_profiles.sh`: the automatic post-processing after a clean Phase 00 called
   `00_thesis_generate_profiles.py --winners` without the `--calibration` it requires, so it
   stopped with an error; it now passes it (the calibration runs before Phase 00).
@@ -33,6 +34,12 @@ All notable changes to this project will be documented in this file.
   not know, and the voice-break levels still passed their kind among the numeric parameters.
   The committed `calibration.json` predates that move (438c38df6), so nothing of record changed;
   the script had simply not run since. Found by the first run of the rebuild script.
+  The split now lives in the binding, `thesis_dysphonia_lib.split_request` (strict: a
+  voice_breaks request must name a known kind, any other profile must not carry one), and CI
+  tests it (`DysphoniaRequestSplit`, no Praat or compiler needed), so the calibration cannot
+  rot unseen again.
+- `import_mat_dataset_to_sqlite.py`: the usage line named an old path (`scripts/` instead of
+  `scripts/data/`) and went to stdout.
 - CI (clang-tidy 21, `bugprone-unchecked-optional-access`): 7 optional accesses after an
   `ASSERT_TRUE(x.has_value())` in `thesis_per_fold_gtest.cpp` and `thesis_protocol_gtest.cpp`
   now use the `if (!x.has_value()) { GTEST_FAIL() << …; }` form the rest of the suite uses

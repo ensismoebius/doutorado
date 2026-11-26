@@ -224,11 +224,9 @@ def measure_voice(job):
     raw_rms = rms_db(x, span)
     for req in requests:
         prof, params = req["profile"], req["params"]
-        # The break kind travels in params (it is recorded as req_break_kind) but is an
-        # argument of its own for the C++ binding, which refuses any parameter it does not
-        # know (scripts/lib/thesis_dysphonia_lib.py PARAMS): pass it apart.
-        kind = params.get("break_kind", "pitch_jump")
-        numeric = {k: v for k, v in params.items() if k != "break_kind"}
+        # The break kind travels in params (it is recorded as req_break_kind); the binding
+        # takes it apart (thesis_dysphonia_lib.split_request, tested in CI).
+        numeric, kind = dl.split_request(prof, params)
         y = degrade(x, prof, numeric, seed, kind)
         row = {**base, "profile": prof, "set": req["set"],
                **{f"req_{k}": v for k, v in params.items()}}

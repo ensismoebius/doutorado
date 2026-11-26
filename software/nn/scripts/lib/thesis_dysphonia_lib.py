@@ -10,6 +10,8 @@ no Praat, so the base's verifier and its CI test can use it.
     build_library(tmp) -> path of libdysphonia.so     (compile, once per process tree)
     load_library(so)                                   (once per worker process)
     call(x, fs, native, profile, params, seed, break_kind) -> (rc, out, message)
+    split_request(profile, params) -> (numeric params, break_kind)   (a request as the
+                                       calibration writes it, made ready for call())
 """
 from __future__ import annotations
 
@@ -101,6 +103,40 @@ def load_library(so: str) -> None:
 
 def loaded() -> bool:
     return _LIB is not None
+
+
+def split_request(profile: str, params: dict) -> tuple[dict, str]:
+    """A dysphonia request as the calibration (and the profiles) write it, made ready for call().
+
+    In a request the break kind of a voice_breaks level travels among the numeric parameters,
+    {"break_kind": "aphonic", "breaks_per_second": 1.0, "break_ms": 120}, because it is part of
+    the level's name. call() takes it as an argument of its own and refuses any key that is not
+    a numeric parameter. Passing the request through unsplit is what stopped the calibration's
+    verification pass from 2026-11-16 (when this module was split out) until 2026-11-26.
+
+    -> (numeric parameters, break kind). Refused (ValueError): an unknown profile, a voice_breaks
+    request without a break_kind or with an unknown one, a break_kind on any other profile, or
+    any other non-numeric key. For a profile other than voice_breaks the kind passed to the C++
+    is "pitch_jump", which degrade_voice_f0 reads only under voice_breaks.
+    """
+    if profile not in PROFILE_CODE:
+        raise ValueError(f"thesis_dysphonia_lib: unknown profile {profile!r}")
+    numeric = {k: v for k, v in params.items() if k != "break_kind"}
+    if profile == "voice_breaks":
+        if "break_kind" not in params:
+            raise ValueError("thesis_dysphonia_lib: a voice_breaks request names no break_kind")
+        kind = params["break_kind"]
+        if kind not in BREAK_CODE:
+            raise ValueError(f"thesis_dysphonia_lib: unknown break_kind {kind!r}")
+    else:
+        if "break_kind" in params:
+            raise ValueError(f"thesis_dysphonia_lib: break_kind applies to voice_breaks only, "
+                             f"not to {profile}")
+        kind = "pitch_jump"
+    unknown = set(numeric) - set(PARAMS)
+    if unknown:
+        raise ValueError(f"thesis_dysphonia_lib: unknown parameters {sorted(unknown)}")
+    return numeric, kind
 
 
 def call(x, fs: float, native: float, profile: str, params: dict, seed: int,
