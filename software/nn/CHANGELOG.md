@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-26 — pfbxworld results; the thesis text quotes the per-fold protocol
+
+### Results
+
+- `pfbxworld` (job 5345820): 270/270 units, mean 11.3 h, max 13.9 h, ~3 063 CPU·h, peak 9.3 GB.
+  `08_thesis_world_analysis.py --protocol per-fold --bases coretto2017,biomex2021`: WORLD Part B
+  on BIOMEX-DB 0 of 84 significant (c058f4978).
+
+### Thesis text (`documentation/00-thesis/monography/`)
+
+- `thesis_build_text_numbers.py` reads both protocols: new required `--perfold-*` and
+  `--pfbiomex-*` arguments; keys `pf01.*`, `pfsig.*`, `pfbx.*`, `pfbxsig.*`, `world.pf.*`,
+  the stability of the folds' choices (`*.sel.*`) and per-fold minus fixed EER
+  (`pf01.vsfixed.*`); claims of sentences that left the text removed, per-fold claims added
+  (79 hold); `TextNumbersPerFold` tests (ea4a03cb9).
+- Ch. 8-9: the per-fold protocol is the method and the primary result; new sections on what
+  the folds chose and on the comparison with the fixed configuration (which keeps the
+  CV-scheme and standardization ablations); BIOMEX-DB replication freezes the method, not
+  the choices; Phase 01 flowchart, listing and pipeline figures redrawn (19ae511f2).
+- Ch. 10, both abstracts, the ch. 7 state-of-the-art rows and appendix B on the per-fold
+  numbers; `issues.md` item 5 resolved (77b73d98f).
+- Findings that changed: on Coretto no verdict; against the fixed configuration the voice
+  EER falls and 7 of 8 fusion cells rise; the handcrafted extractor is ahead on voice and
+  overt-speech EEG, PCA on imagined-speech EEG (lowest EER, unseen phrases); on BIOMEX-DB
+  late fusion vs voice is no longer significant and unseen phrases significantly worsen
+  voice and late fusion (Mann-Whitney, optimistic).
+- `monografia.pdf` regenerated.
+
 ## 2026-11-19/25 — per-fold runs, tables and tests; thesis job monitor
 
 ### Results (`results/thesis/`, committed with the fold models)
