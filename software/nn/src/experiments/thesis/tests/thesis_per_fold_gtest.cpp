@@ -250,7 +250,10 @@ TEST(PerFoldRun, CosineChoosesAnExtractorPerFoldAndTunesNothing)
     ASSERT_EQ(r.outer_folds.size(), 2u);
     for (const auto& f : r.outer_folds)
     {
-        ASSERT_TRUE(f.selection.has_value());
+        if (!f.selection.has_value())
+        {
+            GTEST_FAIL() << "an outer fold has no selection record";
+        }
         EXPECT_EQ(f.selection->extractors.size(), 3u);
         EXPECT_TRUE(f.selection->grid.empty());
         EXPECT_EQ(f.selection->param_count, 0u);
@@ -336,8 +339,11 @@ TEST(PerFoldRun, DegradedTwinRefitsTheCleanExtractor)
     {
         const auto& h = hurt.outer_folds[f].selection;
         const auto& c = clean.outer_folds[f].selection;
-        ASSERT_TRUE(h.has_value() && c.has_value());
-        EXPECT_EQ(h.value().extractor_index, c.value().extractor_index);
+        if (!h.has_value() || !c.has_value())
+        {
+            GTEST_FAIL() << "outer fold " << f << " has no selection record";
+        }
+        EXPECT_EQ(h->extractor_index, c->extractor_index);
     }
     EXPECT_GT(hurt.mean_eer, clean.mean_eer);
 }
@@ -576,7 +582,10 @@ TEST(FeatureDiskCache, EnvironmentIsStrict)
     EXPECT_THROW((void) FeatureDiskCache::from_env(), std::invalid_argument) << "bad mode";
     ::setenv("THESIS_FEATURE_CACHE_MODE", "read", 1);
     const auto c = FeatureDiskCache::from_env();
-    ASSERT_TRUE(c.has_value());
+    if (!c.has_value())
+    {
+        GTEST_FAIL() << "a complete environment gave no cache";
+    }
     EXPECT_EQ(c->mode(), FeatureDiskCache::Mode::Read);
     ::unsetenv("THESIS_FEATURE_CACHE");
     ::unsetenv("THESIS_FEATURE_CACHE_REVISION");

@@ -448,7 +448,10 @@ TEST(CosineControl, ScoresTheFeaturesWithoutTraining)
     const auto fvs = speaker_features(view, 0.2);
     const statistics::GenuineImpostorEERScorer scorer(1);
     const auto r = run_classifier(view, fvs, "hc", cosine_cfg(), scorer);
-    ASSERT_TRUE(r.param_count.has_value());
+    if (!r.param_count.has_value())
+    {
+        GTEST_FAIL() << "the cosine control reported no parameter count";
+    }
     EXPECT_EQ(*r.param_count, 0u);
     EXPECT_EQ(r.mean_train_ms, 0.0);
     EXPECT_LT(r.mean_eer, 0.1); // separable speakers
