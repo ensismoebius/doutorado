@@ -277,6 +277,42 @@ struct ThesisConfig
         Required<float> tdbn_alpha{"training.tdbn_alpha"};
     };
 
+    /// One extractor the per-fold protocol may choose: a Phase 00 profile's extraction keys and,
+    /// for an autoencoder, the training keys that train it (the run's own training block trains
+    /// the classifier). Parsed and validated as a complete Phase 00 profile of the ranked signal
+    /// (candidate_config), so every rule of a Phase 00 profile holds for it.
+    struct ExtractorCandidate
+    {
+        FeatureExtraction feature_extraction;
+        Training training; ///< declared only when the candidate trains (autoencoder)
+    };
+
+    /// The per-fold protocol (.wiki/Experiments/Thesis-Per-Fold-Protocol.md). Read only when the
+    /// classifier runs. enabled = false: the extractor and the classifier's hyperparameters are
+    /// the profile's own (feature_extraction, classifier.layer_spec, training.learning_rate,
+    /// training.weight_decay). enabled = true: they are CHOSEN inside each outer fold, on that
+    /// fold's training rows only, and the profile must not declare them (a declared value that
+    /// the run replaces would read as applied).
+    struct Selection
+    {
+        Required<bool> enabled{"selection.enabled"};
+        /// enabled only: the signal the candidates are ranked on by D_pen ("voice" | "eeg"):
+        /// the profile's modality, or "voice" for a fused profile (the fold's voice winner feeds
+        /// both parts).
+        Required<std::string> rank_modality{"selection.rank_modality"};
+        /// enabled only, "selection.extractor_candidates": a JSON array of
+        /// {"feature_extraction": {...}, "training": {...}} objects, in the order ties are
+        /// broken (first wins). Not a table row: parsed and validated per candidate.
+        std::vector<ExtractorCandidate> extractor_candidates;
+        /// enabled with a dsnn/ann classifier only: the inner speaker folds of the
+        /// hyperparameter search and its grid (every combination is a candidate).
+        Required<int> inner_k{"selection.inner_k"};
+        Required<std::vector<int>> hidden_widths{"selection.hidden_widths"};
+        Required<std::vector<int>> residual_blocks{"selection.residual_blocks"}; ///< after input
+        Required<std::vector<float>> learning_rates{"selection.learning_rates"};
+        Required<std::vector<float>> weight_decays{"selection.weight_decays"};
+    };
+
     /// A program that embeds this config in its own profile and owns part of it — the
     /// paraconsistent GA, which evolves the autoencoder architecture and has its own
     /// run_tag/results_dir. Its profile must not declare what it overrides or never reads,
@@ -304,6 +340,7 @@ struct ThesisConfig
     Classifier classifier;
     Degradation degradation;
     Training training;
+    Selection selection;
 
     /// nullopt = the thesis binary itself; set = parsed for that embedding program.
     std::optional<Embedding> embedded_in;
@@ -324,6 +361,13 @@ struct ThesisConfig
 
     /// Every declared key, as profile JSON (what the run was configured with).
     [[nodiscard]] auto declared_json() const -> nlohmann::json;
+
+    /// selection.enabled only: the Phase 00-shaped config that extracts with candidate `i` on
+    /// `modality` ("voice" | "eeg" | "fused"; fused keeps this profile's fusion_mode): this
+    /// run's experiment (seed included) and dataset, the candidate's feature_extraction and
+    /// training, no classifier, no ranking output. Validated before it is returned.
+    [[nodiscard]] auto candidate_config(std::size_t i, const std::string& modality) const
+        -> ThesisConfig;
 };
 
 } // namespace thesis

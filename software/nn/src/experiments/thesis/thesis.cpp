@@ -20,6 +20,7 @@
 #include <string>
 
 #include "lib/include/DegradeVoices.hpp"
+#include "lib/include/FeatureDiskCache.hpp"
 #include "lib/include/ParaconsistentSubsets.hpp"
 #include "lib/include/ThesisClassifiers.hpp"
 #include "lib/include/ThesisCli.hpp"
@@ -28,6 +29,7 @@
 #include "lib/include/ThesisFeatureExtraction.hpp"
 #include "lib/include/ThesisOutput.hpp"
 #include "lib/include/ThesisParaconsistent.hpp"
+#include "lib/include/ThesisPerFold.hpp"
 #include "progress/ProgressManager.hpp"
 #include "statistics/GenuineImpostorEERScorer.hpp"
 #include "utility/progress.hpp"
@@ -42,6 +44,46 @@ namespace
 std::size_t config_fingerprint(const thesis::ThesisConfig& cfg)
 {
     return std::hash<std::string>{}(cfg.declared_json().dump());
+}
+
+// Every artefact of one repetition. Ranking artefacts are always written (empty under the
+// per-fold protocol, which ranks inside each fold); classifier artefacts when it ran.
+void write_outputs(const thesis::ThesisConfig& cfg,
+    const thesis::ThesisDatasetView& view,
+    const std::vector<thesis::ClassificationResult>& results,
+    const std::vector<thesis::ParaconsistentScore>& scores)
+{
+    auto& pm = nn::progress::ProgressManager::instance();
+    const std::string& results_dir = cfg.dataset.results_dir;
+    const std::string& tag = cfg.experiment.run_tag;
+
+    // Ranking artefacts are always written; classifier artefacts only when it ran.
+    thesis::write_paraconsistent_csv(results_dir, tag, scores);
+    thesis::write_summary_json(results_dir,
+        tag,
+        cfg,
+        results,
+        scores,
+        view.n_subjects,
+        view.n_stimuli,
+        view.samples.size(),
+        config_fingerprint(cfg));
+    if (cfg.classifier.enabled)
+    {
+        thesis::write_metrics_csv(results_dir, tag, results);
+        thesis::write_comparison_dat(results_dir, tag, results);
+        thesis::write_learning_curves_dat(
+            results_dir, tag, results); // Meeting01 epoch-history analog
+    }
+
+    for (const auto& r : results)
+    {
+        std::ostringstream oss;
+        oss << "[Thesis] " << r.feature_set_label << "  acc=" << r.mean_accuracy << " ±"
+            << r.std_accuracy << "  EER=" << r.mean_eer << "  spec=" << r.mean_specificity;
+        pm.log(oss.str());
+    }
+    pm.log("[Thesis] Done. Results written to " + results_dir);
 }
 
 // Run one full pipeline iteration with the given config (seed + run_tag already set).
@@ -147,37 +189,35 @@ void run_once(const thesis::ThesisConfig& cfg,
         pm.log("[Thesis] classifier.enabled=false — Phase 00 run, stopping after ranking.");
     }
 
-    // ── 6. Output ────────────────────────────────────────────────────────────
-    const std::string& results_dir = cfg.dataset.results_dir;
-    const std::string& tag = cfg.experiment.run_tag;
+    write_outputs(cfg, view, results, scores);
+}
 
-    // Ranking artefacts are always written; classifier artefacts only when it ran.
-    thesis::write_paraconsistent_csv(results_dir, tag, scores);
-    thesis::write_summary_json(results_dir,
-        tag,
-        cfg,
-        results,
-        scores,
-        view.n_subjects,
-        view.n_stimuli,
-        view.samples.size(),
-        config_fingerprint(cfg));
-    if (cfg.classifier.enabled)
-    {
-        thesis::write_metrics_csv(results_dir, tag, results);
-        thesis::write_comparison_dat(results_dir, tag, results);
-        thesis::write_learning_curves_dat(
-            results_dir, tag, results); // Meeting01 epoch-history analog
-    }
+// One repetition of the per-fold protocol (selection.enabled): extractor and hyperparameters
+// chosen inside each outer fold (ThesisPerFold.hpp). `degraded_view` is the same samples with
+// the degraded voice, or nullptr.
+void run_once_per_fold(const thesis::ThesisConfig& cfg,
+    const thesis::ThesisDatasetView& view,
+    const thesis::ThesisDatasetView* degraded_view,
+    thesis::CandidateFeatureCache& cache)
+{
+    auto& pm = nn::progress::ProgressManager::instance();
+    const uint32_t bar = pm.create_bar(
+        "Thesis | " + cfg.experiment.run_tag, static_cast<float>(cfg.training.k_folds));
+    pm.set_description(bar,
+        cfg.classifier.type + " | " + cfg.classifier.text_mode + " | per-fold selection, " +
+            std::to_string(cfg.training.k_folds) + "-fold CV");
 
-    for (const auto& r : results)
-    {
-        std::ostringstream oss;
-        oss << "[Thesis] " << r.feature_set_label << "  acc=" << r.mean_accuracy << " ±"
-            << r.std_accuracy << "  EER=" << r.mean_eer << "  spec=" << r.mean_specificity;
-        pm.log(oss.str());
-    }
-    pm.log("[Thesis] Done. Results written to " + results_dir);
+    const statistics::GenuineImpostorEERScorer scorer(kEnrolUtterancesPerSpeaker);
+    std::optional<thesis::PerFoldDegradation> degradation;
+    if (degraded_view != nullptr)
+        degradation = thesis::PerFoldDegradation{
+            degraded_view, cfg.degradation.scope.get() == "probes", kEnrolUtterancesPerSpeaker};
+    std::vector<thesis::ClassificationResult> results;
+    results.push_back(
+        thesis::run_per_fold(view, cfg, scorer, degradation ? &*degradation : nullptr, cache, bar));
+    pm.complete_bar(bar);
+    write_outputs(cfg, view, results, {});
+    thesis::write_selection_csvs(cfg.dataset.results_dir, cfg.experiment.run_tag, results);
 }
 } // namespace
 
@@ -203,11 +243,28 @@ auto main(int argc, char* argv[]) -> int
             nn::progress::ProgressManager::instance().log(std::string(overall));
         }
 
+        // The per-fold protocol names no extractor of its own: it chooses one in each fold.
+        const bool selects = cfg.classifier.enabled && cfg.selection.enabled;
         std::cout << "[Thesis] run_tag=" << cfg.experiment.run_tag
-                  << " modality=" << cfg.dataset.modality
-                  << " strategy=" << cfg.feature_extraction.strategy
+                  << " modality=" << cfg.dataset.modality << " strategy="
+                  << (selects ? std::string("per-fold selection")
+                              : cfg.feature_extraction.strategy.get())
                   << " repeats=" << cfg.experiment.repeats << " running=[" << repeats.first << ","
                   << repeats.last << ")\n";
+
+        // The on-disk cache of the handcrafted candidates (FeatureDiskCache.hpp): read from the
+        // environment before the (slow) dataset load, so a misconfiguration stops at once. A
+        // fixed-configuration run never reads it, so there it is refused: set, it would read as
+        // used.
+        const std::optional<thesis::FeatureDiskCache> disk_cache =
+            thesis::FeatureDiskCache::from_env();
+        if (disk_cache && !selects)
+            throw std::invalid_argument(
+                "thesis: THESIS_FEATURE_CACHE is set, but this profile does not enable the "
+                "per-fold protocol (selection.enabled), the only run that reads it; unset it");
+        if (cli.warm_feature_cache && !selects)
+            throw std::invalid_argument(
+                "thesis: --warm-feature-cache needs a per-fold profile (selection.enabled)");
 
         // ── 2. Load dataset (once — identical across repeats) ────────────────
         auto view = thesis::load_dataset(cfg.dataset);
@@ -218,24 +275,50 @@ auto main(int argc, char* argv[]) -> int
             nn::progress::ProgressManager::instance().log(oss.str());
         }
 
+        thesis::CandidateFeatureCache candidate_cache; // shared by every repetition
+        candidate_cache.disk = disk_cache ? &*disk_cache : nullptr;
+
+        // The warm step: the ranked signal's handcrafted candidates into the disk cache, and
+        // nothing else (no degradation, no fold, no output file).
+        if (cli.warm_feature_cache)
+        {
+            const std::size_t n = thesis::warm_feature_cache(view, cfg, candidate_cache);
+            nn::progress::ProgressManager::instance().log(
+                "[Thesis] warm feature cache: " + std::to_string(n) +
+                " handcrafted candidate(s) of " + cfg.selection.rank_modality.get() + " cached");
+            nn::progress::ProgressManager::instance().shutdown();
+            flushProgressAsync();
+            return EXIT_SUCCESS;
+        }
+
         // Handcrafted and PCA features are deterministic (no seed involved), so extract
         // once and share across repeats. AE-based extraction trains a network per
         // repeat seed and must stay inside the repeat loop.
         std::vector<thesis::FeatureSet> shared_features;
-        const bool features_seed_independent = (cfg.feature_extraction.strategy != "autoencoder");
+        const bool features_seed_independent =
+            !selects && (cfg.feature_extraction.strategy != "autoencoder");
         if (features_seed_independent)
             shared_features = thesis::extract_features(view, cfg, /*on_model_trained=*/nullptr);
+
+        const bool degrades = cfg.degradation.enabled.declared() && cfg.degradation.enabled;
+        // Per-fold protocol: the degraded voices are a second view beside the clean one (each
+        // fold fits its extractor on clean training rows, then extracts the degraded test rows).
+        std::optional<thesis::ThesisDatasetView> degraded_view;
+        if (selects && degrades)
+        {
+            degraded_view = view;
+            thesis::degrade_voices(*degraded_view, cfg.degradation);
+        }
 
         // Simulated dysphonia: the same extractor over the degraded voices. The clean
         // features are taken first; the view's audio is then replaced (nothing after this
         // reads the clean audio). ThesisConfig refuses degradation with an autoencoder.
         std::optional<std::vector<thesis::FeatureSet>> degraded_features;
-        if (cfg.degradation.enabled.declared() && cfg.degradation.enabled)
+        if (!selects && degrades)
         {
             thesis::degrade_voices(view, cfg.degradation);
             degraded_features = thesis::extract_features(view, cfg, /*on_model_trained=*/nullptr);
         }
-
         // ── Repeat loop ───────────────────────────────────────────────────────
         for (int rep = repeats.first; rep < repeats.last; ++rep)
         {
@@ -258,6 +341,12 @@ auto main(int argc, char* argv[]) -> int
                 nn::progress::ProgressManager::instance().log(oss.str());
             }
 
+            if (selects)
+            {
+                run_once_per_fold(
+                    rep_cfg, view, degraded_view ? &*degraded_view : nullptr, candidate_cache);
+                continue;
+            }
             run_once(rep_cfg,
                 view,
                 features_seed_independent ? &shared_features : nullptr,

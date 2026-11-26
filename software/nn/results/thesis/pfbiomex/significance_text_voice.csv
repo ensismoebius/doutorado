@@ -1,0 +1,2 @@
+reference,condition,metric,pairing,n_folds_ref,n_folds_cond,mean_ref,mean_cond,delta_mean,cohens_d,p_value,p_holm,holm_family_size,test,significant_0.05,note
+e05_pfbx01_dsnn_voice_dep,e05_pfbx01_dsnn_voice_indep,eer,independent,15,15,0.2794793333333333,0.33272433333333334,0.05324500000000004,0.9831722988733929,0.02510289275359325,0.02510289275359325,1,mannwhitneyu(indep),1,

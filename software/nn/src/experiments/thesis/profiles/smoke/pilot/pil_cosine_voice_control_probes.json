@@ -37,6 +37,9 @@
     "text_mode": "dependent",
     "enabled": true
   },
+  "selection": {
+    "enabled": false
+  },
   "degradation": {
     "enabled": true,
     "profile": "resynthesis_control",
@@ -45,7 +48,7 @@
   },
   "training": {
     "k_folds": 2,
-    "nested_cv": false,
-    "standardize_features": true
+    "standardize_features": true,
+    "nested_cv": false
   }
 }

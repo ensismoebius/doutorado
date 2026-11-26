@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-voice,dsnn,dependent,0,nan,nan,nan,nan,nan,0.238562,0.833707,154303.730,257.114,results/thesis/pfbxworld/models/e05_pfbx01w_voice_test_aphonic-r05_rep2/per-fold-voice/fold_0.bin
+per-fold-voice,dsnn,dependent,1,nan,nan,nan,nan,nan,0.290164,0.802033,48012.196,84.879,results/thesis/pfbxworld/models/e05_pfbx01w_voice_test_aphonic-r05_rep2/per-fold-voice/fold_1.bin
+per-fold-voice,dsnn,dependent,2,nan,nan,nan,nan,nan,0.378689,0.678887,152660.194,248.872,results/thesis/pfbxworld/models/e05_pfbx01w_voice_test_aphonic-r05_rep2/per-fold-voice/fold_2.bin
+per-fold-voice,dsnn,dependent,3,nan,nan,nan,nan,nan,0.301639,0.791436,44424.101,72.971,results/thesis/pfbxworld/models/e05_pfbx01w_voice_test_aphonic-r05_rep2/per-fold-voice/fold_3.bin
+per-fold-voice,dsnn,dependent,4,nan,nan,nan,nan,nan,0.401552,0.645272,148359.389,236.436,results/thesis/pfbxworld/models/e05_pfbx01w_voice_test_aphonic-r05_rep2/per-fold-voice/fold_4.bin

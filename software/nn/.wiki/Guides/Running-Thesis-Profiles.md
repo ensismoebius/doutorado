@@ -184,8 +184,12 @@ so they are only valid after Phase 00 ran and its winners were written in.
 5 phase01 ──► 6 Phase 01 tables, significance
 7 biomex  ──► 8 BIOMEX tables, significance
 9 WORLD dysphonia: a calibration (before 3) ─► b pilot ─► c identity margin ─► d grid ─► e floor
+10 per-fold protocol (cluster): warm the feature cache ─► perfold ─► pfbiomex ─► pfworld ─► pfbxworld
 then: the thesis numbers (Thesis Document guide)
 ```
+
+Step 10 needs no winners: each fold chooses its own extractor and hyperparameters. It is the
+primary result from 2026-11-18; steps 1–9 are the fixed-configuration comparison.
 
 `./scripts/testing/run_thesis_profiles.sh start-over-all` runs 1, 5 and 7 in that order from
 scratch, stopping at the first leg that fails (2–4 run inside leg 1). Locally every profile runs
@@ -272,7 +276,7 @@ trained model of every outer fold under `models/`.
 ### 6. Phase 01 tables and significance
 
 ```bash
-python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol fixed \
   --profiles-dir src/experiments/thesis/profiles/phase01 \
   --results-dir  results/thesis/phase01 \
   --tables-dir   ../../documentation/00-thesis/monography/tables
@@ -299,7 +303,7 @@ winners — nothing is selected on BIOMEX-DB). Needs `~/Documentos/academico/UNE
 ### 8. BIOMEX tables and significance
 
 ```bash
-python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol fixed \
   --profiles-dir src/experiments/thesis/profiles/biomex --results-dir results/thesis/biomex \
   --coretto-profiles-dir src/experiments/thesis/profiles/phase01 \
   --coretto-results-dir results/thesis/phase01 \
@@ -332,7 +336,7 @@ cmake --build out/build/max-performance --target thesis thesis_features -j$(npro
 vowels, the request of each rough/tremor level that yields the measured target.
 
 ```bash
-.venv/bin/python scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py \
+~/.venv/bin/python scripts/pipeline/thesis/05_thesis_dysphonia_calibration.py \
   --db ~/Documentos/academico/UNESP/doutorado/databases/database.sqlite \
   --subjects S10 S03 --jobs 10 --out-dir results/thesis/dysphonia_calibration
 ```
@@ -370,13 +374,25 @@ for f in src/experiments/thesis/profiles/world/p01w_voice_probes_*.json \
          src/experiments/thesis/profiles/bxworld/bx01w_voice_probes_*.json; do
   $BIN/thesis_features --config "$f" --out-dir results/thesis/world_margin
 done
-python3 scripts/pipeline/thesis/08_thesis_world_analysis.py \
+python3 scripts/pipeline/thesis/08_thesis_world_analysis.py --protocol fixed \
   --features results/thesis/world_margin \
   --profiles-root src/experiments/thesis/profiles --results-root results/thesis \
   --out results/thesis/world_analysis
 ```
 
-Writes `world_margin.json` (Part A), `world_eer.csv` (Part B) and `sig_*.csv`. It refuses when the
+Writes `world_margin.json` (Part A), `world_eer.csv` (Part B) and `sig_*.csv`.
+Under the per-fold protocol only Part B is run (Part A reads `thesis_features`, one extractor per
+profile and no classifier, so it does not depend on the protocol):
+
+```bash
+python3 scripts/pipeline/thesis/08_thesis_world_analysis.py --protocol per-fold \
+  --bases coretto2017,biomex2021 \
+  --profiles-root src/experiments/thesis/profiles --results-root results/thesis \
+  --out results/thesis/world_analysis
+```
+
+It writes `world_eer_perfold.csv` and `sig_pfworld_*.csv` / `sig_pfbxworld_*.csv`. `--bases` is
+required: name only `coretto2017` while `pfbxworld` is not back from the cluster. It refuses when the
 clean features of the runs of one base differ, or a profile's results are missing.
 
 **e. Floor test** (is the BIOMEX-DB null a floor effect? cross-half correlation, 100000
@@ -389,6 +405,208 @@ python3 scripts/pipeline/thesis/09_thesis_world_floor.py \
 
 The number builder reads 9a–9d (`--dysphonia-calibration`, `--identity-pilot`,
 `--identity-margin`, `--world-analysis`; [Thesis Document › Results to text](Thesis-Document.md#results-to-text)).
+
+### 10. Per-fold protocol — extractor and hyperparameters chosen inside each fold
+
+**Why it exists.** In steps 1–5 the extractor is chosen by $D_{\text{pen}}$ on all 15 speakers,
+so the 3 test speakers of a fold helped choose the extractor they are then scored with. The
+classifier is also never tuned. Here the choice moves inside the fold:
+
+```
+outer fold f ── 12 training speakers ──┬─ rank every Phase 00 candidate (D_pen on these rows)
+                                       ├─ inner 4-fold search over the 36-point grid
+                                       └─ refit the winner on all 12
+             └─ 3 test speakers ──────── scored ONCE
+```
+
+The design, the rows of each split and the measured costs are in
+[Thesis per-fold protocol](../Experiments/Thesis-Per-Fold-Protocol.md). This section only
+covers how to run it.
+
+**The profiles** are generated together with the rest (`00_thesis_generate_profiles.py`). They
+carry a `selection` block and **no** `feature_extraction`, and they read no winners file.
+
+| Phase (`THESIS_PHASE`) | Profiles | Units | Array | Results |
+|---|---|---|---|---|
+| `perfold` | 100 (`profiles/perfold/pf01_*`) | 100 × 3 repetitions | `--array=0-99` (3 units per task) | `results/thesis/perfold/` |
+| `pfbiomex` | 48 (`pfbiomex/pfbx01_*`) | 48 × 3 | `--array=0-47` | `results/thesis/pfbiomex/` |
+| `pfworld` | 150 (`pfworld/pf01w_*`) | 150 whole profiles | `--array=0-149` | `results/thesis/pfworld/` |
+| `pfbxworld` | 90 (`pfbxworld/pfbx01w_*`) | 90 × 3 | `--array=0-269` (1 unit per task) | `results/thesis/pfbxworld/` |
+
+`pfbxworld` is split by repetition because a whole BIOMEX-DB WORLD profile takes about 43 h,
+which is more than the partition's one-day limit. For the same reason it runs ONE unit per task
+(`--array=0-269`): a unit redoes the profile's WORLD resynthesis and takes ~11 h (mean 11.2 h,
+max 13.9 h, measured on job 5345820; ~17 h was projected at submission), so three in a row
+(`--array=0-89`) would pass the limit.
+
+**Run on GridUnesp only, in this order.** These are cluster runs: a single voice unit costs
+hours of CPU even with the cache (table below), and `run_thesis_profiles.sh` has no per-fold
+scope.
+
+```bash
+# local
+./scripts/pipeline/meeting01/gridunesp_deploy.sh
+# cluster, from ~/software/nn
+# 1. the feature cache, once per deploy (11 tasks, 8 min to 3 h 47 min each)
+sbatch --array=0-10 scripts/pipeline/thesis/thesis_warm_feature_cache.sbatch
+# 2. when every warm task is COMPLETED: one phase at a time (# CONFIRMED)
+THESIS_PHASE=perfold sbatch --array=0-99 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+# 3. local, when the array is done: bring the phase home (no --delete)
+rsync -avz <user>@access.grid.unesp.br:software/nn/results/thesis/perfold/ results/thesis/perfold/
+```
+
+**Watching a phase.** `scripts/pipeline/thesis/thesis_grid_watch.sh` (from `software/nn`) opens
+one ssh session and refreshes in place every 60 s (`--interval`, `--once`, `--jobs`,
+`--since-hours`). Per job it shows the phase, the tasks running and pending, the units done and
+failed against the phase's total (the `.done` markers, the units of record), the same bar with
+the running units' finished folds counted (it moves during day-long units), the mean unit time
+and a time-left estimate. For each running task: its unit, the unit's finished outer folds
+(`per-fold <f>:` lines of the unit's log over repetitions × `k_folds`), a progress bar of the
+task (its finished units plus the current unit's fold share), how long the unit has run, the
+measured time of one fold, an estimate of the task's time left (the current unit's remaining
+folds at that pace, later units at the job's mean), the task's time against its limit
+(`NEAR LIMIT` past 85%, `MAY HIT LIMIT` when the estimate passes it) and its memory (`sstat`
+MaxRSS). The fold columns exist only for per-fold units; a fixed-protocol unit logs no per-fold
+line and shows `-`.
+
+The pace is measured, not divided out: the loop notes the log's modification time each time a
+unit's fold count grows (thesis writes nothing between two fold lines, so that time is when the
+fold finished), and the pace is the time between two such readings. Dividing the unit's time by
+its folds would count the unit's one-off costs (loading, the WORLD resynthesis) as fold time: on
+2026-11-23 a WORLD fusion unit had 1 fold after 1 h 56 min, and that division projected 1.2 d for
+a unit of about 11 h, with a false `MAY HIT LIMIT`. So `per fold` and `~task left` show `-`
+until the loop has seen a unit finish two folds; `--once` never has. Do not
+wrap it in a loop of your own: repeated logins trip the cluster's Fail2Ban.
+
+**A trial run.** `THESIS_UNITS=<unit>,<unit>` restricts a phase to the units it names, and the
+array must then be `0..(count − 1)`. These are real units with real markers, so a later
+whole-phase run skips them. Example:
+`THESIS_PHASE=perfold THESIS_UNITS=pf01_dsnn_voice_dep.rep0 sbatch --array=0-0 …`.
+
+**Measured costs.**
+
+| | Value | Source |
+|---|---|---|
+| Warm array | 11 tasks, 8 min (EEG views) to 3 h 47 min (voice views), 552 cached matrices | job 5331039, 2026-11-19 |
+| `perfold` unit (one repetition), with the cache | mean 2.4 h, median 3.0 h, max 3.7 h; 300 units, ~710 CPU·h | job 5331068, 2026-11-19 |
+| `pfbiomex` unit (one repetition) | mean 7.2 h, median 9.9 h, max 11.2 h (the degraded-voice units are the slowest); 144 units, ~1 036 CPU·h; peak 9.3 GB | jobs 5335100 + 5338456, 2026-11-23 |
+| `pfworld` unit (a whole profile, 3 repetitions) | mean 10.8 h, max 12.1 h; 150 units, ~1 614 CPU·h; peak 6.0 GB | job 5345042, 2026-11-24 |
+| `pfbxworld` unit (one repetition) | mean 11.3 h, median 11.2 h, max 13.9 h; 270 units, ~3 063 CPU·h; peak 9.3 GB | job 5345820, 2026-11-26 |
+| Same voice unit, without the cache | 14 300–25 000 s, of which ~12 350 s is the handcrafted extraction | debug run, 2026-11-18 |
+
+**What can stop a phase** (each is a loud stop, never a skip):
+
+| Situation | Behaviour |
+|---|---|
+| A unit needs a cached matrix that is missing | The unit stops with `no cached features for …`. Run the warm array for **this** deploy. |
+| The phase directory holds markers of another deploy (for example the 2026-11-18 debug units of `74b80587`) | The task is refused. Move the directory aside on the cluster first. |
+| A redeploy | The cache key includes the revision, so the old matrices no longer match. Run the warm array again. |
+
+**Reading the results.** Each unit writes the usual files plus
+`e05_<tag>_selection_extractors.csv` and `e05_<tag>_selection_grid.csv`, and its summary says
+`"protocol": "per-fold"` ([outputs table](#per-run-diagnostics-output-files)). When the
+`perfold` array is home:
+
+```bash
+python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol per-fold \
+  --profiles-dir src/experiments/thesis/profiles/perfold --results-dir results/thesis/perfold \
+  --fixed-profiles-dir src/experiments/thesis/profiles/phase01 \
+  --fixed-results-dir results/thesis/phase01 \
+  --tables-dir ../../documentation/00-thesis/monography/tables
+scripts/pipeline/thesis/10_thesis_perfold_significance.sh \
+  src/experiments/thesis/profiles/perfold results/thesis/perfold
+```
+
+The first writes the same five tables as step 6, prefixed `perfold_` (the grid table has
+one cell per source and text mode: the selection replaces nested CV, and raw features stay a
+fixed-grid ablation), plus two more:
+
+| Table | Content |
+|---|---|
+| `perfold_selection.csv` | per cell, what its 15 folds (3 repetitions × 5) chose: the most chosen extractor and how often (`Haar + Linear (c1) (6/15)`), how many distinct extractors, the same for the grid point (`width/blocks/lr/decay`); a tie of more than two is counted (`5 empatados (2/15 cada)`), never broken |
+| `perfold_vs_fixed.csv` | every DSNN/ANN/cosine cell's per-fold EER beside the fixed grid's flat standardized cell, and the difference; descriptive (no test is declared for it) |
+
+In `perfold_extractors.csv` the extractor columns are the folds' most frequent choice, since
+each fold chooses its own. The script refuses a summary whose `protocol` disagrees with the
+profile. `10_thesis_perfold_significance.sh` runs `03_`'s families unchanged on the `pf01_*`
+names (§5 of the pre-registration: same comparisons, same statistics). A per-fold profile pairs
+with a flat fixed profile, because its outer folds are the flat CV's.
+
+The BIOMEX-DB replication has the same two protocols. With `pfbiomex` home:
+
+```bash
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol per-fold \
+  --profiles-dir src/experiments/thesis/profiles/pfbiomex --results-dir results/thesis/pfbiomex \
+  --coretto-profiles-dir src/experiments/thesis/profiles/perfold \
+  --coretto-results-dir results/thesis/perfold \
+  --tables-dir ../../documentation/00-thesis/monography/tables
+scripts/pipeline/thesis/11_thesis_pfbiomex_significance.sh \
+  src/experiments/thesis/profiles/pfbiomex results/thesis/pfbiomex
+```
+
+It writes `pfbiomex_{auth,dysphonia,selection}.csv`. Each BIOMEX-DB cell sits beside the Coretto
+**per-fold** cell, not the fixed one: the replication repeats the method, so the base it is
+compared with is read under the same method. `11_` is `04_`'s families on the `pfbx01_*` names.
+The memory note for the cluster: a pfbiomex task needs more than 8 GB (the degraded-voice
+fusion units peaked at 9.3 GB); the sbatch now asks for 16G, but a deploy older than
+2026-11-23 still has 8G, so pass `--mem=16G` on the `sbatch` line rather than redeploying
+(a redeploy changes the revision, which invalidates the feature cache and the phase markers).
+
+**Locally** (a smoke check, or a debugging run) the binary runs a per-fold profile without the
+cache when `THESIS_FEATURE_CACHE` is unset. It then extracts the candidates itself, which takes
+hours for a voice profile. The smoke mirror (`profiles/smoke/`, 240 samples, 2 folds, one grid
+point) takes minutes:
+
+```bash
+$BIN/thesis --config src/experiments/thesis/profiles/smoke/perfold/pf01_cosine_eegpron_dep.json --repeat 0
+```
+
+## Feature cache (per-fold phases only)
+
+**The problem.** Every per-fold unit ranks all Phase 00 candidates of its signal. For the voice
+that means 153 candidates, 138 of them handcrafted, at about 3.4 h of one CPU per unit. Those
+138 matrices depend on neither the fold nor the seed: they are the same in every unit that loads
+the same samples. Without a cache, `perfold` alone would repeat them 300 times.
+
+**What it does.** `thesis --warm-feature-cache` (driven by
+`thesis_warm_feature_cache.sbatch`) computes each matrix once per *data view* and writes it to
+`results/thesis/feature_cache/<hash>.e05fc`. There are 11 views: Coretto voice, eegpron,
+eegimag and the 4 fusions, and BIOMEX-DB voice, eegpron and the 2 pronounced fusions. The phases
+export `THESIS_FEATURE_CACHE_MODE=read` and only read.
+
+```
+warm array (write)                         perfold / pfbiomex / … units (read)
+view "Coretto voice" ─► 138 matrices ─┐    unit pf01_dsnn_voice_dep.rep0 ─► 138 reads
+view "Coretto eegpron" ─► 61 matrices ─┼─► results/thesis/feature_cache/   (a miss stops the unit)
+…  (11 views)                         ─┘
+```
+
+**Why it cannot serve wrong features.** The key of a matrix is made of four parts:
+
+| Key part | Prevents |
+|---|---|
+| deploy revision (`THESIS_FEATURE_CACHE_REVISION`) | features of another code version |
+| fingerprint of every loaded audio/EEG value, label and sample rate | features of another base, condition or sample set |
+| signal (voice / EEG) | one signal's matrix read as the other's |
+| the candidate's whole `feature_extraction` block | one extractor's matrix read as another's |
+
+The file stores its full key and a checksum. A different key, a truncated file or a wrong
+checksum is refused with the remedy (delete the file and warm again). Writes go to a temp file
+named `.tmp.<host>.<pid>` and are then renamed, so a reader sees a whole file or none. Two
+writers of the same matrix race harmlessly. Only handcrafted candidates are cached: PCA and the
+autoencoders are fitted per fold. Verified: a per-fold run gives bit-identical choices and EERs
+with and without the cache (`FeatureDiskCache.PerFoldRunIsTheSameWithAndWithoutIt`, plus the
+real Coretto EEG smoke run: EER 0.310185 both ways).
+
+**Variables** (the sbatch scripts set them; set them yourself only for a local run with a cache):
+
+| Variable | Value |
+|---|---|
+| `THESIS_FEATURE_CACHE` | the cache directory; unset = no cache |
+| `THESIS_FEATURE_CACHE_REVISION` | required when the directory is set; the deploy's revision label |
+| `THESIS_FEATURE_CACHE_MODE` | `write` (warm) or `read` (phases); anything else is refused |
+
+A fixed-configuration profile refuses the cache, because it never ranks candidates.
 
 ## Decoded-dataset cache
 
@@ -426,6 +644,12 @@ class of run diagnostics the Meeting01/Meeting01 pipeline stores:
 | `*_metrics.csv` | Per-fold metrics + `train_ms,infer_ms` columns. |
 | `*_learning_curves.dat` | The Meeting01 epoch-history analog: one row per `(feature_set, fold, epoch)` — `train_loss val_loss epoch_ms spike_rate sops`. For the **DSNN** classifier, `spike_rate` (mean firing rate over all spiking layers) and `sops` (synaptic ops/sample) are populated per epoch; for the non-spiking RNN they are `nan`/`0`. pgfplots-ready. Written only when a classifier trained (phase01). |
 | `*_paraconsistent.csv`, `*_comparison.dat` | Ranking scores and the pgfplots comparison table (unchanged). |
+| `*_selection_extractors.csv` | Per-fold protocol only: `feature_set,fold,candidate,label,d_penalized,chosen`, one row per (fold, candidate). |
+| `*_selection_grid.csv` | Per-fold protocol only: one row per (fold, grid point, inner fold) with the point's hyperparameters, `param_count`, `inner_eer`, `mean_inner_eer`, `chosen`. Header only for the cosine control, which has no grid. |
+
+A per-fold summary says `"protocol": "per-fold"` (`"fixed"` everywhere else). It has no
+`strategy`, and its run-level `param_count` is absent: each fold's winner has its own, under
+`fold_models[f].selection`.
 
 > **SNN firing rate is measured via a model-side probe.** The DSNN classifier trains
 > under cross-entropy (not a spike loss), so the Trainer can't read the rate from the

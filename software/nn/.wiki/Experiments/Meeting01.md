@@ -183,10 +183,10 @@ visualizations. Serves a SPA from `dashboard/static/`. No C++ changes required.
 
 ```bash
 # start the dashboard (needs fastapi + uvicorn in the venv)
-.venv/bin/python scripts/pipeline/meeting01/dashboard/server.py --results-dir results/meeting01
+~/.venv/bin/python scripts/pipeline/meeting01/dashboard/server.py --results-dir results/meeting01
 
 # or with explicit run tag
-.venv/bin/python scripts/pipeline/meeting01/dashboard/server.py --results-dir results/meeting01 --run-tag meeting01_loso
+~/.venv/bin/python scripts/pipeline/meeting01/dashboard/server.py --results-dir results/meeting01 --run-tag meeting01_loso
 ```
 
 Defaults are `--host 127.0.0.1 --port 8000`, so the dashboard is at
@@ -1802,16 +1802,16 @@ cd software/nn
 out/build/max-performance/src/experiments/meeting01/meeting01 --comparative \
   --comparative-config src/experiments/meeting01/profiles/meeting01-loso.json \
   --print-resolved-config > /tmp/resolved.json
-.venv/bin/python scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py \
+~/.venv/bin/python scripts/pipeline/meeting01/02_meeting01_build_loso_paper_data.py \
   --placeholders /tmp/resolved.json --data-dir ../../documentation/07-articlesProduced/meeting01/data
-.venv/bin/python scripts/pipeline/meeting01/04_meeting01_significance_tests.py \
+~/.venv/bin/python scripts/pipeline/meeting01/04_meeting01_significance_tests.py \
   --placeholders /tmp/resolved.json --out-dir ../../documentation/07-articlesProduced/meeting01/data
-.venv/bin/python scripts/pipeline/meeting01/00_meeting01_prevalidation_report.py --placeholders \
+~/.venv/bin/python scripts/pipeline/meeting01/00_meeting01_prevalidation_report.py --placeholders \
   --profile src/experiments/meeting01/profiles/meeting01-prevalidation.json \
   --data-dir ../../documentation/07-articlesProduced/meeting01/data
-.venv/bin/python scripts/pipeline/meeting01/07_meeting01_design_study.py --placeholders \
+~/.venv/bin/python scripts/pipeline/meeting01/07_meeting01_design_study.py --placeholders \
   --data-dir ../../documentation/07-articlesProduced/meeting01/data
-.venv/bin/python scripts/pipeline/meeting01/08_meeting01_budget_test.py --placeholders \
+~/.venv/bin/python scripts/pipeline/meeting01/08_meeting01_budget_test.py --placeholders \
   --data-dir ../../documentation/07-articlesProduced/meeting01/data
 ```
 

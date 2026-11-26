@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.198864,0.903102,32494.956,49.841,results/thesis/perfold/models/e05_pf01_dsnn_earlypron_dep_rep1/per-fold-fused-early/fold_0.bin
+per-fold-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.239766,0.858144,31646.042,46.189,results/thesis/perfold/models/e05_pf01_dsnn_earlypron_dep_rep1/per-fold-fused-early/fold_1.bin
+per-fold-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.177778,0.921883,4177.852,7.379,results/thesis/perfold/models/e05_pf01_dsnn_earlypron_dep_rep1/per-fold-fused-early/fold_2.bin
+per-fold-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.172222,0.923580,7582.184,12.997,results/thesis/perfold/models/e05_pf01_dsnn_earlypron_dep_rep1/per-fold-fused-early/fold_3.bin
+per-fold-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.190476,0.886161,31604.474,45.094,results/thesis/perfold/models/e05_pf01_dsnn_earlypron_dep_rep1/per-fold-fused-early/fold_4.bin

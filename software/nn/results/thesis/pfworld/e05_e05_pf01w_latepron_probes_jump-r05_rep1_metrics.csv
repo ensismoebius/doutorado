@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.156250,0.871513,12115.559,19.989,results/thesis/pfworld/models/e05_pf01w_latepron_probes_jump-r05_rep1/per-fold-fused-late/fold_0.bin
+per-fold-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.257310,0.819808,34064.001,51.583,results/thesis/pfworld/models/e05_pf01w_latepron_probes_jump-r05_rep1/per-fold-fused-late/fold_1.bin
+per-fold-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.288889,0.810710,34006.890,55.387,results/thesis/pfworld/models/e05_pf01w_latepron_probes_jump-r05_rep1/per-fold-fused-late/fold_2.bin
+per-fold-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.205556,0.848688,5279.907,10.548,results/thesis/pfworld/models/e05_pf01w_latepron_probes_jump-r05_rep1/per-fold-fused-late/fold_3.bin
+per-fold-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.380952,0.695702,50600.892,76.394,results/thesis/pfworld/models/e05_pf01w_latepron_probes_jump-r05_rep1/per-fold-fused-late/fold_4.bin

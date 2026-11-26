@@ -1,0 +1,2 @@
+reference,condition,metric,pairing,n_folds_ref,n_folds_cond,mean_ref,mean_cond,delta_mean,cohens_d,p_value,p_holm,holm_family_size,test,significant_0.05,note
+e05_pf01_dsnn_eegpron_dep,e05_pf01_dsnn_eegpron_indep,eer,independent,15,15,0.282743,0.23951053333333333,-0.04323246666666669,-0.6642217377725788,0.12486035998214667,0.12486035998214667,1,mannwhitneyu(indep),0,

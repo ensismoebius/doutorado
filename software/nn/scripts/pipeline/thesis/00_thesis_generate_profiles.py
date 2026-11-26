@@ -68,6 +68,19 @@ of p01_dysph_* with the WORLD profiles, on both bases, each in its own phase dir
   jump-r05 r1 r2 | aphonic-r05 r1 r2 (diplophonia is out: not validated, proposal decision 8)
 The rough and tremor requests come from --calibration (calibration.json), never typed here.
 
+Per-fold protocol (.wiki/Experiments/Thesis-Per-Fold-Protocol.md; the primary result from
+2026-11-18). The extractor and the classifier's hyperparameters are chosen inside each outer
+fold, on its training speakers only; the profiles above stay as the fixed-configuration
+comparison and declare selection.enabled false. Each per-fold profile lists the Phase 00 set
+of the ranked signal (the voice for a fusion, whatever --fused says) in Phase 00 order, and,
+for a network, the grid SELECTION_GRID. It reads no winners. The mirror of every flat,
+standardized cell above (nested CV is what the selection replaces; raw stays an ablation):
+  perfold/    pf01_<kind>_<src>_<text>, pf01_dysph_<src>_<scope>_l<level>,
+              pf01_cmp-<family>_<signal>_<text> (that family's members only; 50 epochs, since
+              each autoencoder candidate carries its own 100-epoch training block)
+  pfbiomex/   pfbx01_<kind>_<src>_<text>, pfbx01_dysph_<src>_<scope>_l<level>
+  pfworld/    pf01w_<src>_<scope>_<level>       pfbxworld/  pfbx01w_<src>_<scope>_<level>
+
 Run from software/nn:
     python3 scripts/pipeline/thesis/00_thesis_generate_profiles.py \
         --winners results/thesis/phase00/winners.json --fused voice \
@@ -198,20 +211,26 @@ def phase00():
 
 
 # ── Phase 01 ─────────────────────────────────────────────────────────────────────
-def classifier(kind, text):
+def classifier(kind, text, selects=False):
     c = {"type": kind}
-    if kind != "cosine":
+    if kind != "cosine" and not selects:  # per-fold: the grid chooses the layer_spec
         c["layer_spec"] = ["linear:128:relu", "residual:2", "linear:N_speakers:identity"]
     c.update({"text_mode": "dependent" if text == "dep" else "independent", "enabled": True})
     return c
 
 
-def training(kind, nested, std, epochs=50):
-    t = {"k_folds": FOLD_K, "nested_cv": nested, "standardize_features": std}
+def training(kind, nested, std, epochs=50, selects=False):
+    """The classifier's training block. selects: the per-fold protocol, whose grid owns the
+    learning rate and the weight decay and which has no nested_cv of its own."""
+    t = {"k_folds": FOLD_K, "standardize_features": std}
+    if not selects:
+        t["nested_cv"] = nested
     if kind == "cosine":
         return t
-    t.update({"epochs": epochs, "learning_rate": 0.001, "samples_per_batch": 32,
-              "optimizer_type": "adam", "gradient_clip_norm": 0.0, "weight_decay": 0.0})
+    t.update({"epochs": epochs, "samples_per_batch": 32, "optimizer_type": "adam",
+              "gradient_clip_norm": 0.0})
+    if not selects:
+        t.update({"learning_rate": 0.001, "weight_decay": 0.0})
     if nested:
         t["early_stop_patience"] = 10
     if kind == "dsnn":
@@ -261,7 +280,8 @@ def phase01_profile(name, source, kind, text, nested, std, winner, degradation=N
     prof = {"experiment": experiment(name), "dataset": dataset(source, phase, base),
             "feature_extraction": fe,
             "paraconsistent": {"enabled": False},
-            "classifier": classifier(kind, text)}
+            "classifier": classifier(kind, text),
+            "selection": {"enabled": False}}  # the fixed configuration (Phase 00 winner)
     if SOURCES[source]["modality"] != "eeg":
         prof["degradation"] = degradation or {"enabled": False}
     prof["training"] = training(kind, nested, std, epochs)
@@ -405,6 +425,102 @@ def world(winners, fused, requests):
                                           degradation=deg, base=base, phase=phase)
 
 
+# ── Per-fold protocol (.wiki/Experiments/Thesis-Per-Fold-Protocol.md) ─────────────────────
+# The hyperparameter grid of section 3 (author's choice 2026-11-18: compact, T fixed). The fixed
+# configuration (linear:128, residual:2, lr 1e-3, no decay) is one of its 36 points.
+SELECTION_GRID = {"inner_k": 4, "hidden_widths": [64, 128, 256], "residual_blocks": [0, 1, 2],
+                  "learning_rates": [0.001, 0.0003], "weight_decays": [0.0, 0.0001]}
+PER_FOLD_DIRS = ("perfold", "pfbiomex", "pfworld", "pfbxworld")
+PER_FOLD_WORLD_PREFIX = {"p01w": "pf01w", "bx01w": "pfbx01w"}
+
+
+def ranked_signal(source):
+    """The signal a source's candidates are ranked on: its own, or the voice for a fusion
+    (the fold's voice winner feeds both parts, as in the fixed grid with --fused voice)."""
+    return "voice" if SOURCES[source]["modality"] == "fused" else source
+
+
+def extractor_candidates(signal, family=None):
+    """The Phase 00 set of `signal`, in Phase 00 order (the order D_pen ties are broken in);
+    family keeps only hc / ae / pca. An autoencoder carries the budget Phase 00 ranked it at."""
+    out = []
+    for ext_name, fe in phase00_extractors(signal):
+        if family is not None and not ext_name.startswith(family + "_"):
+            continue
+        cand = {"feature_extraction": fe}
+        if fe["strategy"] == "autoencoder":
+            cand["training"] = dict(AE_TRAINING)
+        out.append(cand)
+    if not out:
+        raise SystemExit(f"[generate] no {family} candidate for {signal}")
+    return out
+
+
+def per_fold_profile(name, source, kind, text, degradation=None, family=None,
+                     base="coretto2017", phase="perfold"):
+    """A profile of the per-fold protocol: no extractor and no network hyperparameters of its
+    own; the selection block lists what each outer fold chooses among."""
+    signal = ranked_signal(source)
+    sel = {"enabled": True, "rank_modality": SOURCES[signal]["modality"],
+           "extractor_candidates": extractor_candidates(signal, family)}
+    if kind != "cosine":
+        sel.update(copy.deepcopy(SELECTION_GRID))
+    prof = {"experiment": experiment(name), "dataset": dataset(source, phase, base),
+            "paraconsistent": {"enabled": False},
+            "classifier": classifier(kind, text, selects=True),
+            "selection": sel}
+    if SOURCES[source]["modality"] != "eeg":
+        prof["degradation"] = degradation or {"enabled": False}
+    prof["training"] = training(kind, False, True, selects=True)
+    return f"{phase}/{name}.json", prof
+
+
+def whisper_levels():
+    for scope in ("probes", "test"):
+        for level in (0.25, 0.5, 0.75, 1.0):
+            yield (f"{scope}_l{int(level * 100)}",
+                   {"enabled": True, "profile": "whisper_mix", "level": level, "scope": scope,
+                    "seed": DEGRADATION_SEED})
+
+
+def per_fold(requests):
+    """The per-fold mirror of every flat, standardized cell of the fixed grid (see the module
+    docstring); nested CV is replaced by the selection, and raw features stay a fixed-grid
+    ablation."""
+    voice_sources = [s for s in SOURCES if SOURCES[s]["modality"] != "eeg"]
+    for src in SOURCES:
+        for text in ("dep", "indep"):
+            for kind in ("dsnn", "ann", "cosine"):
+                yield per_fold_profile(f"pf01_{kind}_{src}_{text}", src, kind, text)
+    for src in voice_sources:
+        for tag, deg in whisper_levels():
+            yield per_fold_profile(f"pf01_dysph_{src}_{tag}", src, "dsnn", "dep", degradation=deg)
+    for fam in FAMILIES:
+        for sig in SIGNALS:
+            for text in ("dep", "indep"):
+                yield per_fold_profile(f"pf01_cmp-{fam}_{sig}_{text}", sig, "dsnn", text,
+                                       family=fam)
+    kw = {"base": "biomex2021", "phase": "pfbiomex"}
+    for src in BIOMEX_SOURCES:
+        for text in ("dep", "indep"):
+            for kind in ("dsnn", "ann", "cosine"):
+                yield per_fold_profile(f"pfbx01_{kind}_{src}_{text}", src, kind, text, **kw)
+    for src in BIOMEX_SOURCES:
+        if SOURCES[src]["modality"] == "eeg":
+            continue
+        for tag, deg in whisper_levels():
+            yield per_fold_profile(f"pfbx01_dysph_{src}_{tag}", src, "dsnn", "dep",
+                                   degradation=deg, **kw)
+    for phase, (base, prefix, sources) in WORLD_GRIDS.items():
+        for src in sources:
+            for scope in ("probes", "test"):
+                for level, keys in world_levels(requests):
+                    deg = {"enabled": True, **keys, "scope": scope, "seed": DEGRADATION_SEED}
+                    yield per_fold_profile(f"{PER_FOLD_WORLD_PREFIX[prefix]}_{src}_{scope}_{level}",
+                                           src, "dsnn", "dep",
+                                           degradation=deg, base=base, phase="pf" + phase)
+
+
 def sha256(path):
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
@@ -461,7 +577,8 @@ def main(argv=None):
         winners = load_winners(args.winners)
         requests = load_calibration(args.calibration)
         rows += (list(phase01(winners, args.fused)) + list(biomex(winners, args.fused))
-                 + list(pilot(winners, args.fused)) + list(world(winners, args.fused, requests)))
+                 + list(pilot(winners, args.fused)) + list(world(winners, args.fused, requests))
+                 + list(per_fold(requests)))
         rel = os.path.relpath(os.path.abspath(args.winners), NN)
         header.append(f"# winners: {rel} sha256 {sha256(args.winners)} {args.fused}")
         rel = os.path.relpath(os.path.abspath(args.calibration), NN)
@@ -474,7 +591,7 @@ def main(argv=None):
             raise SystemExit(f"[generate] {rel} would be written twice")
         seen.add(rel)
 
-    for sub in ("phase00", "phase01", "biomex", "pilot", *WORLD_GRIDS):
+    for sub in ("phase00", "phase01", "biomex", "pilot", *WORLD_GRIDS, *PER_FOLD_DIRS):
         shutil.rmtree(os.path.join(PROFILES, sub), ignore_errors=True)
     for sub in sorted({rel.split("/")[0] for rel, _ in rows}):
         os.makedirs(os.path.join(PROFILES, sub))
@@ -493,8 +610,10 @@ def main(argv=None):
     nbx = sum(r.startswith("biomex/") for r in written)
     npi = sum(r.startswith("pilot/") for r in written)
     nw = {g: sum(r.startswith(f"{g}/") for r in written) for g in WORLD_GRIDS}
+    npf = sum(r.split("/")[0] in PER_FOLD_DIRS for r in written)
     print(f"[generate] {n00} Phase 00 + {n01} Phase 01 + {nbx} BIOMEX-DB + {npi} pilot + "
-          f"{nw['world']} WORLD + {nw['bxworld']} BIOMEX-DB WORLD profiles -> {PROFILES}")
+          f"{nw['world']} WORLD + {nw['bxworld']} BIOMEX-DB WORLD + {npf} per-fold profiles "
+          f"-> {PROFILES}")
 
 
 if __name__ == "__main__":

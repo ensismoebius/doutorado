@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.179739,0.905577,116882.023,198.814,results/thesis/pfbiomex/models/e05_pfbx01_dsnn_latepron_dep_rep2/per-fold-fused-late/fold_0.bin
+per-fold-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.187500,0.899849,30615.061,57.017,results/thesis/pfbiomex/models/e05_pfbx01_dsnn_latepron_dep_rep2/per-fold-fused-late/fold_1.bin
+per-fold-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.277664,0.801121,106859.841,179.381,results/thesis/pfbiomex/models/e05_pfbx01_dsnn_latepron_dep_rep2/per-fold-fused-late/fold_2.bin
+per-fold-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.264549,0.823306,99691.705,163.828,results/thesis/pfbiomex/models/e05_pfbx01_dsnn_latepron_dep_rep2/per-fold-fused-late/fold_3.bin
+per-fold-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.271650,0.788326,68814.030,114.862,results/thesis/pfbiomex/models/e05_pfbx01_dsnn_latepron_dep_rep2/per-fold-fused-late/fold_4.bin

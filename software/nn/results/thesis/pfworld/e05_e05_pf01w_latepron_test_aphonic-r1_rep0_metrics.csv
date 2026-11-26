@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.288235,0.798962,32243.926,52.601,results/thesis/pfworld/models/e05_pf01w_latepron_test_aphonic-r1_rep0/per-fold-fused-late/fold_0.bin
+per-fold-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.384615,0.662319,11475.818,20.288,results/thesis/pfworld/models/e05_pf01w_latepron_test_aphonic-r1_rep0/per-fold-fused-late/fold_1.bin
+per-fold-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.234375,0.834730,10958.914,22.281,results/thesis/pfworld/models/e05_pf01w_latepron_test_aphonic-r1_rep0/per-fold-fused-late/fold_2.bin
+per-fold-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.360465,0.679506,15448.303,27.934,results/thesis/pfworld/models/e05_pf01w_latepron_test_aphonic-r1_rep0/per-fold-fused-late/fold_3.bin
+per-fold-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.254054,0.821899,7700.362,15.632,results/thesis/pfworld/models/e05_pf01w_latepron_test_aphonic-r1_rep0/per-fold-fused-late/fold_4.bin

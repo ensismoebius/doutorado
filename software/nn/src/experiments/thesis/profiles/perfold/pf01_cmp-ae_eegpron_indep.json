@@ -1,0 +1,398 @@
+{
+  "experiment": {
+    "run_tag": "e05_pf01_cmp-ae_eegpron_indep",
+    "seed": 42,
+    "repeats": 3,
+    "seed_deterministic": false
+  },
+  "dataset": {
+    "source": "coretto2017",
+    "root": "~/Documentos/academico/UNESP/doutorado/databases/database.sqlite",
+    "results_dir": "results/thesis/perfold",
+    "modality": "eeg",
+    "eeg_condition": "pronounced",
+    "max_samples": 0
+  },
+  "paraconsistent": {
+    "enabled": false
+  },
+  "classifier": {
+    "type": "dsnn",
+    "text_mode": "independent",
+    "enabled": true
+  },
+  "selection": {
+    "enabled": true,
+    "rank_modality": "eeg",
+    "extractor_candidates": [
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "ann-ae",
+            "encoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:8:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:output:identity"
+            ],
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "ann-ae",
+            "encoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:16:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:output:identity"
+            ],
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "ann-ae",
+            "encoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:32:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:output:identity"
+            ],
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:8:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "direct",
+            "voltage_threshold": 1.0,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:16:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "direct",
+            "voltage_threshold": 1.0,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:32:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "direct",
+            "voltage_threshold": 1.0,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:8:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "latency",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:16:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "latency",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:32:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "latency",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:8:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "poisson",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:16:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "poisson",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:32:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "poisson",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 100,
+          "learning_rate": 0.001,
+          "samples_per_batch": 32,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      }
+    ],
+    "inner_k": 4,
+    "hidden_widths": [
+      64,
+      128,
+      256
+    ],
+    "residual_blocks": [
+      0,
+      1,
+      2
+    ],
+    "learning_rates": [
+      0.001,
+      0.0003
+    ],
+    "weight_decays": [
+      0.0,
+      0.0001
+    ]
+  },
+  "training": {
+    "k_folds": 5,
+    "standardize_features": true,
+    "epochs": 50,
+    "samples_per_batch": 32,
+    "optimizer_type": "adam",
+    "gradient_clip_norm": 0.0,
+    "firing_rate_reg_lambda": 0.0,
+    "batch_normalization": "none"
+  }
+}

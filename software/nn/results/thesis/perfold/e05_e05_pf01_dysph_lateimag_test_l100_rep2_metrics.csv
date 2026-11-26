@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.245614,0.841062,34889.215,49.015,results/thesis/perfold/models/e05_pf01_dysph_lateimag_test_l100_rep2/per-fold-fused-late/fold_0.bin
+per-fold-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.229947,0.859375,9391.806,15.839,results/thesis/perfold/models/e05_pf01_dysph_lateimag_test_l100_rep2/per-fold-fused-late/fold_1.bin
+per-fold-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.380682,0.642473,36995.858,53.580,results/thesis/perfold/models/e05_pf01_dysph_lateimag_test_l100_rep2/per-fold-fused-late/fold_2.bin
+per-fold-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.201183,0.886856,38297.757,52.215,results/thesis/perfold/models/e05_pf01_dysph_lateimag_test_l100_rep2/per-fold-fused-late/fold_3.bin
+per-fold-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.210811,0.879021,5125.846,9.393,results/thesis/perfold/models/e05_pf01_dysph_lateimag_test_l100_rep2/per-fold-fused-late/fold_4.bin

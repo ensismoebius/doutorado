@@ -12,6 +12,23 @@
 #   THESIS_PHASE=world   sbatch --array=0-149 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 #   THESIS_PHASE=bxworld sbatch --array=0-89  scripts/pipeline/thesis/thesis_gridunesp.sbatch
 #   (WORLD phases: one whole profile per task; see below)
+# The per-fold protocol (.wiki/Experiments/Thesis-Per-Fold-Protocol.md), same rules:
+#   THESIS_PHASE=perfold   (100 profiles x 3 repetitions)   THESIS_PHASE=pfbiomex (48 x 3)
+#   THESIS_PHASE=pfworld   (150 whole profiles)             THESIS_PHASE=pfbxworld (90 x 3)
+#   arrays: perfold --array=0-99, pfbiomex 0-47, pfworld 0-149, pfbxworld 0-269 (one unit per
+#   task: a pfbxworld unit redoes its profile's WORLD resynthesis, mean 11.3 h / max 13.9 h on
+#   job 5345820 (2026-11-26), so three in a row would pass the one-day limit)
+# (pfbxworld is split by repetition: a whole BIOMEX-DB WORLD profile takes ~43 h, measured
+# 2026-11-18 on jobs 5330058 and 5330064, beyond the day of the partition.)
+# Their units READ the handcrafted candidates from the feature cache and refuse a miss: run
+# scripts/pipeline/thesis/thesis_warm_feature_cache.sbatch first, with the same deploy
+# (FeatureDiskCache.hpp; the cache is keyed by this deploy's revision).
+# Only some units (a timed debug run, before the whole phase): THESIS_UNITS lists them by
+# name, comma-separated, and the array then spans exactly those (the mapping is the same rule
+# over the filtered list). Each is a real unit -- same marker -- so a later run of the whole
+# phase skips it instead of running it again:
+#   THESIS_PHASE=perfold THESIS_UNITS=pf01_dsnn_voice_dep.rep0,pf01_ann_voice_dep.rep0 \
+#     sbatch --array=0-1 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # (one 1-CPU process at a time per task: see --cpus-per-task below for why not threads)
 #   scancel --batch --signal=USR1 <jobid>_<task>   # stop a task early; its results come home
 #
@@ -100,7 +117,12 @@
 #SBATCH --cpus-per-task=1
 # The decoded dataset alone is 1.6 GB in memory; the voice SNN-AE profiles peaked at ~4.4 GB RSS
 # locally. Out of memory is a loud failure (the task is killed and has no marker).
-#SBATCH --mem=8G
+# 16G since 2026-11-23: pfbiomex's degraded-voice fusions (pfbx01_dysph_earlypron_*, BIOMEX-DB has
+# ~3x the utterances of Coretto) were killed at 8G (job 5335100, exit 137, 24 tasks) and peaked
+# at 9.3 GB when rerun with 16G (job 5338456, sacct MaxRSS). The BIOMEX-DB WORLD phase
+# (pfbxworld) has the same shape. The phases run before this (perfold, pfbiomex's other units)
+# fit in 8G; the limit is not a measure of what each needs.
+#SBATCH --mem=16G
 #SBATCH --ntasks=1
 #SBATCH --nodes=1
 #SBATCH --output=thesis_run_%A_%a.out
@@ -141,8 +163,9 @@ export OPENBLAS_NUM_THREADS="${SLURM_CPUS_PER_TASK}"
 # ── What this task runs ───────────────────────────────────────────────────────────────────────
 PHASE="${THESIS_PHASE:-}"
 case "$PHASE" in
-  phase00|phase01|biomex|world|bxworld) ;;
-  *) refuse "THESIS_PHASE must be phase00, phase01, biomex, world or bxworld (got '${PHASE}'): THESIS_PHASE=phase00 sbatch --array=0-63 $0" ;;
+  phase00|phase01|biomex|world|bxworld|perfold|pfbiomex|pfworld|pfbxworld) ;;
+  *) refuse "THESIS_PHASE must be phase00, phase01, biomex, world, bxworld, perfold, pfbiomex," \
+            "pfworld or pfbxworld (got '${PHASE}'): THESIS_PHASE=phase00 sbatch --array=0-63 $0" ;;
 esac
 [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]] ||
   refuse "submit as an array (sbatch --array=0-<N-1> ...); see the header of this file"
@@ -168,14 +191,27 @@ source scripts/pipeline/meeting01/_provenance.sh
 # (see the --cpus-per-task comment above).
 REVISION="$(provenance_label SOURCE_REVISION) threads=${OMP_NUM_THREADS}"
 
+# The per-fold phases read the handcrafted candidates from the feature cache the warm step
+# wrote under this deploy's revision, and refuse a miss (FeatureDiskCache.hpp). The thread
+# count is not part of that key: a handcrafted vector is computed from its own sample alone.
+case "$PHASE" in
+  perfold|pfbiomex|pfworld|pfbxworld)
+    export THESIS_FEATURE_CACHE="$PWD/results/thesis/feature_cache"
+    export THESIS_FEATURE_CACHE_REVISION="$(provenance_label SOURCE_REVISION)"
+    export THESIS_FEATURE_CACHE_MODE=read
+    [[ -d "$THESIS_FEATURE_CACHE" ]] ||
+      refuse "$THESIS_FEATURE_CACHE does not exist: run" \
+             "scripts/pipeline/thesis/thesis_warm_feature_cache.sbatch first (see its header)" ;;
+esac
+
 PROFILE_DIR="src/experiments/thesis/profiles/${PHASE}"
 mapfile -t ALL_PROFILES < <(find "$PROFILE_DIR" -maxdepth 1 -name '*.json' | sort)
 (( ${#ALL_PROFILES[@]} > 0 )) || refuse "no profiles in $PWD/$PROFILE_DIR"
 
 # The units (see the header): one line each, "<profile path><TAB><repetition, or - for all>".
 case "$PHASE" in
-  phase00|world|bxworld) SPLIT_REPEATS=0 ;;
-  phase01|biomex) SPLIT_REPEATS=1 ;;
+  phase00|world|bxworld|pfworld) SPLIT_REPEATS=0 ;;
+  phase01|biomex|perfold|pfbiomex|pfbxworld) SPLIT_REPEATS=1 ;;
 esac
 UNITS_FILE="$(mktemp)"
 # Through a file, not `mapfile < <(python3 ...)`: a process substitution's exit status is lost,
@@ -193,14 +229,30 @@ PY
   { rm -f "$UNITS_FILE"; refuse "could not list the units of $PWD/$PROFILE_DIR (above)"; }
 mapfile -t ALL_UNITS < "$UNITS_FILE"
 rm -f "$UNITS_FILE"
-(( NTASKS <= ${#ALL_UNITS[@]} )) ||
-  refuse "$NTASKS tasks for ${#ALL_UNITS[@]} units: some tasks would have nothing to run"
 # A unit's name in markers and logs: <profile stem>, or <profile stem>.rep<k>.
 unit_id() {
   local stem
   stem="$(basename "$1" .json)"
   if [[ "$2" == "-" ]]; then echo "$stem"; else echo "${stem}.rep$2"; fi
 }
+# THESIS_UNITS (see the header): keep exactly the units it names; a name that is not a unit of
+# this phase is refused, not passed over.
+if [[ -n "${THESIS_UNITS:-}" ]]; then
+  IFS=',' read -r -a WANTED <<< "$THESIS_UNITS"
+  KEPT=()
+  for w in "${WANTED[@]}"; do
+    found=""
+    for u in "${ALL_UNITS[@]}"; do
+      IFS=$'\t' read -r unit_profile unit_rep <<< "$u"
+      [[ "$(unit_id "$unit_profile" "$unit_rep")" == "$w" ]] && { found="$u"; break; }
+    done
+    [[ -n "$found" ]] || refuse "THESIS_UNITS names '$w', which is not a unit of $PHASE"
+    KEPT+=("$found")
+  done
+  ALL_UNITS=("${KEPT[@]}")
+fi
+(( NTASKS <= ${#ALL_UNITS[@]} )) ||
+  refuse "$NTASKS tasks for ${#ALL_UNITS[@]} units: some tasks would have nothing to run"
 
 RES="results/thesis/${PHASE}"
 DONE_DIR="${RES}/.done"
@@ -280,6 +332,8 @@ tags = [tag] if reps == 1 else [f"{tag}_rep{k}" for k in ks]
 kinds = ["summary.json", "paraconsistent.csv"]
 if p["paraconsistent"]["enabled"] and p["paraconsistent"]["speaker_subsets"]:
     kinds.append("paraconsistent_subsets.csv")  # Phase 00: the ranking-stability input
+if p.get("selection", {}).get("enabled"):  # the per-fold protocol's choices
+    kinds += ["selection_extractors.csv", "selection_grid.csv"]
 names = [f"e05_{t}_{kind}" for t in tags for kind in kinds]
 print(" ".join(n for n in names if not os.path.isfile(os.path.join(sys.argv[2], n))))
 PY

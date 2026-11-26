@@ -43,7 +43,7 @@ if [[ -d "$OUT_ROOT" && -n "$(ls -A "$OUT_ROOT")" ]]; then
 fi
 
 PY="python3"
-[[ -x "$ROOT_DIR/.venv/bin/python3" ]] && PY="$ROOT_DIR/.venv/bin/python3"
+[[ -x "$HOME/.venv/bin/python3" ]] && PY="$HOME/.venv/bin/python3"
 # shellcheck source=./_provenance.sh
 source "$ROOT_DIR/$SCRIPTS/_provenance.sh"
 provenance_resolve "$ROOT_DIR" "$PY"

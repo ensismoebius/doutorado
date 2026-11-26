@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-late,ann,dependent,0,nan,nan,nan,nan,nan,0.259442,0.842014,2598.868,3.867,results/thesis/pfbiomex/models/e05_pfbx01_ann_latepron_dep_rep0/per-fold-fused-late/fold_0.bin
+per-fold-fused-late,ann,dependent,1,nan,nan,nan,nan,nan,0.201639,0.890405,1566.241,2.702,results/thesis/pfbiomex/models/e05_pfbx01_ann_latepron_dep_rep0/per-fold-fused-late/fold_1.bin
+per-fold-fused-late,ann,dependent,2,nan,nan,nan,nan,nan,0.181985,0.905470,2435.935,3.161,results/thesis/pfbiomex/models/e05_pfbx01_ann_latepron_dep_rep0/per-fold-fused-late/fold_2.bin
+per-fold-fused-late,ann,dependent,3,nan,nan,nan,nan,nan,0.242443,0.833749,1861.021,2.853,results/thesis/pfbiomex/models/e05_pfbx01_ann_latepron_dep_rep0/per-fold-fused-late/fold_3.bin
+per-fold-fused-late,ann,dependent,4,nan,nan,nan,nan,nan,0.208265,0.875211,4021.850,3.868,results/thesis/pfbiomex/models/e05_pfbx01_ann_latepron_dep_rep0/per-fold-fused-late/fold_4.bin

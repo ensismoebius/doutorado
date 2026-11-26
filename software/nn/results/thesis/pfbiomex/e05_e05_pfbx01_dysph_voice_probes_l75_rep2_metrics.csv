@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-voice,dsnn,dependent,0,nan,nan,nan,nan,nan,0.269404,0.814439,169797.768,257.032,results/thesis/pfbiomex/models/e05_pfbx01_dysph_voice_probes_l75_rep2/per-fold-voice/fold_0.bin
+per-fold-voice,dsnn,dependent,1,nan,nan,nan,nan,nan,0.263115,0.821756,51942.190,82.959,results/thesis/pfbiomex/models/e05_pfbx01_dysph_voice_probes_l75_rep2/per-fold-voice/fold_1.bin
+per-fold-voice,dsnn,dependent,2,nan,nan,nan,nan,nan,0.404303,0.634376,168573.036,259.292,results/thesis/pfbiomex/models/e05_pfbx01_dysph_voice_probes_l75_rep2/per-fold-voice/fold_2.bin
+per-fold-voice,dsnn,dependent,3,nan,nan,nan,nan,nan,0.381352,0.672193,47546.067,76.212,results/thesis/pfbiomex/models/e05_pfbx01_dysph_voice_probes_l75_rep2/per-fold-voice/fold_3.bin
+per-fold-voice,dsnn,dependent,4,nan,nan,nan,nan,nan,0.408088,0.627663,155114.399,243.168,results/thesis/pfbiomex/models/e05_pfbx01_dysph_voice_probes_l75_rep2/per-fold-voice/fold_4.bin

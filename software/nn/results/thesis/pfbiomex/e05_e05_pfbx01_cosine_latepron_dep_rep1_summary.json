@@ -1,0 +1,6264 @@
+{
+  "classifier": "cosine",
+  "config": {
+    "classifier": {
+      "enabled": true,
+      "text_mode": "dependent",
+      "type": "cosine"
+    },
+    "dataset": {
+      "eeg_condition": "pronounced",
+      "fusion_mode": "late",
+      "max_samples": 0,
+      "modality": "fused",
+      "results_dir": "results/thesis/pfbiomex",
+      "root": "~/Documentos/academico/UNESP/doutorado/databases/biomex.sqlite",
+      "source": "biomex2021"
+    },
+    "degradation": {
+      "enabled": false
+    },
+    "experiment": {
+      "repeats": 3,
+      "run_tag": "e05_pfbx01_cosine_latepron_dep_rep1",
+      "seed": 43,
+      "seed_deterministic": false
+    },
+    "paraconsistent": {
+      "enabled": false
+    },
+    "selection": {
+      "enabled": true,
+      "extractor_candidates": [
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "haar"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "haar"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "haar"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "haar"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "haar"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "haar"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub4"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub4"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub4"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub4"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub4"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub4"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub6"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub6"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub6"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub6"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub6"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub6"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub8"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub8"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub8"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub8"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub8"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub8"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub10"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub10"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub10"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub10"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub10"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub10"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub12"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub12"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub12"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub12"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub12"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub12"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub14"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub14"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub14"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub14"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub14"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub14"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub16"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub16"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub16"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub16"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub16"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub16"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub18"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub18"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub18"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub18"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub18"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub18"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub20"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub20"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub20"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub20"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub20"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub20"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub22"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub22"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub22"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub22"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub22"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub22"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub24"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub24"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub24"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub24"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub24"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub24"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub26"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub26"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub26"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub26"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub26"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub26"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub28"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub28"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub28"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub28"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub28"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub28"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub30"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub30"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub30"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub30"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub30"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub30"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub32"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub32"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub32"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub32"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub32"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub32"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub34"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub34"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub34"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub34"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub34"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub34"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub36"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub36"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub36"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub36"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub36"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub36"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub38"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub38"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub38"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub38"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub38"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub38"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub40"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub40"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub40"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub40"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub40"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub40"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub42"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub42"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub42"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub42"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub42"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub42"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub44"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub44"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub44"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub44"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub44"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub44"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub46"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "bark",
+              "transform": "dtwpt",
+              "wavelet": "daub46"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub46"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "mel",
+              "transform": "dtwpt",
+              "wavelet": "daub46"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": false,
+              "descriptors": [
+                "energy",
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub46"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "handcrafted": {
+              "cepstral": true,
+              "descriptors": [
+                "zcr",
+                "entropy",
+                "teager",
+                "jitter",
+                "shimmer"
+              ],
+              "dtwpt_level": 4,
+              "scale": "lfcc",
+              "transform": "dtwpt",
+              "wavelet": "daub46"
+            },
+            "strategy": "handcrafted"
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:16:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:16:leaky",
+                "linear:8:identity"
+              ],
+              "model": "ann-ae"
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:32:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:32:leaky",
+                "linear:16:identity"
+              ],
+              "model": "ann-ae"
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:64:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:64:leaky",
+                "linear:32:identity"
+              ],
+              "model": "ann-ae"
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:16:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:16:leaky",
+                "linear:8:identity"
+              ],
+              "encoding": "direct",
+              "firing_rate_max": 0.800000011920929,
+              "firing_rate_min": 0.10000000149011612,
+              "firing_rate_reg_lambda": 0.5,
+              "model": "snn-ae",
+              "voltage_threshold": 1.0
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:32:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:32:leaky",
+                "linear:16:identity"
+              ],
+              "encoding": "direct",
+              "firing_rate_max": 0.800000011920929,
+              "firing_rate_min": 0.10000000149011612,
+              "firing_rate_reg_lambda": 0.5,
+              "model": "snn-ae",
+              "voltage_threshold": 1.0
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:64:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:64:leaky",
+                "linear:32:identity"
+              ],
+              "encoding": "direct",
+              "firing_rate_max": 0.800000011920929,
+              "firing_rate_min": 0.10000000149011612,
+              "firing_rate_reg_lambda": 0.5,
+              "model": "snn-ae",
+              "voltage_threshold": 1.0
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:16:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:16:leaky",
+                "linear:8:identity"
+              ],
+              "encoding": "latency",
+              "firing_rate_max": 0.800000011920929,
+              "firing_rate_min": 0.10000000149011612,
+              "firing_rate_reg_lambda": 0.5,
+              "model": "snn-ae",
+              "time_steps": 16,
+              "voltage_threshold": 0.20000000298023224
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:32:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:32:leaky",
+                "linear:16:identity"
+              ],
+              "encoding": "latency",
+              "firing_rate_max": 0.800000011920929,
+              "firing_rate_min": 0.10000000149011612,
+              "firing_rate_reg_lambda": 0.5,
+              "model": "snn-ae",
+              "time_steps": 16,
+              "voltage_threshold": 0.20000000298023224
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:64:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:64:leaky",
+                "linear:32:identity"
+              ],
+              "encoding": "latency",
+              "firing_rate_max": 0.800000011920929,
+              "firing_rate_min": 0.10000000149011612,
+              "firing_rate_reg_lambda": 0.5,
+              "model": "snn-ae",
+              "time_steps": 16,
+              "voltage_threshold": 0.20000000298023224
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:16:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:16:leaky",
+                "linear:8:identity"
+              ],
+              "encoding": "poisson",
+              "firing_rate_max": 0.800000011920929,
+              "firing_rate_min": 0.10000000149011612,
+              "firing_rate_reg_lambda": 0.5,
+              "model": "snn-ae",
+              "time_steps": 16,
+              "voltage_threshold": 0.20000000298023224
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:32:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:32:leaky",
+                "linear:16:identity"
+              ],
+              "encoding": "poisson",
+              "firing_rate_max": 0.800000011920929,
+              "firing_rate_min": 0.10000000149011612,
+              "firing_rate_reg_lambda": 0.5,
+              "model": "snn-ae",
+              "time_steps": 16,
+              "voltage_threshold": 0.20000000298023224
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "autoencoder": {
+              "ae_loss_type": "mse",
+              "decoder_layer_spec": [
+                "linear:64:leaky",
+                "linear:output:identity"
+              ],
+              "encoder_layer_spec": [
+                "linear:64:leaky",
+                "linear:32:identity"
+              ],
+              "encoding": "poisson",
+              "firing_rate_max": 0.800000011920929,
+              "firing_rate_min": 0.10000000149011612,
+              "firing_rate_reg_lambda": 0.5,
+              "model": "snn-ae",
+              "time_steps": 16,
+              "voltage_threshold": 0.20000000298023224
+            },
+            "strategy": "autoencoder"
+          },
+          "training": {
+            "epochs": 100,
+            "gradient_clip_norm": 0.0,
+            "learning_rate": 0.0010000000474974513,
+            "optimizer_type": "adam",
+            "samples_per_batch": 32
+          }
+        },
+        {
+          "feature_extraction": {
+            "pca": {
+              "n_components": 8
+            },
+            "strategy": "pca"
+          }
+        },
+        {
+          "feature_extraction": {
+            "pca": {
+              "n_components": 16
+            },
+            "strategy": "pca"
+          }
+        },
+        {
+          "feature_extraction": {
+            "pca": {
+              "n_components": 32
+            },
+            "strategy": "pca"
+          }
+        }
+      ],
+      "rank_modality": "voice"
+    },
+    "training": {
+      "k_folds": 5,
+      "standardize_features": true
+    }
+  },
+  "config_hash": 10910478746713503077,
+  "dataset": {
+    "n_samples": 6294,
+    "n_stimuli": 10,
+    "n_subjects": 45
+  },
+  "modality": "fused",
+  "protocol": "per-fold",
+  "results": [
+    {
+      "ci95_accuracy": null,
+      "ci95_eer": 0.05543010167221598,
+      "feature_set": "per-fold-fused-late",
+      "fold_models": [
+        {
+          "epochs_run": 0,
+          "fold": 0,
+          "infer_ms": 1.708166,
+          "model_path": "",
+          "selection": {
+            "extractor_index": 150,
+            "extractor_label": "pca",
+            "extractors": [
+              {
+                "d_penalized": 1.5519232235672324,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.559888257403515,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5584561854794223,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5617277777151155,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.56981270248073,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5799752204993238,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5667172088501466,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5635690664326864,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5727788766121202,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5653268279402175,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5868357238786388,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5830326934342656,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5751303202392515,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.565435830313322,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.588790133294424,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5784891406093222,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.609565629503189,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5959778907627096,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5839062143342642,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5746287392821439,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5978586093003864,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5899718046964293,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6264088163269577,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.612725359491802,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.580590324115836,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5759945990746884,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5995230215712237,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5926477543006763,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6162598577025142,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6057816206347573,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5814862010538089,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5781942005471703,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5996248588548398,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5981668582777058,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6235308431772146,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6164064349587641,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.583632521964698,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.579319052970715,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.605556593458447,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5990391903627639,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6264625214565382,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6149369154114563,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5777670290941057,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5735367033783971,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5999000688675387,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.597139103202182,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6193138159108258,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6104101503764379,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5780529937172867,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.573396553629923,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.596156922099367,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5903950405538478,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6241550457084666,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6137890562150798,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.580379113444759,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5749443911309062,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5945876516087483,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5895148498100375,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6199904905092244,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6081561937825728,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5828995261572936,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5778449063548978,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5958766882744,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5914540272839879,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6225604853602662,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6109735904789328,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5849287530371605,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5771009451953613,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5969025835248754,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5907643751116456,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6204201267682101,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6074992534771204,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5897689495312812,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5815787060133537,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.6019904696608134,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.595193091017504,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6252668466542197,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.615375311068896,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.589747806319465,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.579132794633929,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.6034530943320326,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.595064551712086,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6200433377749364,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6094229155905424,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.594769695853031,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5855463288760776,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.6056339130654433,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5974269266935686,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6264159811451893,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6149229549578936,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5953103429687119,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.587493387897708,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.6041745768333011,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.596592651610882,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6225829801423046,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6112313364710473,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5879570325680328,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5804985460673509,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.595895964150337,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5874935925801028,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6184593821326947,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6065568927165397,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5891608298819522,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5810995558735197,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5981733719708537,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.588223580818909,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6259436895919894,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6120592100184954,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5856069166775084,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5764516105121416,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5978853831541122,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5887920771786441,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6152600083290751,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6008782937651511,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5845559657952588,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5766536735473429,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5939912081823793,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.586929476937948,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6174384283669583,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6046999316577921,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5804567831885863,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.573675219349146,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5944896817892509,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5869465308808504,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6153638176906324,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6023425829259865,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.583996827704241,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5772273969456416,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.6004370724716972,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5921726629618624,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.619096856488117,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6046356472388341,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5808249746525898,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.576140681324861,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5980924663850915,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5911684298241073,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.617867651702873,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.605141353975492,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5214223023294222,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.5362110161914313,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.5362013861605086,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.7940855919654681,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.661497283665386,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6372235200198104,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7192711420232036,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.640288432366256,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6267054932826135,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7420490535399982,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7692964765160604,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7892680218672534,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.4985883240034519,
+                "label": "pca"
+              },
+              {
+                "d_penalized": 1.5591827928193898,
+                "label": "pca"
+              },
+              {
+                "d_penalized": 1.630403194113717,
+                "label": "pca"
+              }
+            ],
+            "fold_ms": 681365.627716,
+            "param_count": 0
+          },
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 1,
+          "infer_ms": 1.778366,
+          "model_path": "",
+          "selection": {
+            "extractor_index": 150,
+            "extractor_label": "pca",
+            "extractors": [
+              {
+                "d_penalized": 1.5454353999267147,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5576983926361423,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5536077160884394,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.560712632372856,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5646645521444325,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5776434925672966,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5596963153404368,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5589346155284864,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5674886523429161,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.561040082374702,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5830315015441565,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5799670436476592,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.568336663945511,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5605027874059205,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5832147364554676,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5731372852225058,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6057929507791602,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5921248144915712,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5773229037892,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5702999920809517,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.589968901742514,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5823725781305105,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6193940488260883,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6068981243306415,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5750428712454838,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.573094016593691,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5926979717965615,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.58751070830803,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6071360870398785,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.600509022868701,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.576837615281821,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5767084855416567,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5931967841800074,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5939229938870147,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.611914661298516,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.608793452331396,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5757826568765334,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5740890464711472,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5990993980136,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.595400546980703,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6151936743994368,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6078489361601314,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.572050999294711,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5705542957928076,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5887290739815352,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5899811658761784,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6073572170897281,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6021481250719927,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5729016957260884,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.570535664487317,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5822919401160052,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.582637084632178,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6103533733076667,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6041646130792233,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5758336924310206,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5729017369998577,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5836637881580522,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5838882606584925,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6062641102416866,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.60039502566948,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5759106553047166,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.573804112178391,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5838824682791106,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5840362352722934,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6058107057666788,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5992656562496341,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5757223925726465,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5714110094435838,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5825310796894045,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.581209790155348,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5979570240628629,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5928275372916114,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.580135030157372,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5755216509625223,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.587174804570104,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5862180782614894,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6067958526191495,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6026150780588286,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.579132890434792,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5722160526425863,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5903176167681292,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5859813589726441,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6015513439503075,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5963932621056294,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5841959452290726,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5781251749822478,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5914778392254068,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5886699051712883,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6075551231528185,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6010796034490355,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5814129463121456,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5788823780385621,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.586998924034217,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.585209286860659,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6018288213488063,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.595834746356821,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5713799464849922,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5710051403717566,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5785845200227724,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5776130645631947,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5981361688138962,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5934134669306208,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5698171224765267,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5703682053144237,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5804052977167948,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5781097298157865,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6063396067556652,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5982218336894387,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5665771916718403,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5670543579037888,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5813781932429163,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5786250351636602,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5961298795847891,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5867260201496087,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5687867404310583,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5678240117394215,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.57721622358129,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5759111047794725,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.59720238134835,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5901308063192943,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.567308234070261,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5657317805466138,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5779341551471318,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5768826211748777,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5946237544398583,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5882751615509587,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.569792597166636,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5674179729632236,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5837797926805939,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.581826484009074,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5996727005416855,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5913907505027072,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5633739160652995,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5655223885145506,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5780449690488085,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5790232269541298,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.595177671144707,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5895662134820483,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5453601677757371,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.5154912208655353,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.548052262671347,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.8327012523315216,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.647257750964982,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6325450373885253,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6923057599178148,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6259974375192225,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.60096655311698,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7229302606032562,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7704074287412466,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7970668135264058,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.480848010956878,
+                "label": "pca"
+              },
+              {
+                "d_penalized": 1.549055358667233,
+                "label": "pca"
+              },
+              {
+                "d_penalized": 1.635088943657121,
+                "label": "pca"
+              }
+            ],
+            "fold_ms": 689474.252005,
+            "param_count": 0
+          },
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 2,
+          "infer_ms": 1.700575,
+          "model_path": "",
+          "selection": {
+            "extractor_index": 150,
+            "extractor_label": "pca",
+            "extractors": [
+              {
+                "d_penalized": 1.5481127005233817,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5623910294862589,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5550487293156505,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.564572082236188,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5667937580255882,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5817527361352077,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5623782734443858,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.56234415971833,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.568812675689448,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5634809945120998,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5817184262813904,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5790625744245423,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.569851984937472,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5621218503195204,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5839989310504043,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5739983088564218,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.60411339326941,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5918993791615184,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5757953497413342,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.56982671837987,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5899852874498266,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5834548656328655,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6191458091606667,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.607040159040934,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.573057080478784,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5727884754163273,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.591880433236733,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5889021401061834,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6070196073428196,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6016330152362315,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5750106349348523,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5762519777502102,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5931904519783948,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5962049699261023,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6126979309794462,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6107709940362183,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5758407171463713,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.575456735132151,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5987572812590967,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5964246272116123,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6144736219020799,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6075239377608752,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5704224301743428,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5694556977765,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5891352614359806,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.591695660043658,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.60721702362936,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6026047639406584,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5689921001766998,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5673863193340845,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5813107787612661,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5825486493924688,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6098827401708122,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6044376223207002,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5728619552410068,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5707306156806826,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5833184314489455,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5842192193600337,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6060356971000733,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6001948113319773,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.575105197764254,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5726397773187901,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5848802814823182,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.585245187708559,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6079530207053403,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6013588997891557,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.574895458153799,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5704300069584232,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5834641676067889,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5825708523168145,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6003364723202727,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5946526582451193,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5798853739304377,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5748416700056906,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.589000319835348,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.588178293342185,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6087665882808344,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6044275364032177,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5773216125071712,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5697593912323151,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5911001699296792,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5870333959205638,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6032785125485614,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5978305258630856,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5826400715001896,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.575775697878567,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5912811608824107,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5879000516165858,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6083704379454067,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6016606736341639,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5796956549431176,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5762514852210598,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5879573087019052,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5856144215803059,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6041134884798685,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5981676675053804,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.568742667885426,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5674120502031357,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.577872984740503,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5761441860805228,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5985200381852425,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5930451139884814,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5678935952191841,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5672525745072399,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5806984842812357,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5773848017929641,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.607241507759314,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5986001024689536,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5634225322309214,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5628490457242217,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5804967472748186,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5768658399337927,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5959348926981256,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5856716953417938,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5660073916568678,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5645236853102458,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5759497274010579,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5746590574354018,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5979230058732805,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5905076850796902,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5645511639096028,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5626449895048866,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.576208582101207,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5748385570225683,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.595720975702519,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5887048841386515,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5678937522950949,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5651682596238043,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5837424909507942,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5809676351659048,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6015311173786138,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.592616657632095,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5608153404637493,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.562476322521283,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5769456198268637,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5770637402774799,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5963777227630884,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5898606817359666,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5515258368929583,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.5293430212949217,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.5533485899530144,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.7426779067758416,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6681102979003573,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6448502250555803,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7278198152324051,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6266193779506717,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6107757977034256,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7587331632896508,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7668712843712824,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7916443962663935,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.5199252949679432,
+                "label": "pca"
+              },
+              {
+                "d_penalized": 1.5520277658234518,
+                "label": "pca"
+              },
+              {
+                "d_penalized": 1.6373648751165752,
+                "label": "pca"
+              }
+            ],
+            "fold_ms": 683877.529425,
+            "param_count": 0
+          },
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 3,
+          "infer_ms": 1.726394,
+          "model_path": "",
+          "selection": {
+            "extractor_index": 150,
+            "extractor_label": "pca",
+            "extractors": [
+              {
+                "d_penalized": 1.55195407909406,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5592186827028023,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.555242887060186,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5591079969846249,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.56409906840441,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5749463385581235,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5617738782517065,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5587779511756061,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5662875057804497,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.557385207547579,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5798381182586343,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5758848399574492,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5668703138544093,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5562039233869405,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5797701588482047,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5668950258229444,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.601014335986762,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5857894940589992,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5743036590343313,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.564583160471228,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5854261615471212,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5760189590354075,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.615015440274426,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6010821562395603,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5710837447434725,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5667565849365768,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5869731678079046,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.579882557423829,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6001854885465328,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5925943210906497,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5753985798330374,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5716336390839432,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5908493085660669,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5884588093264578,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.609045023711211,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6039794208028963,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5761813615081839,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5704750001721146,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5980009068665098,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5897467816798903,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6128733223960503,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6029876826415888,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.572061816602886,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.566162575477886,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5874760133869592,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5841190892060095,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6032073703086818,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.595555389557516,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.571307099529993,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.564163985933155,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5793893953720395,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5751351121544566,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6058958754259691,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5979970929542409,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5720647613166654,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5642944446435847,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5788890794551276,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5747859770670811,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.60237809722498,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5933456614833157,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5757209992959358,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5688478948823492,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5816958281745825,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5780559705514705,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.604400770007027,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.595407136851636,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5742176670087187,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5657115410154334,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.578358329360599,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5736483793408103,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5946289166062215,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.586831532328284,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5798478968722687,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.571421227859244,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5843755360298981,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5797780292446346,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6038091840047315,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5970627475851156,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5774168342492318,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5660685544601984,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5870957787727182,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5793046368723183,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.597886523229421,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.590529566204704,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5823637781452644,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.571463862499974,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5879050493296767,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5808383975889133,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6043886672614596,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5950615584202732,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5790256620764906,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5713436587750251,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5842239041435526,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5778322049092801,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5992747882024039,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5906957196082117,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5690852558046655,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5628084414061676,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.575592088123052,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5694666876063437,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5947955699869734,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5865309188552301,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5691587291029627,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5640969327395708,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5781313706468603,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.570598912001768,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6030678874937017,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5920637105607476,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5634049800790768,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.55903897645599,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5772855438113553,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5699808230599483,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5929121578927987,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5807238919255522,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5654323255377434,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5600667415812253,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5739811776751778,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.568805466977212,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5938346880131458,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.58378339222236,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5637532279093167,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5577978329648248,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5747875536891178,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.569507598371212,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5918217351744035,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5821844063233483,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.569276471191918,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5619470237784983,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5818052449984983,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5748460986631985,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5969594282253723,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5848402868828846,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5623307971964195,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5594712291085708,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5766867978874388,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5726750327247023,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5941767446786985,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5847217321867741,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5479132287655304,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.4963852976995358,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.5226874773561712,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.7170881490903414,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6596178261534165,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6083475307473443,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6845447056529652,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6563502928629301,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6222304077858,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7409842478108895,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7672088356250857,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7968266263289046,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.4890974289755425,
+                "label": "pca"
+              },
+              {
+                "d_penalized": 1.5440417435313918,
+                "label": "pca"
+              },
+              {
+                "d_penalized": 1.6315644788455173,
+                "label": "pca"
+              }
+            ],
+            "fold_ms": 677069.352263,
+            "param_count": 0
+          },
+          "train_ms": 0.0
+        },
+        {
+          "epochs_run": 0,
+          "fold": 4,
+          "infer_ms": 1.657189,
+          "model_path": "",
+          "selection": {
+            "extractor_index": 150,
+            "extractor_label": "pca",
+            "extractors": [
+              {
+                "d_penalized": 1.537380246508499,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5685341398889525,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5408463197555355,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5652956368542634,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.55077093925354,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.578873591255552,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5434900008911174,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5654032038381596,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.545481241471525,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.564369830903602,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.560646992145177,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5809560308922157,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.552615310997739,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5703839150065997,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5596723509065404,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5705944782657646,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5781562362061083,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5905547843345582,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.560373874057209,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5758702599489036,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5673472878282826,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5853821707406996,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5896326205961535,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.606181350473881,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5497043011831018,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.570956242567422,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5664572848043083,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.587843973901605,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5916807815093088,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6067618718805494,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5520230363701872,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5684458867492617,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5652769810366378,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5952555558327035,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5926676797035586,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6136961053789725,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5564347596028716,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.578660303252493,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5755845860130777,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5962134372345775,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.599809154266869,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6157329863004835,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5574404348134698,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5771747828071196,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.573032556180949,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5960059606162742,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.60381561013861,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6158246004607162,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5527210060601357,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5753524761484834,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.570774382655665,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5909084474349016,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6077795928392713,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6205042175632594,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.553946245093093,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5769417323115553,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5717752197586055,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5910301463195928,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.611206700159604,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6198611388305064,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5573750006223086,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5777878368944733,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5731487885851796,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5900196067569456,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6134079752732402,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6189218194473438,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5568871829143451,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5770810315812294,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5745237108360057,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5904257981838998,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6095460341243826,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.614612451965629,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5603140192533291,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5816679031089642,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.57958998967561,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5951913085449267,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6174898909428586,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6225033253695726,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5633925984806318,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.581811540949903,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5848836547615288,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.598986323415602,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.616626839432551,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6209630843118679,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5631794752329715,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5824652764230094,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5839597445701687,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5978632502011307,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6212405835032686,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6208605335493924,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5654410969951063,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.585557521073931,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5860061675774346,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5995862043855593,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6221471043921334,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6209930878371457,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5562881142887532,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5776003871482172,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5789313797650604,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5916955296615556,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6190641679130149,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6192841768071555,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5569251604938075,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5754135097333972,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5810435090479822,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5913770205154767,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6229648935537446,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6203868685362095,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5576579638179446,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.575217974760285,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5829682855384746,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.59283150539729,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6166883315371894,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6118002112752834,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.561774159992531,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.579526286039374,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.583647904887784,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5945031546956667,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6183471645413936,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.615199111075261,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.559030419319239,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.577148919761038,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.581956951613891,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5944125929558106,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.618046923669849,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.616323709543269,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.561141473708396,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5783494447064264,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5887839419408802,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5989508095195506,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.622573474479383,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6174523435880237,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5591805698140146,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5775151649948065,
+                "label": "handcrafted-bark"
+              },
+              {
+                "d_penalized": 1.5825071453446613,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.5942893012752046,
+                "label": "handcrafted-mel"
+              },
+              {
+                "d_penalized": 1.6178472533865058,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.6136486241727213,
+                "label": "handcrafted-lfcc"
+              },
+              {
+                "d_penalized": 1.5262911313186875,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.5628439755903396,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.565075970340373,
+                "label": "autoencoder-ann"
+              },
+              {
+                "d_penalized": 1.8230132637193537,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6589517744381208,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6624181390361057,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7306394004608594,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.6382619320917258,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.627948566026448,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.7845118712350108,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.806800398490287,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.8078684787905783,
+                "label": "autoencoder-snn"
+              },
+              {
+                "d_penalized": 1.523450098528028,
+                "label": "pca"
+              },
+              {
+                "d_penalized": 1.58000432530921,
+                "label": "pca"
+              },
+              {
+                "d_penalized": 1.6491331477511704,
+                "label": "pca"
+              }
+            ],
+            "fold_ms": 669698.310518,
+            "param_count": 0
+          },
+          "train_ms": 0.0
+        }
+      ],
+      "mean_accuracy": null,
+      "mean_auc": 0.7774283155604205,
+      "mean_eer": 0.2953548680618744,
+      "mean_f1": null,
+      "mean_infer_ms": 1.7141380000000002,
+      "mean_precision": null,
+      "mean_recall": null,
+      "mean_specificity": null,
+      "mean_train_ms": 0.0,
+      "std_accuracy": null,
+      "std_auc": 0.05555726714146077,
+      "std_eer": 0.04464894644769442,
+      "std_f1": null,
+      "std_specificity": null
+    }
+  ],
+  "run_tag": "e05_pfbx01_cosine_latepron_dep_rep1",
+  "seed": 43,
+  "text_mode": "dependent"
+}

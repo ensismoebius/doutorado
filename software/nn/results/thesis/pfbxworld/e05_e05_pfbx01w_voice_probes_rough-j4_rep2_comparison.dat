@@ -1,0 +1,2 @@
+x label accuracy std_accuracy ci95_accuracy f1 std_f1 precision recall specificity std_specificity eer std_eer ci95_eer auc std_auc
+0 per-fold-voice nan nan nan nan nan nan nan nan nan 0.335012 0.071532 0.088805 0.734324 0.096239

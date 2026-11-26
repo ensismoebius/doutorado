@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.284127,0.791909,49037.394,85.254,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_probes_tremor-d4_rep1/per-fold-fused-late/fold_0.bin
+per-fold-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.311508,0.754732,74454.871,133.828,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_probes_tremor-d4_rep1/per-fold-fused-late/fold_1.bin
+per-fold-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.293651,0.784228,49156.374,85.342,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_probes_tremor-d4_rep1/per-fold-fused-late/fold_2.bin
+per-fold-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.374204,0.668841,24717.287,42.956,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_probes_tremor-d4_rep1/per-fold-fused-late/fold_3.bin
+per-fold-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.295238,0.767918,47543.316,78.950,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_probes_tremor-d4_rep1/per-fold-fused-late/fold_4.bin

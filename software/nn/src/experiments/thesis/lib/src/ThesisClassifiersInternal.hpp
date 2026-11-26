@@ -848,6 +848,75 @@ void run_nested_cv(const FoldContext& ctx,
     }
 }
 
+// One flat split: the scaler and the model are fitted on train_indices, test_indices are scored
+// once. save_model false leaves nothing on disk (an inner fold of the per-fold protocol, whose
+// model only votes for a hyperparameter point). A split without train or test rows throws.
+FoldResult run_flat_fold(const FoldContext& ctx,
+    const std::vector<size_t>& train_indices,
+    const std::vector<size_t>& test_indices,
+    size_t outer_idx,
+    int total_outer,
+    bool save_model)
+{
+    require_fold_rows("flat", outer_idx, train_indices.size(), test_indices.size());
+
+    // Fit the scaler on this fold's train rows only (audit G1).
+    const FeatureScaler scaler = make_fold_scaler(ctx, train_indices);
+    const nn::Tensor Xn = apply_scaler(ctx.all_inputs, scaler);
+
+    std::vector<std::vector<double>> test_feats;
+    std::vector<int> test_labels;
+    gather_test_rows(ctx, Xn, scaler, test_indices, test_feats, test_labels);
+
+    FoldResult fr;
+    fr.fold = static_cast<int>(outer_idx);
+    if (ctx.cfg.classifier.type == "cosine")
+    {
+        // No network: the standardized features are the embedding. The training rows
+        // serve only the scaler above.
+        const auto infer_t0 = std::chrono::steady_clock::now();
+        std::vector<std::vector<float>> emb(test_feats.size());
+        for (size_t i = 0; i < test_feats.size(); ++i)
+            emb[i].assign(test_feats[i].begin(), test_feats[i].end());
+        const EvalMetrics em = score_embeddings(emb,
+            test_labels,
+            ctx.n_speakers,
+            ctx.scorer,
+            "flat test fold " + std::to_string(outer_idx) + " (cosine)");
+        fr.train_ms = 0.0;
+        fr.infer_ms =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - infer_t0)
+                .count();
+        set_fold_metrics(fr, em);
+        return fr;
+    }
+    const auto train_pairs = make_pairs_from_indices(Xn, ctx.all_targets, train_indices);
+    const EvalMetrics em = with_classifier(ctx,
+        [&](auto& model)
+        {
+            const auto train_t0 = std::chrono::steady_clock::now();
+            fr.history =
+                train_model(model, ctx, train_pairs, {}, outer_idx, total_outer, /*patience=*/0);
+            fr.train_ms = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - train_t0)
+                              .count();
+            const auto infer_t0 = std::chrono::steady_clock::now();
+            const EvalMetrics m = evaluate(model,
+                test_feats,
+                test_labels,
+                ctx.n_speakers,
+                ctx.scorer,
+                "flat test fold " + std::to_string(outer_idx));
+            fr.infer_ms = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - infer_t0)
+                              .count();
+            if (save_model) save_fold_model(model.state_dict(), ctx, fr);
+            return m;
+        });
+    set_fold_metrics(fr, em);
+    return fr;
+}
+
 // Flat k-fold CV: train on each fold's train split, score on its test split. No
 // inner loop and no validation/early-stopping (used when nested_cv is disabled).
 void run_flat_cv(const FoldContext& ctx,
@@ -864,67 +933,12 @@ void run_flat_cv(const FoldContext& ctx,
     for (size_t outer_idx = 0; outer_idx < flat_splits.size(); ++outer_idx)
     {
         const auto& split = flat_splits[outer_idx];
-        const auto train_indices = intersect_indices(split.train_indices, text_train_indices);
-        const auto test_indices = intersect_indices(split.test_indices, text_test_indices);
-        require_fold_rows("flat", outer_idx, train_indices.size(), test_indices.size());
-
-        // Fit the scaler on this fold's train rows only (audit G1).
-        const FeatureScaler scaler = make_fold_scaler(ctx, train_indices);
-        const nn::Tensor Xn = apply_scaler(ctx.all_inputs, scaler);
-
-        std::vector<std::vector<double>> test_feats;
-        std::vector<int> test_labels;
-        gather_test_rows(ctx, Xn, scaler, test_indices, test_feats, test_labels);
-
-        FoldResult fr;
-        fr.fold = static_cast<int>(outer_idx);
-        if (ctx.cfg.classifier.type == "cosine")
-        {
-            // No network: the standardized features are the embedding. The training rows
-            // serve only the scaler above.
-            const auto infer_t0 = std::chrono::steady_clock::now();
-            std::vector<std::vector<float>> emb(test_feats.size());
-            for (size_t i = 0; i < test_feats.size(); ++i)
-                emb[i].assign(test_feats[i].begin(), test_feats[i].end());
-            const EvalMetrics em = score_embeddings(emb,
-                test_labels,
-                ctx.n_speakers,
-                ctx.scorer,
-                "flat test fold " + std::to_string(outer_idx) + " (cosine)");
-            fr.train_ms = 0.0;
-            fr.infer_ms = std::chrono::duration<double, std::milli>(
-                std::chrono::steady_clock::now() - infer_t0)
-                              .count();
-            set_fold_metrics(fr, em);
-            result.outer_folds.push_back(fr);
-            advance_global_bar(ctx);
-            continue;
-        }
-        const auto train_pairs = make_pairs_from_indices(Xn, ctx.all_targets, train_indices);
-        const EvalMetrics em = with_classifier(ctx,
-            [&](auto& model)
-            {
-                const auto train_t0 = std::chrono::steady_clock::now();
-                fr.history = train_model(
-                    model, ctx, train_pairs, {}, outer_idx, total_outer, /*patience=*/0);
-                fr.train_ms = std::chrono::duration<double, std::milli>(
-                    std::chrono::steady_clock::now() - train_t0)
-                                  .count();
-                const auto infer_t0 = std::chrono::steady_clock::now();
-                const EvalMetrics m = evaluate(model,
-                    test_feats,
-                    test_labels,
-                    ctx.n_speakers,
-                    ctx.scorer,
-                    "flat test fold " + std::to_string(outer_idx));
-                fr.infer_ms = std::chrono::duration<double, std::milli>(
-                    std::chrono::steady_clock::now() - infer_t0)
-                                  .count();
-                save_fold_model(model.state_dict(), ctx, fr);
-                return m;
-            });
-        set_fold_metrics(fr, em);
-        result.outer_folds.push_back(fr);
+        result.outer_folds.push_back(run_flat_fold(ctx,
+            intersect_indices(split.train_indices, text_train_indices),
+            intersect_indices(split.test_indices, text_test_indices),
+            outer_idx,
+            total_outer,
+            /*save_model=*/true));
         advance_global_bar(ctx);
     }
 }

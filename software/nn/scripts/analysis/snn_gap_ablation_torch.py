@@ -40,7 +40,7 @@ For per-step variants this is the mean over the T rows (what the C++ pipeline re
 "time-mean" column also scores the mean over T of their output, without training for it.
 
 Usage:
-    software/nn/.venv/bin/python software/nn/scripts/analysis/snn_gap_ablation_torch.py \
+    ~/.venv/bin/python software/nn/scripts/analysis/snn_gap_ablation_torch.py \
         --results DIR --prefix meeting01_loso_fsdd_fold0 --variants snn,snn_rate,ann
 """
 from __future__ import annotations

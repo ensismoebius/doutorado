@@ -1,0 +1,3089 @@
+{
+  "experiment": {
+    "run_tag": "smoke_e05_pf01_cosine_voice_dep",
+    "seed": 42,
+    "repeats": 1
+  },
+  "dataset": {
+    "source": "coretto2017",
+    "root": "~/Documentos/academico/UNESP/doutorado/databases/database.sqlite",
+    "results_dir": "results/thesis/smoke",
+    "modality": "voice",
+    "max_samples": 240
+  },
+  "paraconsistent": {
+    "enabled": false
+  },
+  "classifier": {
+    "type": "cosine",
+    "text_mode": "dependent",
+    "enabled": true
+  },
+  "selection": {
+    "enabled": true,
+    "rank_modality": "voice",
+    "extractor_candidates": [
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "haar",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "haar",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "haar",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "haar",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "haar",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "haar",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub4",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub4",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub4",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub4",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub4",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub4",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub6",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub6",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub6",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub6",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub6",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub6",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub8",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub8",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub8",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub8",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub8",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub8",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub10",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub10",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub10",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub10",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub10",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub10",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub12",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub12",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub12",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub12",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub12",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub12",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub14",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub14",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub14",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub14",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub14",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub14",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub16",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub16",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub16",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub16",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub16",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub16",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub18",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub18",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub18",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub18",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub18",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub18",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub20",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub20",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub20",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub20",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub20",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub20",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub22",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub22",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub22",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub22",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub22",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub22",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub24",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub24",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub24",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub24",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub24",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub24",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub26",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub26",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub26",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub26",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub26",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub26",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub28",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub28",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub28",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub28",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub28",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub28",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub30",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub30",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub30",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub30",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub30",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub30",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub32",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub32",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub32",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub32",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub32",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub32",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub34",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub34",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub34",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub34",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub34",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub34",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub36",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub36",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub36",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub36",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub36",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub36",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub38",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub38",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub38",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub38",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub38",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub38",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub40",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub40",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub40",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub40",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub40",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub40",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub42",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub42",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub42",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub42",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub42",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub42",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub44",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub44",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub44",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub44",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub44",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub44",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub46",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "bark",
+            "wavelet": "daub46",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub46",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "mel",
+            "wavelet": "daub46",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub46",
+            "cepstral": false,
+            "descriptors": [
+              "energy",
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "handcrafted",
+          "handcrafted": {
+            "transform": "dtwpt",
+            "scale": "lfcc",
+            "wavelet": "daub46",
+            "cepstral": true,
+            "descriptors": [
+              "zcr",
+              "entropy",
+              "teager",
+              "jitter",
+              "shimmer"
+            ],
+            "dtwpt_level": 4
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "ann-ae",
+            "encoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:8:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:output:identity"
+            ],
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "ann-ae",
+            "encoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:16:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:output:identity"
+            ],
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "ann-ae",
+            "encoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:32:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:output:identity"
+            ],
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:8:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "direct",
+            "voltage_threshold": 1.0,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:16:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "direct",
+            "voltage_threshold": 1.0,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:32:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "direct",
+            "voltage_threshold": 1.0,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:8:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "latency",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:16:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "latency",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:32:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "latency",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:8:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:16:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "poisson",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:16:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:32:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "poisson",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "autoencoder",
+          "autoencoder": {
+            "model": "snn-ae",
+            "encoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:32:identity"
+            ],
+            "decoder_layer_spec": [
+              "linear:64:leaky",
+              "linear:output:identity"
+            ],
+            "encoding": "poisson",
+            "time_steps": 16,
+            "voltage_threshold": 0.2,
+            "firing_rate_reg_lambda": 0.5,
+            "firing_rate_min": 0.1,
+            "firing_rate_max": 0.8,
+            "ae_loss_type": "mse"
+          }
+        },
+        "training": {
+          "epochs": 2,
+          "learning_rate": 0.001,
+          "samples_per_batch": 4,
+          "optimizer_type": "adam",
+          "gradient_clip_norm": 0.0
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "pca",
+          "pca": {
+            "n_components": 8
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "pca",
+          "pca": {
+            "n_components": 16
+          }
+        }
+      },
+      {
+        "feature_extraction": {
+          "strategy": "pca",
+          "pca": {
+            "n_components": 32
+          }
+        }
+      }
+    ]
+  },
+  "degradation": {
+    "enabled": false
+  },
+  "training": {
+    "k_folds": 2,
+    "standardize_features": true
+  }
+}

@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.269294,0.796485,58831.720,104.276,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_test_aphonic-r05_rep0/per-fold-fused-late/fold_0.bin
+per-fold-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.324590,0.750244,72397.258,125.775,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_test_aphonic-r05_rep0/per-fold-fused-late/fold_1.bin
+per-fold-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.183007,0.901924,54973.002,96.658,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_test_aphonic-r05_rep0/per-fold-fused-late/fold_2.bin
+per-fold-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.281046,0.799631,58827.455,96.650,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_test_aphonic-r05_rep0/per-fold-fused-late/fold_3.bin
+per-fold-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.166939,0.911778,59022.275,96.263,results/thesis/pfbxworld/models/e05_pfbx01w_latepron_test_aphonic-r05_rep0/per-fold-fused-late/fold_4.bin

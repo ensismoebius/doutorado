@@ -59,18 +59,29 @@ TEST(ThesisCli, AnythingElseThrows)
 {
     // The old parser scanned for --config and ignored the rest: "--repat 1" ran all repetitions.
     const std::vector<std::vector<const char*>> bad = {
-        {},                                                       // no --config
-        {"--config"},                                             // no value
-        {"--config", "p.json", "--repat", "1"},                   // misspelt option
-        {"--config", "p.json", "extra"},                          // stray token
-        {"--config", "a.json", "--config", "b.json"},             // twice
-        {"--config", ""},                                         // empty path
-        {"--config", "p.json", "--repeat"},                       // no value
-        {"--config", "p.json", "--repeat", "-1"},                 // negative
-        {"--config", "p.json", "--repeat", "1.5"},                // not an integer
-        {"--config", "p.json", "--repeat", "x"},                  // not a number
-        {"--config", "p.json", "--repeat", "1", "--repeat", "2"}, // twice
+        {},                                                                     // no --config
+        {"--config"},                                                           // no value
+        {"--config", "p.json", "--repat", "1"},                                 // misspelt option
+        {"--config", "p.json", "extra"},                                        // stray token
+        {"--config", "a.json", "--config", "b.json"},                           // twice
+        {"--config", ""},                                                       // empty path
+        {"--config", "p.json", "--repeat"},                                     // no value
+        {"--config", "p.json", "--repeat", "-1"},                               // negative
+        {"--config", "p.json", "--repeat", "1.5"},                              // not an integer
+        {"--config", "p.json", "--repeat", "x"},                                // not a number
+        {"--config", "p.json", "--repeat", "1", "--repeat", "2"},               // twice
+        {"--config", "p.json", "--warm-feature-cache", "--repeat", "0"},        // warm runs no rep
+        {"--config", "p.json", "--warm-feature-cache", "--warm-feature-cache"}, // twice
+        {"--warm-feature-cache"},                                               // no --config
     };
     for (const auto& args : bad)
         EXPECT_THROW(parse(args), std::invalid_argument) << "accepted " << args.size() << " args";
+}
+
+TEST(ThesisCli, WarmFeatureCacheIsAFlag)
+{
+    const auto cli = parse({"--warm-feature-cache", "--config", "p.json"});
+    EXPECT_TRUE(cli.warm_feature_cache);
+    EXPECT_FALSE(cli.repeat.has_value());
+    EXPECT_FALSE(parse({"--config", "p.json"}).warm_feature_cache);
 }

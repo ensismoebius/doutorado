@@ -19,8 +19,9 @@ Every choice is declared — nothing has a default:
                             held-out data: the split is fixed by dataset.root,
                             dataset.max_samples, experiment.seed, experiment.repeats,
                             experiment.seed_deterministic, training.k_folds,
-                            training.nested_cv and classifier.text_mode, so those must
-                            be equal (nested_cv is included conservatively).
+                            the CV scheme and classifier.text_mode, so those must
+                            be equal (the scheme is included conservatively; a per-fold
+                            profile's outer folds are the flat CV's, see outer_cv).
                 corrected   Nadeau-Bengio corrected repeated k-fold t-test on the same
                             matched values (paired-split conditions as above). The r x k
                             fold differences are not independent -- the folds of one
@@ -87,13 +88,25 @@ LOWER_IS_BETTER = {"eer"}
 METRICS = ("eer", "auc", "accuracy", "f1")
 
 # The declared keys that fix which samples outer fold i holds out (GroupKFoldPolicy seeded
-# by experiment.seed over the dataset's samples, after the text_mode split).
+# by experiment.seed over the dataset's samples, after the text_mode split). The CV scheme is
+# compared through outer_cv() below, not as a key.
 SPLIT_KEYS = (
     ("dataset", "root"), ("dataset", "max_samples"),
     ("experiment", "seed"), ("experiment", "repeats"), ("experiment", "seed_deterministic"),
-    ("training", "k_folds"), ("training", "nested_cv"),
+    ("training", "k_folds"),
     ("classifier", "text_mode"),
 )
+
+
+def outer_cv(prof):
+    """The outer split's scheme. A fixed profile declares training.nested_cv (compared
+    conservatively: nested and flat are kept apart). A per-fold profile (selection.enabled)
+    declares none -- the selection owns the inner level -- and its outer folds are by
+    construction the flat CV's (outer_fold_rows in ThesisPerFold.hpp: "the same split, so the
+    two protocols are compared fold by fold"), so it compares as "flat"."""
+    if prof["selection"]["enabled"]:
+        return "flat"
+    return "nested" if prof["training"]["nested_cv"] else "flat"
 
 
 def fail(msg):
@@ -107,6 +120,7 @@ def split_signature(prof):
         if block == "experiment" and key == "seed_deterministic" and prof["experiment"]["repeats"] == 1:
             continue
         sig[f"{block}.{key}"] = prof[block][key]
+    sig["outer_cv"] = outer_cv(prof)
     return sig
 
 

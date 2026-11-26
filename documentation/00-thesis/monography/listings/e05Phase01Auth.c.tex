@@ -1,43 +1,27 @@
-\begin{lstlisting}[language=C, caption={Fase 01 --- autenticação com o vencedor da Fase 00. O extrator não é mais variado: usa-se apenas a combinação escolhida por sinal.}, label={lst:e05Phase01}]
-/* v_voz, v_eeg: vencedores da Fase 00 (um por sinal); as fontes */
-/* fundidas usam o vencedor da voz nas duas partes               */
-/* fonte : VOZ | EEG | FUNDIDA_PRECOCE | FUNDIDA_TARDIA          */
-/* Preenche X (vetores de caracteristicas) e devolve a dimensao. */
+\begin{lstlisting}[language=C, caption={Fase 01 --- uma dobra externa do protocolo por dobra. Toda escolha usa só os locutores de treino da dobra; os de teste são pontuados uma única vez.}, label={lst:e05Phase01}]
+/* treino: 12 locutores; teste: 3 locutores (disjuntos)          */
+/* cand[]: os extratores da Fase 00 do sinal (voz 153, EEG 61)   */
+/* grade[]: os 36 pontos (largura, blocos, taxa, decaimento)     */
+/* As fontes fundidas leem as duas partes com o extrator da voz. */
 
-int monta_fonte(Amostra a, int fonte,
-                Combinacao v_voz, Combinacao v_eeg, double X[])
+Metricas dobra(Amostra treino[], Amostra teste[], int fonte,
+               Combinacao cand[], int n_cand, Ponto grade[])
 {
-    if (fonte == VOZ)
-        return extrai(a.audio, v_voz, X);
-    if (fonte == EEG)
-        return extrai(a.eeg,   v_eeg, X);
-
-    if (fonte == FUNDIDA_PRECOCE) {         /* funde sinal bruto */
-        double s[MAX_AMOSTRAS];
-        int n = concatena(a.audio, a.eeg, s);
-        return extrai(s, v_voz, X);         /* uma extracao so   */
+    /* 1. extrator: ordena os candidatos so com o treino          */
+    int e = 0;
+    for (int c = 0; c < n_cand; c++) {
+        ajusta(cand[c], treino);             /* AE e PCA: treino */
+        if (d_pen(cand[c], treino) < d_pen(cand[e], treino))
+            e = c;
     }
-    /* FUNDIDA_TARDIA: extrai cada sinal com o mesmo extrator,   */
-    /* o vencedor da voz, e concatena os vetores                 */
-    double xv[MAX_CARACT], xe[MAX_CARACT];
-    int mv = extrai(a.audio, v_voz, xv);
-    int me = extrai(a.eeg,   v_voz, xe);
-    return concatena_vetores(xv, mv, xe, me, X);
-}
+    /* 2. hiperparametros: busca interna, 4 dobras por locutor    */
+    Folds interno = divide_por_locutor(treino, 4);
+    int p = menor_eer_medio(grade, 36, cand[e], fonte, interno);
+                               /* empate: o de menos parametros  */
+    /* 3. retreina o ponto escolhido sobre os 12 locutores        */
+    Modelo m = treina_dsnn(grade[p], cand[e], fonte, treino);
 
-/* Loop de autenticacao: fonte X modo de texto X esquema de CV.  */
-Metricas autentica(Amostra base[], int fonte,
-                   int modo_texto, int cv_aninhada,
-                   Combinacao v_voz, Combinacao v_eeg)
-{
-    double X[MAX_AMOSTRAS][MAX_CARACT];
-    for (int i = 0; i < N_AMOSTRAS; i++)
-        monta_fonte(base[i], fonte, v_voz, v_eeg, X[i]);
-
-    /* grupos disjuntos por locutor (protocolo de verificacao)   */
-    Folds f = divide_por_locutor(base, modo_texto, cv_aninhada);
-
-    Metricas m = treina_e_avalia_dsnn(X, f);  /* LIF + BPTT       */
-    return m;                                 /* EER e AUC        */
+    /* 4. uma unica avaliacao nos locutores de teste              */
+    return avalia(m, cand[e], fonte, teste);   /* EER e AUC       */
 }
 \end{lstlisting}

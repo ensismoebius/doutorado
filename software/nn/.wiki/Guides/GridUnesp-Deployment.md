@@ -486,10 +486,11 @@ interactive login shell each time:
 ./scripts/pipeline/meeting01/remote_monitor.sh
 ./scripts/pipeline/meeting01/remote_monitor.sh --once   # single snapshot
 ./scripts/pipeline/meeting01/remote_monitor.sh --rank 3
+# (the thesis arrays have their own view: scripts/pipeline/thesis/thesis_grid_watch.sh)
 
 # Or: sync results/meeting01/ down and use the local rich dashboard / archive it
 ./scripts/pipeline/meeting01/pull_progress.sh
-.venv/bin/python3 scripts/pipeline/meeting01/monitor.py --run-tag meeting01_loso
+~/.venv/bin/python3 scripts/pipeline/meeting01/monitor.py --run-tag meeting01_loso
 ```
 
 Both prompt interactively for your username (and, without a working SSH key, your
@@ -904,10 +905,10 @@ sbatch scripts/pipeline/meeting01/00_meeting01_prevalidate_gridunesp.sbatch
 ```bash
 rsync -avz <user>@access.grid.unesp.br:software/nn/results/meeting01_prevalidation/ \
   results/meeting01_prevalidation/
-.venv/bin/python3 scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py \
+~/.venv/bin/python3 scripts/pipeline/meeting01/03_meeting01_pca_mean_baselines.py \
   --results-dir results/meeting01_prevalidation/snn-ae --run-tag meeting01_prevalidation \
   --profile results/meeting01_prevalidation/snn-ae/profile.json
-.venv/bin/python3 scripts/pipeline/meeting01/00_meeting01_prevalidation_report.py --report \
+~/.venv/bin/python3 scripts/pipeline/meeting01/00_meeting01_prevalidation_report.py --report \
   --profile src/experiments/meeting01/profiles/meeting01-prevalidation.json \
   --out-root results/meeting01_prevalidation \
   --data-dir ../../documentation/07-articlesProduced/meeting01/data
@@ -970,8 +971,8 @@ parallel readout of the same event files), and every action key shells out to th
 same scripts documented above:
 
 ```bash
-.venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py
-.venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py --interval 30
+~/.venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py
+~/.venv/bin/python3 scripts/pipeline/meeting01/gridunesp_tui.py --interval 30
 ```
 
 | Key | Action | Runs |
@@ -1079,13 +1080,13 @@ the command line, so it does not appear in the remote process's `argv`.
 
 ```bash
 # one-shot collection (writes <run_tag>_ga_remote.jsonl)
-.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py
+~/.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py
 
 # continuous collection every 60s
-.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --interval 60
+~/.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --interval 60
 
 # print the remote command without running SSH (debugging aid)
-.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --print-cmd
+~/.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --print-cmd
 ```
 
 Or trigger from the dashboard: open the **Architecture Search** tab and click
@@ -1102,7 +1103,7 @@ bounded by `SSH_TIMEOUT_S` (60 s).
 > on the button:
 >
 > ```bash
-> .venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --print-cmd
+> ~/.venv/bin/python scripts/pipeline/meeting01/collect_ga_local.py --print-cmd
 > # then, on the cluster:
 > grep -c '^def collect_ga' ~/software/nn/scripts/pipeline/meeting01/gridunesp_status_remote.py
 > ```
@@ -1158,6 +1159,21 @@ target left out of a deploy is unstamped afterwards and its runner refuses to st
 themselves are described in
 [Experiment05 § Running on GridUnesp](../Experiments/Thesis.md#running-on-gridunesp-2026-11-12).
 `paraconsistentGA` is still not part of the plan.
+
+**The per-fold phases (2026-11-18 onwards)** add three rules on top
+([Running Thesis Profiles § 10](./Running-Thesis-Profiles.md#10-per-fold-protocol--extractor-and-hyperparameters-chosen-inside-each-fold)):
+
+| Rule | Why |
+|---|---|
+| Run `thesis_warm_feature_cache.sbatch` (`--array=0-10`) once per deploy, before any per-fold phase | the units only READ the handcrafted features and stop on a miss |
+| Do not redeploy in the middle of a campaign of phases | the deploy's revision is part of the feature-cache key and of every phase marker: a redeploy invalidates the 552 cached matrices (hours of warm-up again) and makes the next phase refuse the old markers |
+| Ask for 16 GB (`--mem=16G` on the `sbatch` line while the deployed sbatch still says 8G) | BIOMEX-DB's degraded-voice fusions peaked at 9.3 GB and were killed at 8 GB (job 5335100) |
+
+**Watching a thesis array.** `scripts/pipeline/thesis/thesis_grid_watch.sh` is the thesis
+counterpart of `remote_monitor.sh` (§4): one ssh session, the refresh loop on the login node,
+per job the units done/failed against the phase total and per running task its unit, folds,
+progress bar, measured pace per fold, time left and memory. The script is sent over ssh's stdin
+to the login node's own `python3` (3.6), so it needs no deploy.
 
 ## Open questions to confirm with `support.ncc@unesp.br`
 

@@ -20,7 +20,19 @@ results/thesis/{phase00,phase01,biomex}/   (committed run outputs)
         └────────────────────► thesis_build_text_numbers.py ─► tables/thesis_numbers.tex ─► \tn{key}
              (+ base_facts.csv, ae_input_reference.csv)     │      in the prose
                                                             └─ CLAIMS: stops if a sentence became false
+
+results/thesis/{perfold,pfbiomex,pfworld,pfbxworld}/   (the per-fold protocol, 2026-11-18)
+        ├─ ..._phase01_auth_tables.py --protocol per-fold ─► tables/perfold_*.csv ─┐ csvreader
+        ├─ ..._biomex_tables.py --protocol per-fold ───────► tables/pfbiomex_*.csv ┘ (not yet in the text)
+        ├─ 10_/11_..._significance.sh ─► results/.../significance_*.csv
+        ├─ 08_thesis_world_analysis.py --protocol per-fold ─► world_eer_perfold.csv, sig_pf*world_*.csv
+        └─► thesis_build_text_numbers.py (the same run as above: keys pf01.*, pfsig.*, pfbx.*,
+            pfbxsig.*, world.pf.*, and their CLAIMS)
 ```
+
+Both protocols feed `thesis_build_text_numbers.py`: the per-fold keys are the primary result,
+the fixed ones (`p01.*`, `bx.*`, `sig.*`) the comparison and the ablations (CV scheme,
+standardization) the per-fold grid does not have.
 
 All paths below are relative to the repository root unless stated.
 
@@ -76,7 +88,8 @@ committed.
 
 1. Find the key: `python3 software/nn/scripts/pipeline/thesis/thesis_build_text_numbers.py <the arguments of § Results to text> --list`.
    The key families are listed in the script's docstring (`p00.*`, `p01.*`, `bx.*`, `sig.*`,
-   `base.*`, `aeinput.*`).
+   `base.*`, `aeinput.*`, and the per-fold `pf01.*`, `pfsig.*`, `pfbx.*`, `pfbxsig.*`,
+   `world.pf.*`).
 2. If it does not exist, add it to the function of that family in the script (it reads the
    same collectors as the table scripts, so it refuses an incomplete result set), regenerate,
    and run `python3 software/nn/scripts/testing/test_thesis_phase_scripts.py`.
@@ -93,10 +106,10 @@ the one before wrote):
 python3 scripts/pipeline/thesis/thesis_build_phase00_paraconsistent_tables.py \
   --profiles-dir src/experiments/thesis/profiles/phase00 --results-dir results/thesis/phase00 \
   --tables-dir ../../documentation/00-thesis/monography/tables
-python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol fixed \
   --profiles-dir src/experiments/thesis/profiles/phase01 --results-dir results/thesis/phase01 \
   --tables-dir ../../documentation/00-thesis/monography/tables
-python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol fixed \
   --profiles-dir src/experiments/thesis/profiles/biomex --results-dir results/thesis/biomex \
   --coretto-profiles-dir src/experiments/thesis/profiles/phase01 \
   --coretto-results-dir results/thesis/phase01 \
@@ -117,6 +130,8 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --phase00-profiles src/experiments/thesis/profiles/phase00 --phase00-results results/thesis/phase00 \
   --phase01-profiles src/experiments/thesis/profiles/phase01 --phase01-results results/thesis/phase01 \
   --biomex-profiles  src/experiments/thesis/profiles/biomex  --biomex-results  results/thesis/biomex \
+  --perfold-profiles src/experiments/thesis/profiles/perfold --perfold-results results/thesis/perfold \
+  --pfbiomex-profiles src/experiments/thesis/profiles/pfbiomex --pfbiomex-results results/thesis/pfbiomex \
   --ae-input-reference results/thesis/ae_input_reference.csv --base-facts results/thesis/base_facts.csv \
   --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \
   --identity-pilot results/thesis/pilot/pilot_verdict.json \
@@ -128,6 +143,29 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
 
 # 5. the PDF (§ Building the PDF)
 ```
+
+The per-fold results ([Thesis per-fold protocol](../Experiments/Thesis-Per-Fold-Protocol.md))
+have their own tables and tests; run them before step 4, which reads them too:
+
+```bash
+python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol per-fold \
+  --profiles-dir src/experiments/thesis/profiles/perfold --results-dir results/thesis/perfold \
+  --fixed-profiles-dir src/experiments/thesis/profiles/phase01 --fixed-results-dir results/thesis/phase01 \
+  --tables-dir ../../documentation/00-thesis/monography/tables
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol per-fold \
+  --profiles-dir src/experiments/thesis/profiles/pfbiomex --results-dir results/thesis/pfbiomex \
+  --coretto-profiles-dir src/experiments/thesis/profiles/perfold --coretto-results-dir results/thesis/perfold \
+  --tables-dir ../../documentation/00-thesis/monography/tables
+scripts/pipeline/thesis/10_thesis_perfold_significance.sh  src/experiments/thesis/profiles/perfold  results/thesis/perfold
+scripts/pipeline/thesis/11_thesis_pfbiomex_significance.sh src/experiments/thesis/profiles/pfbiomex results/thesis/pfbiomex
+python3 scripts/pipeline/thesis/08_thesis_world_analysis.py --protocol per-fold \
+  --bases coretto2017,biomex2021 \
+  --profiles-root src/experiments/thesis/profiles --results-root results/thesis \
+  --out results/thesis/world_analysis
+```
+
+What each writes, and why the per-fold WORLD analysis has no margin part:
+[Running Thesis Profiles § 10](./Running-Thesis-Profiles.md#10-per-fold-protocol--extractor-and-hyperparameters-chosen-inside-each-fold).
 
 If step 4 stops on a CLAIM, the data contradicts a sentence: **rewrite the sentence**. Do not
 loosen the claim. Then commit results, tables, `thesis_numbers.tex` and the text together.

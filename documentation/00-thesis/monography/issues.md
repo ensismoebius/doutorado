@@ -775,6 +775,27 @@ cap. 7), ficha catalográfica, dedicatória/agradecimentos/epígrafe, data da de
 
 ---
 
+## Situação em 2026-11-26: o protocolo por dobra é o resultado principal
+
+O item 5 está resolvido pela solução rigorosa, e foi além dela. A Fase~01 passou a escolher,
+dentro de cada dobra e só com os locutores de treino, o extrator (ordenação por
+$D_{\text{pen}}$ entre todos os candidatos da Fase~00, com *autoencoders* e PCA
+reajustados) e os hiperparâmetros do classificador (busca interna de 36 pontos, GroupKFold de 4
+dobras). O pré-registro está em `software/nn/.wiki/Experiments/Thesis-Per-Fold-Protocol.md`. As
+quatro fases rodaram no GridUnesp (perfold, pfbiomex, pfworld e pfbxworld, de 19 a 26/11), e os
+caps. 8, 9 e 10, os resumos, a tabela do estado da arte (cap. 7) e o Apêndice B foram reescritos
+com os números por dobra (commits `ea4a03cb9`, `19ae511f2` e o seguinte). Dois itens de
+Limitações saíram ("o extrator é escolhido com todos os locutores" e "os hiperparâmetros não foram
+ajustados") e dois entraram (busca compacta; margem WORLD com o extrator da base inteira). A
+configuração fixa ficou como comparação (cap. 9, `sec:perfoldVsFixed`).
+
+O que mudou nas conclusões: na base de Coretto, nenhum veredicto. Na comparação de extratores, o
+manual passa à frente na voz, e a PCA continua à frente no EEG de fala imaginada (o menor EER
+agora é com frases não vistas). Na BIOMEX-DB, a fusão tardia contra a voz deixa de ser
+significativa, e o modo de texto passa a ser significativo na voz e na fusão tardia (por
+Mann--Whitney, que é otimista). Contra a configuração fixa, a voz melhora e 7 das 8 células de
+fusão pioram.
+
 ## Leitura integral do PDF (2026-11-17)
 
 Leitura das 175 páginas da versão de 17/11 (depois da grade WORLD e do teste de piso). Páginas
@@ -936,3 +957,36 @@ $\bar d$, $D_{\text{verdade}}$ e $D_{1,0}$); ROC por extenso (o leitor-alvo conh
 (nome do código, na tabela das *wavelets*); bandas α/β/θ (definidas em 2.1.7); DTWT × DTWPT,
 "salto"/"atalho" e frases longas de estilo sem perda de sentido; reordenar a seção 2.1.9 em tabela;
 exemplo numérico extra do plano paraconsistente no cap. 4 (o do cap. 2 já existe).
+
+## Quarta leitura independente: big-pickle via opencode (2026-11-26)
+
+O PDF (commit `9bac28bd7`, 193 páginas) foi extraído em texto, dividido em 9 trechos e cada um foi
+lido por `opencode/big-pickle` com o roteiro de achados A/B/C/D (Gemma 4 grátis deu *rate limit*,
+MiniMax pediu crédito). Cada achado foi conferido no fonte, nas tabelas e, quando falava do método,
+no código ou no histórico.
+
+| Pág. | Achado | Veredito | O que foi feito |
+|---|---|---|---|
+| 163 | "o EEG supera a voz em todas as células deste capítulo" | procede: sem padronização a voz ganha em todas; com AE ou PCA e frases vistas, a voz ganha do EEG de fala pronunciada (4 de 52 pares) | frase restrita ao extrator manual com padronização, com as duas exceções; 3 CLAIMS |
+| 145 | as 15 dobras de "todas as células" escolheram Haar + Linear | procede: a tabela inclui os braços AE/PCA da comparação; a chave cobre grade e controles | "todas as células da grade e dos controles"; a frase de abertura cita a comparação |
+| 135 | gap de "cerca de dez vezes o $\sigma_{loc}$ de qualquer um deles" | procede: 8,7-10,1 contra o do vencedor, 18-41 contra o da PCA | chaves `p00.gapratio.min|max`, "do vencedor manual, o maior dos dois"; 1 CLAIM |
+| 78 | penalidade "inerte" com a taxa da inicialização He | procede: 8,3 % fica abaixo de $r_{min}=0{,}10$ | exemplo retirado; frase sobre $r_{min}$ acima de 8,3 % |
+| 72 | BPTT sem o termo de saída no gradiente de W | procede ($y[t]=W h[t+1]$) | termo `dL_dy*h[t+1]` na listagem e no fluxograma |
+| 188 | decaimento desacoplado "equivalente" à L2 | procede (com Adam não é) | "equivalente apenas sob o gradiente descendente simples" |
+| 104 | carregador verifica o par, mas "o erro não produz mensagem" | procede (ordem confusa) | defeito antigo primeiro, verificação atual depois |
+| 116 | latency "limitado a meio degrau" | procede em parte: vale para o instante; a média dos quadros tem desvio $(1-v)/T$ | as duas grandezas separadas, com o exemplo da figura |
+| 28 | jitter/shimmer como entonação | procede | conceitos separados |
+| 27 | dobro de $f_{max}$ chamado frequência de Nyquist | procede (é a taxa) | taxa e frequência de Nyquist distinguidas |
+| 33 | 25 bandas críticas | procede (25 limites, 24 bandas) | "24 bandas, delimitadas por 25 frequências" |
+| 74 | $\beta$ do gradiente substituto | procede (é $\kappa$) | $\kappa$ |
+| 57 | legenda com 4 de 6 afasias | procede | condução e anômica citadas |
+| 80 | comentário `u em [-l,+l]` | procede (é W) | corrigido |
+| 151 | "reduziu a margem em −0,0976" | procede (dupla negação) | "mudou a margem em" |
+| 165 | PCA "sem treino" | procede (é ajustada por dobra) | "sem treino iterativo" |
+| 89 | "30 meses" | procede (≈ 31,5) | "terminava em 30/03/2024, cerca de 31 meses antes da atualização" |
+| 93 | "Constante nas referências…" sem verbo | procede | frase reescrita |
+| 90 | busca *spiking*: "nenhum sobre identificação", mas lin2025 é citado | procede: o autor confirmou que lin2025 veio da busca na web | "32 no Athena" e a origem de lin2025 explicitadas no item da busca |
+| 182 | perfeito com EER 0,75 | o número é o do teste sintético (4 pontuações por lado, b22f07c1) | "no teste sintético com quatro pontuações por lado" acrescentado |
+| 79, 79, 121 | $\ell$, "depHe", "ROC3", "12 P" | não procedem: artefatos da extração | nada |
+| 111 | "duas escolhas" e a categoria | não procede: o texto separa com "Além disso" | nada |
+| 1, 4, 32, 52, 91, 193 | título; `[PENDENTE]` | do autor (item 1; `\pendenteMarca`) | nada |

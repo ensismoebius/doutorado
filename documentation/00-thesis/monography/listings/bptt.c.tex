@@ -14,7 +14,8 @@ for (int t = T-1; t >= 0; t--) {
     float dL_dh   = W *dL_dy + grad_h;    /* output + recorrencia*/
     float dtanh   = 1.0f - h[t+1] * h[t+1];/* derivada de tanh    */
     float dL_dpre = dL_dh * dtanh;
-    dL_dW  += dL_dpre * h[t];  /* acumula gradiente de W              */
+    dL_dW  += dL_dy * h[t+1];  /* gradiente de W pela saida y[t]      */
+    dL_dW  += dL_dpre * h[t];  /* gradiente de W pela recorrencia     */
     grad_h  = W * dL_dpre;     /* propaga para a etapa anterior (t-1) */
 }
 W -= lr * dL_dW;  /* atualiza pesos */

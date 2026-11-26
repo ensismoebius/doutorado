@@ -61,7 +61,7 @@
     {$\mathit{dL\_dpre} \rightarrow \mathit{dL\_dh} \cdot \mathit{dtanh}$};
 
 \node[proc, below=of preActivationGrad] (accumWeightGrad)
-    {$\mathit{dL\_dW} \mathrel{+}= \mathit{dL\_dpre} \cdot h[t]$};
+    {$\mathit{dL\_dW} \mathrel{+}= \mathit{dL\_dy} \cdot h[t{+}1] + \mathit{dL\_dpre} \cdot h[t]$};
     
 \node[proc, below=of accumWeightGrad] (propagateHiddenGrad)
     {$\mathit{grad\_h} \leftarrow W \cdot \mathit{dL\_dpre}$};

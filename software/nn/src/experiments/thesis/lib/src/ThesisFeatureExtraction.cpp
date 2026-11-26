@@ -158,6 +158,7 @@ std::function<void(const std::map<std::string, nn::Tensor>&)> make_ae_snapshot_c
 // (Trainer::create_batch), and Lif/LifIntegrator resize their membrane state to the batch
 // shape. Same batch size as ANN-AE.
 FeatureSet extract_snn_ae_feature_set(const std::vector<std::vector<double>>& raw_signals,
+    const std::vector<size_t>& fit_rows,
     const ThesisConfig::FeatureExtraction& cfg,
     const ThesisConfig::Training& training,
     const std::string& label_suffix,
@@ -173,6 +174,7 @@ FeatureSet extract_snn_ae_feature_set(const std::vector<std::vector<double>>& ra
     FeatureSet fs;
     fs.label = "autoencoder-snn" + label_suffix;
     fs.vectors = run_protocol_ae<ProtocolSpikingAutoencoder>(raw_signals,
+        fit_rows,
         cfg.autoencoder,
         training,
         label_suffix,
@@ -192,6 +194,7 @@ FeatureSet extract_snn_ae_feature_set(const std::vector<std::vector<double>>& ra
 // constants define the model; they are not values a profile could choose (the ANN-AE
 // profile is refused if it declares encoding/time_steps/voltage_threshold).
 FeatureSet extract_ann_ae_feature_set(const std::vector<std::vector<double>>& raw_signals,
+    const std::vector<size_t>& fit_rows,
     const ThesisConfig::FeatureExtraction& cfg,
     const ThesisConfig::Training& training,
     const std::string& label_suffix,
@@ -202,6 +205,7 @@ FeatureSet extract_ann_ae_feature_set(const std::vector<std::vector<double>>& ra
     FeatureSet fs;
     fs.label = "autoencoder-ann" + label_suffix;
     fs.vectors = run_protocol_ae<ProtocolAutoencoder>(raw_signals,
+        fit_rows,
         cfg.autoencoder,
         training,
         label_suffix,
@@ -223,10 +227,17 @@ FeatureSet extract_ann_ae_feature_set(const std::vector<std::vector<double>>& ra
 // it read 64 frames of the raw waveform instead, so a profile choosing lstm-ae would have
 // compared a different input, not a different extractor.
 FeatureSet extract_lstm_ae_feature_set(const std::vector<std::vector<double>>& raw_signals,
+    const std::vector<size_t>& fit_rows,
     const ThesisConfig::FeatureExtraction& cfg,
     const ThesisConfig::Training& training,
     const std::string& label_suffix)
 {
+    // The LSTM-AE (kept for the meeting01 record, used by no thesis profile) has no
+    // fit-on-rows path: refused rather than silently trained on every sample.
+    if (fit_rows.size() != raw_signals.size())
+        throw std::invalid_argument(
+            "ThesisFeatureExtraction: lstm-ae cannot be fitted on a subset of the samples "
+            "(no thesis profile uses it); give it every sample or add the subset path");
     const std::vector<std::vector<float>> normed = normalize_signals(raw_signals);
     std::vector<nn::Tensor> train_samples;
     train_samples.reserve(normed.size());
@@ -272,6 +283,7 @@ FeatureSet extract_lstm_ae_feature_set(const std::vector<std::vector<double>>& r
 
 // Dispatches to the right autoencoder family by cfg.autoencoder.model.
 FeatureSet extract_autoencoder_feature_set(const std::vector<std::vector<double>>& raw_signals,
+    const std::vector<size_t>& fit_rows,
     const ThesisConfig::FeatureExtraction& cfg,
     const ThesisConfig::Training& training,
     const std::string& label_suffix,
@@ -283,28 +295,34 @@ FeatureSet extract_autoencoder_feature_set(const std::vector<std::vector<double>
 
     if (ae_model == "snn-ae")
         return extract_snn_ae_feature_set(
-            raw_signals, cfg, training, label_suffix, seed, part_tag, on_model_trained);
+            raw_signals, fit_rows, cfg, training, label_suffix, seed, part_tag, on_model_trained);
 
     if (ae_model == "ann-ae")
         return extract_ann_ae_feature_set(
-            raw_signals, cfg, training, label_suffix, seed, part_tag, on_model_trained);
+            raw_signals, fit_rows, cfg, training, label_suffix, seed, part_tag, on_model_trained);
 
     if (ae_model == "lstm-ae")
-        return extract_lstm_ae_feature_set(raw_signals, cfg, training, label_suffix);
+        return extract_lstm_ae_feature_set(raw_signals, fit_rows, cfg, training, label_suffix);
 
     throw std::invalid_argument("ThesisFeatureExtraction: unknown autoencoder.model \"" + ae_model +
                                 "\" (expected snn-ae, ann-ae or lstm-ae)");
 }
 
 // PCA on the autoencoders' exact input (normalize_signals: the 256-bin log power spectrum, min-max
-// per sample), fitted on every sample — the same unsupervised, transductive protocol as the
-// autoencoders, so the comparison differs only in the extractor.
+// per sample), fitted on `fit_rows` — every sample in Phase 00 (the unsupervised, transductive
+// protocol the autoencoders share), a fold's training rows in the per-fold protocol — and applied
+// to every sample, so the comparison differs only in the extractor.
 FeatureSet extract_pca_feature_set(const std::vector<std::vector<double>>& raw_signals,
+    const std::vector<size_t>& fit_rows,
     const ThesisConfig::PcaConfig& cfg,
     const std::string& label_suffix)
 {
     const std::vector<std::vector<float>> normed = normalize_signals(raw_signals);
-    const PcaProjection pca = fit_pca(normed, cfg.n_components);
+    require_fit_rows(fit_rows, normed.size(), "PCA");
+    std::vector<std::vector<float>> fit;
+    fit.reserve(fit_rows.size());
+    for (size_t r : fit_rows) fit.push_back(normed[r]);
+    const PcaProjection pca = fit_pca(fit, cfg.n_components);
 
     FeatureSet fs;
     fs.label = "pca" + label_suffix;
@@ -326,7 +344,8 @@ auto extract_features_core(const ThesisDatasetView& view,
     double sample_rate,
     const std::string& label_suffix,
     const std::string& part_tag,
-    const ModelSnapshotFn& on_model_trained) -> std::vector<FeatureSet>
+    const ModelSnapshotFn& on_model_trained,
+    const std::vector<size_t>& fit_rows) -> std::vector<FeatureSet>
 {
     const ThesisConfig::FeatureExtraction& fe = cfg.feature_extraction;
     std::vector<FeatureSet> result;
@@ -340,6 +359,7 @@ auto extract_features_core(const ThesisDatasetView& view,
     {
         const std::vector<std::vector<double>> raw_signals = collect_raw_signals(view, get_signal);
         result.push_back(extract_autoencoder_feature_set(raw_signals,
+            fit_rows,
             fe,
             cfg.training,
             label_suffix,
@@ -349,8 +369,8 @@ auto extract_features_core(const ThesisDatasetView& view,
     }
     else if (fe.strategy == "pca")
     {
-        result.push_back(
-            extract_pca_feature_set(collect_raw_signals(view, get_signal), fe.pca, label_suffix));
+        result.push_back(extract_pca_feature_set(
+            collect_raw_signals(view, get_signal), fit_rows, fe.pca, label_suffix));
     }
     else
     {
@@ -361,11 +381,36 @@ auto extract_features_core(const ThesisDatasetView& view,
     return result;
 }
 
+auto extract_features_impl(const ThesisDatasetView& view,
+    const ThesisConfig& cfg,
+    const std::vector<size_t>& fit_rows,
+    const ModelSnapshotFn& on_model_trained) -> std::vector<FeatureSet>;
+
 } // namespace
 
 auto extract_features(
     const ThesisDatasetView& view, const ThesisConfig& cfg, const ModelSnapshotFn& on_model_trained)
     -> std::vector<FeatureSet>
+{
+    std::vector<size_t> every(view.samples.size());
+    for (size_t i = 0; i < every.size(); ++i) every[i] = i;
+    return extract_features_impl(view, cfg, every, on_model_trained);
+}
+
+auto extract_features_fitted_on(const ThesisDatasetView& view,
+    const ThesisConfig& cfg,
+    const std::vector<size_t>& fit_rows,
+    const ModelSnapshotFn& on_model_trained) -> std::vector<FeatureSet>
+{
+    return extract_features_impl(view, cfg, fit_rows, on_model_trained);
+}
+
+namespace
+{
+auto extract_features_impl(const ThesisDatasetView& view,
+    const ThesisConfig& cfg,
+    const std::vector<size_t>& fit_rows,
+    const ModelSnapshotFn& on_model_trained) -> std::vector<FeatureSet>
 {
     const std::string& modality = cfg.dataset.modality;
     // The rates come from the base (ThesisDataset); a signal the run reads must have one.
@@ -373,10 +418,11 @@ auto extract_features(
     const auto eeg_rate = [&view]() { return require_rate(view.eeg_sample_rate, "EEG"); };
     if (modality == "voice")
         return extract_features_core(
-            view, cfg, voice_signal, voice_rate(), "", "", on_model_trained);
+            view, cfg, voice_signal, voice_rate(), "", "", on_model_trained, fit_rows);
 
     if (modality == "eeg")
-        return extract_features_core(view, cfg, eeg_signal, eeg_rate(), "", "", on_model_trained);
+        return extract_features_core(
+            view, cfg, eeg_signal, eeg_rate(), "", "", on_model_trained, fit_rows);
 
     if (modality != "fused")
         throw std::invalid_argument(
@@ -385,8 +431,14 @@ auto extract_features(
     const std::string& fusion_mode = cfg.dataset.fusion_mode;
     if (fusion_mode == "early")
     {
-        return extract_features_core(
-            view, cfg, fused_early_signal, voice_rate(), "-fused-early", "", on_model_trained);
+        return extract_features_core(view,
+            cfg,
+            fused_early_signal,
+            voice_rate(),
+            "-fused-early",
+            "",
+            on_model_trained,
+            fit_rows);
     }
 
     if (fusion_mode != "late")
@@ -397,10 +449,10 @@ auto extract_features(
     // resulting feature vectors sample-by-sample (audit C12). Two INDEPENDENT models
     // train (or, for PCA, are fitted) here — tag each snapshot so a caller merging them
     // (e.g. paraconsistentGA's weight-snapshot capture) can tell them apart.
-    auto voice_sets =
-        extract_features_core(view, cfg, voice_signal, voice_rate(), "", "voice", on_model_trained);
-    auto eeg_sets =
-        extract_features_core(view, cfg, eeg_signal, eeg_rate(), "", "eeg", on_model_trained);
+    auto voice_sets = extract_features_core(
+        view, cfg, voice_signal, voice_rate(), "", "voice", on_model_trained, fit_rows);
+    auto eeg_sets = extract_features_core(
+        view, cfg, eeg_signal, eeg_rate(), "", "eeg", on_model_trained, fit_rows);
 
     if (voice_sets.size() != eeg_sets.size())
         throw std::runtime_error(
@@ -429,6 +481,7 @@ auto extract_features(
     }
     return result;
 }
+} // namespace
 
 auto spectral_input(const std::vector<double>& signal) -> std::vector<float>
 {

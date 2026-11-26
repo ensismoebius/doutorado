@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-voice,dsnn,dependent,0,nan,nan,nan,nan,nan,0.269812,0.817229,153434.731,262.917,results/thesis/pfbxworld/models/e05_pfbx01w_voice_test_jump-r1_rep2/per-fold-voice/fold_0.bin
+per-fold-voice,dsnn,dependent,1,nan,nan,nan,nan,nan,0.302049,0.793458,47819.161,86.136,results/thesis/pfbxworld/models/e05_pfbx01w_voice_test_jump-r1_rep2/per-fold-voice/fold_1.bin
+per-fold-voice,dsnn,dependent,2,nan,nan,nan,nan,nan,0.390164,0.653088,152231.772,252.100,results/thesis/pfbxworld/models/e05_pfbx01w_voice_test_jump-r1_rep2/per-fold-voice/fold_2.bin
+per-fold-voice,dsnn,dependent,3,nan,nan,nan,nan,nan,0.304918,0.792514,44348.841,74.271,results/thesis/pfbxworld/models/e05_pfbx01w_voice_test_jump-r1_rep2/per-fold-voice/fold_3.bin
+per-fold-voice,dsnn,dependent,4,nan,nan,nan,nan,nan,0.400327,0.647869,147890.504,242.243,results/thesis/pfbxworld/models/e05_pfbx01w_voice_test_jump-r1_rep2/per-fold-voice/fold_4.bin

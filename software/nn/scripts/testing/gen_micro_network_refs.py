@@ -45,7 +45,7 @@ Two honest limits, both deliberate and both encoded here rather than hidden:
    the C++ test can assert the divergence is the expected size and not silently grow.
 
 Run (developer step; needs torch + snntorch — CI consumes the committed .npz):
-    software/nn/.venv/bin/python software/nn/scripts/testing/gen_micro_network_refs.py
+    ~/.venv/bin/python software/nn/scripts/testing/gen_micro_network_refs.py
 
 Output: software/nn/src/core/layers/tests/fixtures/micro_network_refs.npz
 """

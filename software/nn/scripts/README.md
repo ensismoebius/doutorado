@@ -23,7 +23,7 @@ Conventions every script here follows: **every argument is required** (no defaul
 incomplete or unreadable input is **refused** with exit status ≠ 0 (never skipped), and
 scripts in an ordered chain carry their position in the name (`01_`, `02_`, …).
 
-Python: `python3 -m venv .venv && .venv/bin/pip install -r scripts/requirements.txt`. The heavy
+Python: the machine's single shared venv — `~/.venv/bin/pip install -r scripts/requirements.txt` (CMake configure does this automatically). The heavy
 packages (`torch`, `snntorch`, …) are needed only by the PyTorch references and analyses;
 the pipeline scripts need only numpy and scipy, and several only the standard library; the
 dysphonia calibration (`05_`) also needs `praat-parselmouth` (Praat 6.1.38) and a C++ compiler.
@@ -40,18 +40,22 @@ and [Thesis Document › Results to text](../.wiki/Guides/Thesis-Document.md#res
 | `00_thesis_generate_profiles.py` | writes every profile under `src/experiments/thesis/profiles/` and `profiles.manifest`. `--phase00-only` before the ranking; `--winners results/thesis/phase00/winners.json --fused voice --calibration results/thesis/dysphonia_calibration/calibration.json` after it (the Phase 01, BIOMEX, pilot and WORLD profiles carry the winners; the WORLD levels carry the calibrated requests) |
 | `01_thesis_phase00_rank.py` | reads the Phase 00 results each profile declares, picks the winner per signal and the best per family by `d_penalized`, writes `winners.json`; reports ties |
 | `03_thesis_phase01_significance.sh` | the declared significance families of Phase 01 → `results/thesis/phase01/significance_*.csv` |
+| `11_thesis_pfbiomex_significance.sh` | `04_`'s families on the per-fold BIOMEX-DB profiles (`pfbx01_*`) → `results/thesis/pfbiomex/significance_*.csv` |
+| `10_thesis_perfold_significance.sh` | `03_`'s families on the per-fold profiles (`pf01_*`) → `results/thesis/perfold/significance_*.csv` |
 | `04_thesis_biomex_significance.sh` | the same families on the BIOMEX-DB replication → `results/thesis/biomex/significance_*.csv` |
 | `05_thesis_dysphonia_calibration.py` | Praat (parselmouth) calibration of the WORLD rough/tremor requests on real vowels → `results/thesis/dysphonia_calibration/calibration.json` (needed by `00_ --calibration`); minutes, no training |
 | `06_thesis_identity_pilot.py` | verdict of the six `pilot/` profiles (does resynthesis alone move the EER?) → `results/thesis/pilot/pilot_verdict.json` |
 | `07_thesis_identity_margin.py` | the powered identity test on per-utterance margins (`thesis_features` output) → `results/thesis/identity_margin/identity_margin_verdict.json` |
-| `08_thesis_world_analysis.py` | the WORLD grid: Part A margins (confirmatory, each level minus its control) and Part B EER → `results/thesis/world_analysis/` |
+| `08_thesis_world_analysis.py` | the WORLD grid: Part A margins (confirmatory, each level minus its control) and Part B EER → `results/thesis/world_analysis/`. `--protocol fixed` (both parts) or `--protocol per-fold --bases ...` (Part B only, on `pfworld`/`pfbxworld` → `world_eer_perfold.csv`: Part A reads `thesis_features`, one extractor per profile, so it does not change with the protocol) |
 | `09_thesis_world_floor.py` | the pre-registered floor test of the BIOMEX-DB WORLD null → `results/thesis/world_analysis/world_floor.json` |
 | `thesis_cross_profile_significance.py` | the test engine both `.sh` call: per-fold metrics of a family of profiles vs a reference; `--pairing paired\|corrected\|independent`, Holm within the family |
 | `thesis_build_phase00_paraconsistent_tables.py` | `tables/phase00_{hc,ae,pca}_{voice,eegpron,eegimag}.csv` |
-| `thesis_build_phase01_auth_tables.py` | `tables/phase01_{auth,controls,dysphonia,energy,extractors}.csv` |
-| `thesis_build_biomex_tables.py` | `tables/biomex_{auth,dysphonia}.csv`, each BIOMEX cell beside its Coretto cell |
+| `thesis_build_phase01_auth_tables.py` | `--protocol fixed`: `tables/phase01_{auth,controls,dysphonia,energy,extractors}.csv`; `--protocol per-fold` (+ `--fixed-profiles-dir/--fixed-results-dir`): the same five as `perfold_*.csv`, plus `perfold_selection.csv` (the folds' choices) and `perfold_vs_fixed.csv` |
+| `thesis_build_biomex_tables.py` | `--protocol fixed`: `tables/biomex_{auth,dysphonia}.csv`, each BIOMEX cell beside its Coretto cell; `--protocol per-fold`: `pfbiomex_{auth,dysphonia,selection}.csv`, beside the Coretto per-fold cell |
 | `thesis_build_text_numbers.py` | `tables/thesis_numbers.tex`: every number the prose quotes (`\tn{key}`), and `CLAIMS`, the qualitative sentences checked against the data |
-| `thesis_gridunesp.sbatch` | one phase as a Slurm array on GridUnesp: `THESIS_PHASE=phase00 sbatch --array=0-63 …` (phase01: `0-141`, biomex: `0-47`, world: `0-149`, bxworld: `0-89`) |
+| `thesis_gridunesp.sbatch` | one phase as a Slurm array on GridUnesp: `THESIS_PHASE=phase00 sbatch --array=0-63 …` (phase01: `0-141`, biomex: `0-47`, world: `0-149`, bxworld: `0-89`; per-fold protocol: perfold `0-99`, pfbiomex `0-47`, pfworld `0-149`, pfbxworld `0-269` (one unit per task: a unit takes ~11 h, max 13.9 h)). `THESIS_UNITS=a.rep0,b.rep0` restricts it to named units (a trial run) |
+| `thesis_grid_watch.sh` | live view of the thesis arrays on GridUnesp, refreshed in place over ONE ssh session: per job the phase, tasks running/pending/finished, units done/failed against the phase total, mean unit time and a time-left estimate, and per running task its unit, its folds done, a task progress bar, unit time, an estimate of the task's time left, task time against the limit (`NEAR LIMIT` past 85%, `MAY HIT LIMIT` by the estimate) and memory. Runs `thesis_grid_status.py` on the login node (sent over stdin: no redeploy) |
+| `thesis_warm_feature_cache.sbatch` | fills `results/thesis/feature_cache/` before any per-fold phase, once per deploy: `sbatch --array=0-10 …` (one task per data view; the per-fold units only read the cache and stop on a miss) |
 
 The profile runners themselves are in `testing/` (`run_thesis_profiles.sh`, `run_thesis_smoke.sh`).
 

@@ -1,0 +1,2 @@
+x label accuracy std_accuracy ci95_accuracy f1 std_f1 precision recall specificity std_specificity eer std_eer ci95_eer auc std_auc
+0 per-fold-eeg nan nan nan nan nan nan nan nan nan 0.299597 0.025205 0.031291 0.769263 0.032555

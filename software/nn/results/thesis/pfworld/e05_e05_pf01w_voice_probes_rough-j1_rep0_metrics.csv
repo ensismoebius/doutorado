@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-voice,dsnn,dependent,0,nan,nan,nan,nan,nan,0.476471,0.541609,47518.038,75.221,results/thesis/pfworld/models/e05_pf01w_voice_probes_rough-j1_rep0/per-fold-voice/fold_0.bin
+per-fold-voice,dsnn,dependent,1,nan,nan,nan,nan,nan,0.384615,0.646353,31398.977,51.824,results/thesis/pfworld/models/e05_pf01w_voice_probes_rough-j1_rep0/per-fold-voice/fold_1.bin
+per-fold-voice,dsnn,dependent,2,nan,nan,nan,nan,nan,0.299479,0.745538,4035.511,8.644,results/thesis/pfworld/models/e05_pf01w_voice_probes_rough-j1_rep0/per-fold-voice/fold_2.bin
+per-fold-voice,dsnn,dependent,3,nan,nan,nan,nan,nan,0.470930,0.540495,7419.065,12.761,results/thesis/pfworld/models/e05_pf01w_voice_probes_rough-j1_rep0/per-fold-voice/fold_3.bin
+per-fold-voice,dsnn,dependent,4,nan,nan,nan,nan,nan,0.470270,0.553309,46022.850,74.112,results/thesis/pfworld/models/e05_pf01w_voice_probes_rough-j1_rep0/per-fold-voice/fold_4.bin

@@ -24,7 +24,7 @@ Deliberate deviation from upstream, encoded here on purpose (see each C++ header
     Every decay case below therefore uses a 2-D parameter, where the two agree exactly.
 
 Run (developer step; requires torch + the reference packages -- CI consumes the committed .npz):
-    software/nn/.venv/bin/python software/nn/scripts/testing/gen_optimizer_refs.py
+    ~/.venv/bin/python software/nn/scripts/testing/gen_optimizer_refs.py
 
 Output: software/nn/src/core/optimizers/tests/fixtures/optimizer_refs.npz
 """

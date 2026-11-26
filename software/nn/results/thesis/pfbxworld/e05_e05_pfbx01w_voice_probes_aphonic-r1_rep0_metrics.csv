@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-voice,dsnn,dependent,0,nan,nan,nan,nan,nan,0.365353,0.674768,25576.530,46.397,results/thesis/pfbxworld/models/e05_pfbx01w_voice_probes_aphonic-r1_rep0/per-fold-voice/fold_0.bin
+per-fold-voice,dsnn,dependent,1,nan,nan,nan,nan,nan,0.359016,0.697878,44191.454,71.094,results/thesis/pfbxworld/models/e05_pfbx01w_voice_probes_aphonic-r1_rep0/per-fold-voice/fold_1.bin
+per-fold-voice,dsnn,dependent,2,nan,nan,nan,nan,nan,0.287582,0.792730,47946.511,81.551,results/thesis/pfbxworld/models/e05_pfbx01w_voice_probes_aphonic-r1_rep0/per-fold-voice/fold_2.bin
+per-fold-voice,dsnn,dependent,3,nan,nan,nan,nan,nan,0.383987,0.670039,25342.915,44.459,results/thesis/pfbxworld/models/e05_pfbx01w_voice_probes_aphonic-r1_rep0/per-fold-voice/fold_3.bin
+per-fold-voice,dsnn,dependent,4,nan,nan,nan,nan,nan,0.303191,0.772411,36390.912,62.088,results/thesis/pfbxworld/models/e05_pfbx01w_voice_probes_aphonic-r1_rep0/per-fold-voice/fold_4.bin

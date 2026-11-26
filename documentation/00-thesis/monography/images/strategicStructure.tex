@@ -12,10 +12,10 @@
 			\node (hc)[processo, above=0.5cm of ae]{extração manual: DTWPT\\e agrupamento energético\\(voz: linear, Bark, Mel;\\EEG: linear)};
 			\node (pca)[processo, below=0.5cm of ae]{PCA\\sobre o espectro};
 			\node (paraco)[processo, right=2.2cm of ae]{análise paraconsistente\\($D_{\text{penalizado}}$),\\sem classificador};
-			\node (selecao)[processo, right=1.6cm of paraco]{vencedor por sinal\\e melhor extrator\\de cada família};
+			\node (selecao)[processo, right=1.6cm of paraco]{ordenação por sinal\\e por família; na\\Fase 01, refeita em\\cada dobra};
 
 			% Fase 01: autenticacao com o extrator escolhido
-			\node (classif)[processo, below=3.2cm of selecao]{autenticação por DSNN\\e controles (ANN gêmea,\\cosseno); voz, EEG,\\fusões, disfonia simulada};
+			\node (classif)[processo, below=3.2cm of selecao]{em cada dobra: extrator\\e hiperparâmetros;\\DSNN e controles (ANN\\gêmea, cosseno); voz,\\EEG, fusões, disfonia};
 			\node (resultado)[iniFim, left=2.6cm of classif]{EER,\\AUC e\\energia};
 
 			\coordinate (split) at ($(entrada.east)+(1.0,0)$);
@@ -37,6 +37,6 @@
 				\node (f00)[fase, fit=(hc)(pca)(paraco)(selecao)] {};
 				\node (f01)[fase, fit=(classif)(resultado)] {};
 			\end{scope}
-			\node[rotulo, anchor=south west] at (f00.north west) {Fase 00: seleção do extrator};
+			\node[rotulo, anchor=south west] at (f00.north west) {Fase 00: ordenação dos extratores};
 			\node[rotulo, anchor=north west] at (f01.south west) {Fase 01: autenticação};
 		\end{tikzpicture}

@@ -1,0 +1,16 @@
+feature_set,fold,candidate,label,d_penalized,chosen
+per-fold-eeg,0,0,pca,1.659428809,1
+per-fold-eeg,0,1,pca,1.76876284,0
+per-fold-eeg,0,2,pca,1.795326934,0
+per-fold-eeg,1,0,pca,1.654111897,1
+per-fold-eeg,1,1,pca,1.756940348,0
+per-fold-eeg,1,2,pca,1.789721601,0
+per-fold-eeg,2,0,pca,1.606259539,1
+per-fold-eeg,2,1,pca,1.717193162,0
+per-fold-eeg,2,2,pca,1.769181655,0
+per-fold-eeg,3,0,pca,1.666057612,1
+per-fold-eeg,3,1,pca,1.766975916,0
+per-fold-eeg,3,2,pca,1.800298322,0
+per-fold-eeg,4,0,pca,1.660078338,1
+per-fold-eeg,4,1,pca,1.761337372,0
+per-fold-eeg,4,2,pca,1.790667714,0

@@ -1,0 +1,25 @@
+classifier,source,text,folds,extractor,n_extractors,grid_point,n_grid_points
+dsnn,Voz,frases vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,256/0/1e-03/1e-04 (3/15),12
+dsnn,Voz,frases não vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,3 empatados (2/15 cada),12
+dsnn,EEG (fala pronunciada),frases vistas,15,Haar + Linear (c1) (15/15),1,256/1/1e-03/0e+00 (3/15),10
+dsnn,EEG (fala pronunciada),frases não vistas,15,Haar + Linear (c1) (15/15),1,4 empatados (2/15 cada),11
+dsnn,Fusão precoce (pronunciada),frases vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,3 empatados (2/15 cada),12
+dsnn,Fusão precoce (pronunciada),frases não vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,3 empatados (2/15 cada),12
+dsnn,Fusão tardia (pronunciada),frases vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,256/0/1e-03/1e-04 (4/15),11
+dsnn,Fusão tardia (pronunciada),frases não vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,256/0/1e-03/1e-04 (7/15),8
+ann,Voz,frases vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,256/1/1e-03/0e+00 (4/15),11
+ann,Voz,frases não vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,64/2/1e-03/1e-04 (3/15),12
+ann,EEG (fala pronunciada),frases vistas,15,Haar + Linear (c1) (15/15),1,256/2/1e-03/0e+00 (3/15),10
+ann,EEG (fala pronunciada),frases não vistas,15,Haar + Linear (c1) (15/15),1,256/2/1e-03/1e-04 (3/15),11
+ann,Fusão precoce (pronunciada),frases vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,256/1/1e-03/0e+00 (3/15),12
+ann,Fusão precoce (pronunciada),frases não vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,64/0/1e-03/0e+00 (4/15),10
+ann,Fusão tardia (pronunciada),frases vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,128/0/1e-03/0e+00 (4/15),12
+ann,Fusão tardia (pronunciada),frases não vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,256/0/1e-03/0e+00 (5/15),9
+cosine,Voz,frases vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,—,—
+cosine,Voz,frases não vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,—,—
+cosine,EEG (fala pronunciada),frases vistas,15,Haar + Linear (c1) (15/15),1,—,—
+cosine,EEG (fala pronunciada),frases não vistas,15,Haar + Linear (c1) (15/15),1,—,—
+cosine,Fusão precoce (pronunciada),frases vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,—,—
+cosine,Fusão precoce (pronunciada),frases não vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,—,—
+cosine,Fusão tardia (pronunciada),frases vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,—,—
+cosine,Fusão tardia (pronunciada),frases não vistas,15,Haar + Bark (c1) = PCA (k = 8) (6/15),5,—,—

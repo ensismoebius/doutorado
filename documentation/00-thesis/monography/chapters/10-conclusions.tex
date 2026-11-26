@@ -9,10 +9,14 @@
 		características e classificação por uma rede neural de pulsos residual
 		(\ac{DSNN}). O experimento foi organizado em duas fases:
 		\tn{p00.n.total} configurações de \textit{ranking} na Fase~00 e
-		\tn{p01.n.total} de autenticação na Fase~01, cada uma repetida três
-		vezes.
+		\tn{pf01.n.total} de autenticação na Fase~01, cada uma repetida três
+		vezes. Na Fase~01, o extrator e os hiperparâmetros do classificador
+		foram escolhidos dentro de cada dobra da validação cruzada, só com os
+		locutores de treino, por um protocolo fixado antes de qualquer resultado;
+		as \tn{p01.n.total} configurações da configuração fixa que ele substituiu
+		ficaram como comparação.
 
-		\par \textbf{A extração manual venceu a seleção paraconsistente nos três
+		\par \textbf{A extração manual venceu a ordenação paraconsistente nos três
 		sinais}, com a mesma configuração --- \textit{wavelet} Haar, os seis
 		descritores por banda em escala linear, sem etapa cepstral --- na voz, no \ac{EEG} de
 		fala pronunciada e no de fala imaginada. No \ac{EEG} a escolha é firme:
@@ -20,61 +24,78 @@
 		voz ela é frágil quanto à \textit{wavelet} (o vencedor se mantém em
 		\tn{p00.voice.stab.fold.wins} das \tn{p00.voice.stab.fold.n} dobras) e
 		firme quanto à categoria: todo extrator que vence alguma dobra dispensa a
-		etapa cepstral.
+		etapa cepstral. As escolhas feitas dentro das dobras da Fase~01 repetem
+		esse quadro: no \ac{EEG}, todas as dobras escolheram o mesmo extrator; na
+		voz, \tn{pf01.sel.voice.distinct} extratores diferentes, todos sem etapa
+		cepstral.
 
 		\par \textbf{Os extratores automatizados perdem pelo critério
-		paraconsistente e não se distinguem do manual pelo classificador.} Na Fase~00, nenhum
-		\textit{autoencoder} e nenhuma \ac{PCA} se aproximou do extrator manual.
-		Levados ao mesmo classificador, o melhor de cada família atinge \ac{EER}
-		que não se distingue do manual em nenhum dos três sinais, e no \ac{EEG}
-		de fala imaginada a \ac{PCA} com oito componentes tem o menor \ac{EER} de
-		todo o experimento ($\tn{p01.cmp.eegimag.dep.pca.eer}$). Duas
-		consequências: a \ac{PCA}, sem treino, acompanha os \textit{autoencoders}
-		nas duas medidas; e o critério paraconsistente, útil para ordenar
-		extratores de uma mesma família, não antecipou o desempenho relativo
-		entre famílias.
-
+		paraconsistente e, pelo classificador, não se distinguem
+		significativamente do manual.} Na Fase~00, nenhum \textit{autoencoder} e
+		nenhuma \ac{PCA} se aproximou do extrator manual. Levados ao mesmo
+		classificador, com o melhor de cada família escolhido em cada dobra, os
+		automatizados ficam atrás do manual na voz e no \ac{EEG} de fala
+		pronunciada; no de fala imaginada, a \ac{PCA} com oito componentes fica à
+		frente e tem o menor \ac{EER} de todo o experimento
+		($\tn{pf01.cmp.eegimag.indep.pca.eer}$, com frases não vistas). Nenhuma
+		dessas diferenças é significativa. Duas consequências: a \ac{PCA}, sem
+		treino iterativo, acompanha ou supera os \textit{autoencoders}; e o critério
+		paraconsistente, útil para ordenar extratores de uma mesma família,
+		antecipou o desempenho entre famílias em dois dos três sinais, mas não no
+		\ac{EEG} de fala imaginada, onde levou as dobras a escolher o extrator
+		manual embora a \ac{PCA} desse \ac{EER} menor.
 
 		\par \textbf{A autenticação opera acima do acaso, e longe de um uso
 		prático.} A melhor configuração da grade principal da Fase~01 ---
-		\tn{p01.best.label} ---
-		atinge $\text{EER} = \tn{p01.best.eer}$ e
-		$\text{AUC} = \tn{p01.best.auc}$. O \ac{EEG} e as fusões ficam à frente
-		da voz ($\tn{p01.voice.best.eer}$ na melhor configuração de voz), com
+		\tn{pf01.best.label} ---
+		atinge $\text{EER} = \tn{pf01.best.eer}$ e
+		$\text{AUC} = \tn{pf01.best.auc}$. O \ac{EEG} e as fusões ficam à frente
+		da voz ($\tn{pf01.grid.voice.dep.eer}$ na melhor configuração de voz), com
 		tamanho de efeito grande, mas nenhuma dessas diferenças é
 		estatisticamente significativa com \tn{base.coretto.subjects} locutores. A fusão de voz e
 		\ac{EEG} não se distingue do \ac{EEG} sozinho, e o \ac{EEG} de fala
 		imaginada não se distingue do de fala pronunciada.
 
+		\par \textbf{Escolher dentro da dobra não muda os veredictos.} Comparado
+		com a configuração fixa, que usava o extrator escolhido com todos os
+		locutores e um classificador sem ajuste, o protocolo por dobra baixa o
+		\ac{EER} da voz e eleva o da maior parte das fusões (em média
+		$\tn{pf01.vsfixed.dsnn.fusion.mean}$), e não muda o veredicto de nenhum
+		teste na base de Coretto (\autoref{sec:perfoldVsFixed}).
+
 		\par \textbf{Os resultados se repetem numa segunda base.} Executadas numa
-		única rodada na BIOMEX-DB, sem nova seleção, com os vencedores congelados e \tn{base.biomex.kept}
+		única rodada na BIOMEX-DB, com o método congelado e \tn{base.biomex.kept}
 		locutores (\autoref{sec:resultadosBiomex}), as mesmas configurações dão
-		\ac{EER} médio de $\tn{bx.mean.dsnn}$, contra $\tn{bx.coretto.mean.dsnn}$ nas
-		mesmas células da outra base, com a mesma melhor e a mesma pior célula. Das
-		conclusões que ela permite testar, cinco se repetem e duas mudam, ambas na
-		direção de um efeito que \tn{base.coretto.subjects} locutores não tinham
-		poder para detectar: a fusão tardia passa a superar a voz com
-		significância, nos dois modos de texto, e a \ac{DSNN} passa a superar o
-		cosseno direto. Nenhuma conclusão se inverte.
+		\ac{EER} médio de $\tn{pfbx.mean.dsnn}$, contra $\tn{pfbx.coretto.mean.dsnn}$
+		nas mesmas células da outra base, com a mesma pior célula. Das conclusões
+		que ela permite testar, cinco se repetem e duas mudam, ambas na direção de
+		um efeito que \tn{base.coretto.subjects} locutores não tinham poder para
+		detectar: a \ac{DSNN} passa a superar o cosseno direto, e as frases não
+		vistas passam a piorar a voz e a fusão tardia (por um teste otimista).
+		Nenhuma conclusão se inverte. Na configuração fixa, a replicação lia a
+		fusão tardia acima da voz com significância; sob o protocolo por dobra, a
+		diferença tem o mesmo sinal e não é significativa.
 
 		\par \textbf{A rede de pulsos não se justificou, nem por desempenho nem
-		por energia.} Sua gêmea não pulsante, com o mesmo grafo e os mesmos
-		pesos iniciais, atinge \ac{EER} que não se distingue do dela, e gasta de
-		$\tn{p01.energy.ratio.nj.min}$ a $\tn{p01.energy.ratio.nj.max}$ vezes
-		\emph{menos} energia por amostra na estimativa primária; em nenhuma das
-		hipóteses de custo avaliadas a rede de pulsos é a mais econômica. Um
+		por energia.} Sua gêmea não pulsante, com o mesmo grafo e a mesma busca
+		de hiperparâmetros, atinge \ac{EER} que não se distingue do dela, e gasta
+		de $\tn{pf01.energy.ratio.nj.min}$ a $\tn{pf01.energy.ratio.nj.max}$ vezes
+		\emph{menos} energia por amostra na estimativa primária, e menos sob todas
+		as hipóteses de memória; só a contagem que ignora a memória, numa fonte em
+		que as duas buscas escolheram redes de tamanhos diferentes, põe a rede de
+		pulsos abaixo da gêmea. Um
 		classificador sem rede alguma --- o cosseno direto sobre as
 		características --- fica a poucos pontos percentuais das duas redes,
 		diferença que não é significativa nesta base e passa a ser, em
-		\tn{bxsiggroup.ctrl.cosine.significant} das \tn{bx.cells} células, na
+		\tn{pfbxsiggroup.ctrl.cosine.significant} das \tn{pfbx.cells} células, na
 		BIOMEX-DB; a rede de pulsos e a gêmea continuam indistinguíveis lá. A maior parte do desempenho
 		medido vem do extrator e da padronização das características, sem a qual
 		o \ac{EEG} e as fusões ficam perto do acaso.
 
-		\par \textbf{Sob disfonia simulada, a voz piora e as fusões se mantêm},
+		\par \textbf{Sob disfonia simulada, a voz piora e as fusões pioram menos},
 		que é o comportamento que motivou o trabalho. A evidência é fraca: a
-		piora da voz não é significativa, as fusões se mantêm porque já dependiam
-		pouco da voz, e o sussurro sintético modela apenas a perda de
+		piora da voz não é significativa, as fusões se mantêm melhor porque já
+		dependiam pouco da voz, e o sussurro sintético modela apenas a perda de
 		periodicidade. As edições da fonte pelo vocoder WORLD, que cobrem a
 		rugosidade, o tremor e as quebras de sonoridade, mudam a margem de
 		verificação por locução na base de Coretto além do que a própria
@@ -83,20 +104,22 @@
 		(\autoref{sec:resultadosWorld}). Um teste posterior não sustenta que esse resultado nulo
 		seja um efeito de piso, e ele continua sem explicação.
 
-		\par \textbf{Ver ou não a frase no treino muda pouco}: o \ac{EER} médio
-		passa de $\tn{p01.text.mean.seen}$ (frases vistas) a
-		$\tn{p01.text.mean.unseen}$ (frases não vistas), sem diferença
-		significativa em nenhuma fonte.
+		\par \textbf{Ver ou não a frase no treino muda pouco}: na base de
+		Coretto, o \ac{EER} médio passa de $\tn{pf01.text.mean.seen}$ (frases
+		vistas) a $\tn{pf01.text.mean.unseen}$ (frases não vistas), sem diferença
+		significativa em nenhuma fonte; na BIOMEX-DB, as frases não vistas pioram
+		significativamente a voz e a fusão tardia.
 
 		\par \textbf{As hipóteses do \autoref{chap:intro}.} A hipótese principal
 		--- o \ac{EEG} mantém a autenticação quando a voz de teste se degrada ---
 		é apoiada apenas na direção dos resultados: sob disfonia simulada, a voz
-		piora e as fusões se mantêm, mas nenhuma das diferenças é significativa.
+		piora e as fusões pioram menos, mas nenhuma das diferenças é significativa.
 		Na grade WORLD, nem o \ac{EER} da voz muda: nesses perfis não há
 		degradação que o \ac{EEG} precise compensar, e a hipótese fica sem teste.
-		A primeira hipótese secundária não se confirmou: o critério
-		paraconsistente ordena extratores de uma mesma família, mas não antecipou
-		o desempenho entre famílias. A segunda foi refutada nesta tarefa: a rede
+		A primeira hipótese secundária se confirmou só em parte: o critério
+		paraconsistente ordena extratores de uma mesma família, e antecipou o
+		desempenho entre famílias na voz e no \ac{EEG} de fala pronunciada, mas
+		não no de fala imaginada. A segunda foi refutada nesta tarefa: a rede
 		de pulsos não se distingue da gêmea não pulsante no erro e gasta mais
 		energia.
 
@@ -124,7 +147,17 @@
 			subconjuntos de locutores --- os que deixam um locutor de fora e os
 			conjuntos de treino de cada dobra da etapa seguinte --- mostra o quanto
 			a escolha depende dos locutores observados e expõe o viés de selecionar
-			o extrator com os mesmos locutores usados depois no teste.
+			o extrator com os mesmos locutores usados depois no teste. Foi essa
+			medida que levou ao protocolo do item seguinte.
+
+			\item \textbf{Um protocolo em que nenhuma escolha vê os locutores de
+			teste} (\autoref{sec:fase01}). O extrator --- inclusive o ajuste dos
+			\textit{autoencoders} e da \ac{PCA} --- e os hiperparâmetros do
+			classificador são escolhidos dentro de cada dobra, só com os locutores
+			de treino; a regra foi fixada antes de qualquer resultado, as escolhas
+			de cada dobra são relatadas, e a configuração fixa que ele substituiu é
+			mantida como comparação. A replicação na segunda base congela o método,
+			e não as escolhas.
 
 			\item \textbf{Um protocolo com controles que isolam o que cada
 			componente acrescenta}: a rede gêmea não pulsante, que difere da
@@ -186,9 +219,12 @@
 			perceptivos: nenhum ouvinte os avaliou. A ressíntese do WORLD, sozinha,
 			já afasta a voz do seu locutor, e cada nível só pode ser lido contra
 			ela. Nenhum locutor disfônico foi avaliado;
-			\item \textbf{O extrator é escolhido com todos os locutores}, inclusive
-			os de teste da Fase~01. O viés é nulo no \ac{EEG}, onde a escolha é a
-			mesma em todas as dobras, e existe na voz;
+			\item \textbf{A margem de verificação da grade WORLD usa o extrator
+			escolhido na base inteira.} A margem é por locução e precisa de um
+			único extrator para todas as dobras, que uma configuração por dobra não
+			tem; a pergunta confirmatória dessa grade é, por isso, sobre a
+			representação vencedora, e o seu \ac{EER} é o que mede o sistema
+			montado em cada dobra;
 			\item \textbf{A energia é estimada}, por um modelo analítico em
 			tecnologia de 45\,nm, e cobre apenas o classificador. Nenhum
 			\textit{hardware} neuromórfico foi avaliado, e o custo do extrator de
@@ -207,10 +243,12 @@
 			\item \textbf{O vocabulário é pequeno}: onze enunciados, entre vogais e
 			palavras isoladas. ``Frases não vistas'' significa outros itens desse
 			mesmo vocabulário;
-			\item \textbf{Os hiperparâmetros não foram ajustados.} A arquitetura e
-			o treino do classificador são os mesmos em todas as configurações, sem
-			regularização. Os resultados descrevem essa configuração, e não o
-			melhor que cada família de modelo poderia atingir.
+			\item \textbf{A busca de hiperparâmetros é compacta.} São 36 pontos
+			(largura, blocos residuais, taxa de aprendizado e decaimento de peso),
+			com $T = 16$ fixo para a rede de pulsos e uma validação interna de 3
+			locutores; as escolhas variam de dobra para dobra
+			(\autoref{sec:perfoldEscolhas}). Os resultados descrevem o melhor de
+			cada família nessa grade, e não o melhor que ela poderia atingir.
 		\end{itemize}
 
 	\section{Trabalhos futuros}
@@ -261,7 +299,7 @@
 			variantes do critério que considerem as características em conjunto, e
 			não uma a uma;
 
-			\item \textbf{Levar o \ac{SNN}-AE ao classificador} (usar o seu latente como vetor de características da Fase~01, o que esta tese não fez) e ajustar orçamento
+			\item \textbf{Levar o \ac{SNN}-AE ao classificador de forma sistemática} (nas dobras da comparação de extratores ele foi escolhido em \tn{pf01.cmp.ae.snn} de \tn{pf01.cmp.ae.folds} vezes, pouco para uma conclusão própria) e ajustar orçamento
 			de treino e capacidade dos \textit{autoencoders}, para decidir se algum
 			modelo não linear supera a \ac{PCA} sobre a mesma entrada.
 		\end{enumerate}

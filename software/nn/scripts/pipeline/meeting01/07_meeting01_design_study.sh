@@ -40,7 +40,7 @@ if [[ "$RESUME" != "1" && -d "$OUT_ROOT" && -n "$(ls -A "$OUT_ROOT")" ]]; then
   echo "REFUSED: $OUT_ROOT is not empty. Move it aside first, or continue it with RESUME=1." >&2
   exit 1
 fi
-PY="$ROOT_DIR/.venv/bin/python3"
+PY="$HOME/.venv/bin/python3"
 [[ -x "$PY" ]] || { echo "REFUSED: $PY is missing (the twin needs the venv's torch)" >&2; exit 1; }
 # shellcheck source=./_provenance.sh
 source "$ROOT_DIR/$SCRIPTS/_provenance.sh"

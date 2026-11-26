@@ -2,6 +2,108 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-26 — pfbxworld results; the thesis text quotes the per-fold protocol
+
+### Results
+
+- `pfbxworld` (job 5345820): 270/270 units, mean 11.3 h, max 13.9 h, ~3 063 CPU·h, peak 9.3 GB.
+  `08_thesis_world_analysis.py --protocol per-fold --bases coretto2017,biomex2021`: WORLD Part B
+  on BIOMEX-DB 0 of 84 significant (c058f4978).
+
+### Thesis text (`documentation/00-thesis/monography/`)
+
+- `thesis_build_text_numbers.py` reads both protocols: new required `--perfold-*` and
+  `--pfbiomex-*` arguments; keys `pf01.*`, `pfsig.*`, `pfbx.*`, `pfbxsig.*`, `world.pf.*`,
+  the stability of the folds' choices (`*.sel.*`) and per-fold minus fixed EER
+  (`pf01.vsfixed.*`); claims of sentences that left the text removed, per-fold claims added
+  (79 hold); `TextNumbersPerFold` tests (ea4a03cb9).
+- Ch. 8-9: the per-fold protocol is the method and the primary result; new sections on what
+  the folds chose and on the comparison with the fixed configuration (which keeps the
+  CV-scheme and standardization ablations); BIOMEX-DB replication freezes the method, not
+  the choices; Phase 01 flowchart, listing and pipeline figures redrawn (19ae511f2).
+- Ch. 10, both abstracts, the ch. 7 state-of-the-art rows and appendix B on the per-fold
+  numbers; `issues.md` item 5 resolved (77b73d98f).
+- Fourth independent read of the whole PDF (`opencode/big-pickle`, 9 chunks): 18 corrections
+  checked against the sources, the tables and the code. Statements the data contradicted: the
+  EEG beats the voice only with the handcrafted extractor and standardized features; the
+  folds' unanimous EEG choice covers the grid and controls, not the AE/PCA comparison arms; the
+  handcrafted-vs-automated gap is 8.7-10.1 times the winner's sigma_loc (keys
+  `p00.gapratio.min|max`); the BPTT listing's gradient of W lacked the output term; decoupled
+  weight decay is not equivalent to L2 under Adam; the latency bound applies to the spike
+  instant, not to the frame mean. 4 new claims (83 hold). Record in `issues.md`.
+- Findings that changed: on Coretto no verdict; against the fixed configuration the voice
+  EER falls and 7 of 8 fusion cells rise; the handcrafted extractor is ahead on voice and
+  overt-speech EEG, PCA on imagined-speech EEG (lowest EER, unseen phrases); on BIOMEX-DB
+  late fusion vs voice is no longer significant and unseen phrases significantly worsen
+  voice and late fusion (Mann-Whitney, optimistic).
+- `monografia.pdf` regenerated.
+
+## 2026-11-19/25 — per-fold runs, tables and tests; thesis job monitor
+
+### Results (`results/thesis/`, committed with the fold models)
+
+- `perfold` (job 5331068, 300/300 units): no declared significance family changes its verdict
+  against the fixed configuration; EEG chose the fixed winner in every fold, voice chose 8
+  distinct extractors over 15 folds (f619bf648).
+- `pfbiomex` (jobs 5335100 + 5338456, 144/144): four families change verdict (c1e4ecf1e).
+- `pfworld` (job 5345042, 150/150): Part B (EER) 0 of 140 tests significant, as with the fixed
+  configuration (657f8da3c).
+- `pfbxworld` (job 5345820, 270/270, 2026-11-26): Part B on BIOMEX-DB 0 of 84 significant (min
+  p_holm 0.716), as with the fixed configuration (c058f4978).
+
+### Analysis scripts (`scripts/pipeline/thesis/`)
+
+- `thesis_build_phase01_auth_tables.py` and `thesis_build_biomex_tables.py` take a required
+  `--protocol fixed|per-fold`; per-fold writes `perfold_*.csv` (adds `_selection` and
+  `_vs_fixed`) and `pfbiomex_*.csv`; the fixed tables are byte-identical (f619bf648, c1e4ecf1e).
+- `10_thesis_perfold_significance.sh`, `11_thesis_pfbiomex_significance.sh`: the declared
+  families of `03_`/`04_` on the per-fold names; `thesis_cross_profile_significance.py` pairs a
+  per-fold profile on its flat outer folds.
+- `08_thesis_world_analysis.py --protocol per-fold --bases ...`: Part B only (a profile has no
+  single extractor for the margin); writes `world_eer_perfold.csv`, `sig_pf*world_*.csv`.
+- `thesis_grid_status.py` + `thesis_grid_watch.sh`: one ssh session, per job units done/failed
+  and a job bar counting folds, per task folds, bar, measured pace per fold, time left, memory
+  and limit warnings; markers from another deploy are flagged (de979e3d5, d576a52cd, e30d1e903,
+  50cb794f9).
+- `thesis_gridunesp.sbatch`: `--mem=16G` (pfbiomex degraded-voice units peaked at 9.3 GB and were
+  killed at 8 GB, 423acdf4a); pfbxworld documented as `--array=0-269`, one unit per task (a unit
+  takes ~11 h, 93a8a4739).
+
+### Documentation
+
+- Measured per-phase costs (Running Thesis Profiles), the per-fold branch of the results-to-text
+  chain (Thesis Document), the thesis rules of the GridUnesp guide (cache warm-up, no redeploy
+  mid-campaign, 16 GB, the monitor), the protocol page's status, the Home index.
+
+## 2026-11-18/19 — per-fold protocol; feature cache
+
+### Thesis experiment (`src/experiments/thesis/`)
+
+- Per-fold protocol (pre-registered in `.wiki/Experiments/Thesis-Per-Fold-Protocol.md`), inside
+  the binary: a profile's `selection` block makes every outer fold rank the Phase 00 candidates
+  by $D_{pen}$ on its own training speakers, search a 36-point classifier grid with an inner
+  4-fold split, refit the winner and score the test speakers once (`ThesisPerFold.{hpp,cpp}`;
+  c98d187d8, bed1f603d). Outputs: `"protocol"` in the summary, `fold_models[f].selection`,
+  `e05_<tag>_selection_{extractors,grid}.csv`.
+- New profile directories `perfold/` (100), `pfbiomex/` (48), `pfworld/` (150), `pfbxworld/` (90);
+  every fixed-configuration profile now declares `"selection": {"enabled": false}`.
+- `FeatureDiskCache` and `thesis --warm-feature-cache` (271cbb5b1): the handcrafted candidates of
+  each data view are computed once and read by every per-fold unit; key = revision + data
+  fingerprint + signal + extractor block, checksummed, atomic writes; a miss in read mode stops.
+
+### Cluster scripts
+
+- `thesis_gridunesp.sbatch`: phases `perfold`, `pfbiomex`, `pfworld`, `pfbxworld` (read the
+  cache), `THESIS_UNITS` for a trial run of named units (74b805873).
+- `thesis_warm_feature_cache.sbatch`: the warm array, 11 data views.
+- First runs: timed debug units (2026-11-18, deploy 74b80587), warm array 5331039 and `perfold`
+  array 5331068 (2026-11-19).
+
+### Documentation
+
+- Running Thesis Profiles § 10 and § Feature cache, Re-run Runbook, the thesis README, the
+  scripts README and How-To-Change-Anything describe how to run and change the per-fold protocol.
+
 ## 2026-11-17 — full read of the thesis; WORLD grid results; floor test
 
 ### Thesis text (`documentation/00-thesis/monography/`)

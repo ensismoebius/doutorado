@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-eeg,ann,independent,0,nan,nan,nan,nan,nan,0.263889,0.835214,3558.955,3.655,results/thesis/pfbiomex/models/e05_pfbx01_ann_eegpron_indep_rep2/per-fold-eeg/fold_0.bin
+per-fold-eeg,ann,independent,1,nan,nan,nan,nan,nan,0.244048,0.854750,14436.630,7.213,results/thesis/pfbiomex/models/e05_pfbx01_ann_eegpron_indep_rep2/per-fold-eeg/fold_1.bin
+per-fold-eeg,ann,independent,2,nan,nan,nan,nan,nan,0.274405,0.814342,14051.024,7.435,results/thesis/pfbiomex/models/e05_pfbx01_ann_eegpron_indep_rep2/per-fold-eeg/fold_2.bin
+per-fold-eeg,ann,independent,3,nan,nan,nan,nan,nan,0.406349,0.640452,4957.300,4.446,results/thesis/pfbiomex/models/e05_pfbx01_ann_eegpron_indep_rep2/per-fold-eeg/fold_3.bin
+per-fold-eeg,ann,independent,4,nan,nan,nan,nan,nan,0.182540,0.880816,13802.002,7.682,results/thesis/pfbiomex/models/e05_pfbx01_ann_eegpron_indep_rep2/per-fold-eeg/fold_4.bin

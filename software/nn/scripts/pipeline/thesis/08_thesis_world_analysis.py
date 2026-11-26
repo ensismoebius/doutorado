@@ -41,12 +41,26 @@ replicates; no EER comparison of Part B is significant. The "exploratory" block 
 world_margin.json (each base's clean margin, and control minus clean, the powered test's measure
 on both bases) was added after that result and changes nothing in it.
 
+THE PER-FOLD PROTOCOL (--protocol per-fold; .wiki/Experiments/Thesis-Per-Fold-Protocol.md).
+    The grid ran again as pfworld/pf01w_* and pfbxworld/pfbx01w_*, each fold choosing its own
+    extractor and classifier hyperparameters. Only Part B exists there: Part A reads one
+    feature vector per utterance from thesis_features, which has one extractor per profile, not
+    one per fold, so it is a property of the fixed extractor and does not change with the
+    protocol. Part B under per-fold is the same rule on the per-fold names, written to
+    world_eer_perfold.csv. --bases names the bases to read (both, or one while the other base's
+    phase is still running); a base not named is not in the file, and the file says which are.
+
 Run from software/nn, after the grid and the feature runs:
-    python3 scripts/pipeline/thesis/08_thesis_world_analysis.py \\
+    python3 scripts/pipeline/thesis/08_thesis_world_analysis.py --protocol fixed \\
         --features results/thesis/world_margin \\
         --profiles-root src/experiments/thesis/profiles --results-root results/thesis \\
         --out results/thesis/world_analysis
-Writes <out>/world_margin.json (Part A) and <out>/world_eer.csv (Part B).
+    python3 scripts/pipeline/thesis/08_thesis_world_analysis.py --protocol per-fold \\
+        --bases coretto2017,biomex2021 \\
+        --profiles-root src/experiments/thesis/profiles --results-root results/thesis \\
+        --out results/thesis/world_analysis
+Writes <out>/world_margin.json (Part A) and <out>/world_eer.csv (Part B), or, per-fold,
+<out>/world_eer_perfold.csv (Part B).
 """
 from __future__ import annotations
 
@@ -70,6 +84,8 @@ LEVELS = ["rough-j05", "rough-j1", "rough-j2", "rough-j4", "rough-j7",
 BASES = {"coretto2017": ("world", "p01w", ("voice", "earlypron", "earlyimag", "latepron",
                                             "lateimag")),
          "biomex2021": ("bxworld", "bx01w", ("voice", "earlypron", "latepron"))}
+PER_FOLD_BASES = {"coretto2017": ("pfworld", "pf01w", BASES["coretto2017"][2]),
+                  "biomex2021": ("pfbxworld", "pfbx01w", BASES["biomex2021"][2])}
 SCOPES = ("probes", "test")
 ALPHA = 0.05
 
@@ -209,10 +225,10 @@ def margin_part(features: pathlib.Path) -> dict:
 # ── Part B ──────────────────────────────────────────────────────────────────────────────────
 
 def eer_part(profiles_root: pathlib.Path, results_root: pathlib.Path,
-             scratch: pathlib.Path) -> list[dict]:
+             scratch: pathlib.Path, bases: dict) -> list[dict]:
     sig = HERE / "thesis_cross_profile_significance.py"
     rows = []
-    for base, (phase, prefix, sources) in BASES.items():
+    for base, (phase, prefix, sources) in bases.items():
         for src in sources:
             family = []
             for scope in SCOPES:
@@ -249,7 +265,10 @@ def eer_part(profiles_root: pathlib.Path, results_root: pathlib.Path,
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--features", required=True, help="the thesis_features output directory")
+    ap.add_argument("--protocol", required=True, choices=["fixed", "per-fold"])
+    ap.add_argument("--features", help="fixed only, required there: the thesis_features output")
+    ap.add_argument("--bases", help="per-fold only, required there: comma-separated, from "
+                                    + ", ".join(PER_FOLD_BASES))
     ap.add_argument("--profiles-root", required=True)
     ap.add_argument("--results-root", required=True)
     ap.add_argument("--out", required=True)
@@ -257,10 +276,34 @@ def main() -> int:
     out = pathlib.Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
+    if args.protocol == "per-fold":
+        if args.features is not None:
+            fail("--features belongs to --protocol fixed: Part A does not depend on the protocol")
+        if not args.bases:
+            fail("--protocol per-fold needs --bases (" + ", ".join(PER_FOLD_BASES) + ")")
+        names = args.bases.split(",")
+        unknown = [b for b in names if b not in PER_FOLD_BASES]
+        if unknown or len(set(names)) != len(names):
+            fail(f"--bases {args.bases!r}: each of {sorted(PER_FOLD_BASES)} at most once")
+        bases = {b: PER_FOLD_BASES[b] for b in names}
+        eer = eer_part(pathlib.Path(args.profiles_root), pathlib.Path(args.results_root), out,
+                       bases)
+        path = out / "world_eer_perfold.csv"
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=list(eer[0]))
+            w.writeheader()
+            w.writerows(eer)
+        sig = sum(r["significant"] for r in eer)
+        print(f"[world-analysis] per-fold, bases {', '.join(names)}: {len(eer)} EER comparisons, "
+              f"{sig} significant (Holm per base and source) -> {path}")
+        return 0
+    if args.features is None or args.bases is not None:
+        fail("--protocol fixed needs --features and takes no --bases (it reads both bases)")
+
     margin = margin_part(pathlib.Path(args.features))
     with open(out / "world_margin.json", "w", encoding="utf-8") as f:
         json.dump(margin, f, indent=1)
-    eer = eer_part(pathlib.Path(args.profiles_root), pathlib.Path(args.results_root), out)
+    eer = eer_part(pathlib.Path(args.profiles_root), pathlib.Path(args.results_root), out, BASES)
     with open(out / "world_eer.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(eer[0]))
         w.writeheader()

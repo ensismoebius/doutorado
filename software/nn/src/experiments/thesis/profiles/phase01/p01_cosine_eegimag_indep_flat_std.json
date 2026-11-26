@@ -40,9 +40,12 @@
     "text_mode": "independent",
     "enabled": true
   },
+  "selection": {
+    "enabled": false
+  },
   "training": {
     "k_folds": 5,
-    "nested_cv": false,
-    "standardize_features": true
+    "standardize_features": true,
+    "nested_cv": false
   }
 }

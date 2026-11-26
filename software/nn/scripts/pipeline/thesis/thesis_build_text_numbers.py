@@ -32,6 +32,7 @@ The keys (printed with --list):
     p00.<signal>.ae.beta.min|max, .pca.beta.min|max
     p00.<signal>.enc.<direct|latency|poisson>.mean|best
     p00.n.<signal>, p00.n.total             profile counts
+    p00.gapratio.min|max                    (best automated dpen - winner dpen) / winner sigma_loc
     p01.grid.<source>.<text>.<cv>.<std>.<m> the DSNN grid; m eer|eersd|auc|aucsd|rank
     p01.ann.<source>.<text>.<m>, p01.cosine.<source>.<text>.<m>
     p01.dysph.<source>.<scope>.<level>.eer  whisper level 25|50|75|100 (level 0 = the grid cell)
@@ -57,6 +58,19 @@ The keys (printed with --list):
                                             the shimmer ceiling, the calibrated levels
     pilot.*                                 the identity pilot verdict (06_thesis_identity_pilot.py):
                                             per classifier and scope, mean dEER, interval, verdict
+    pf01.<as p01, without the cv/std axes>  the PER-FOLD protocol on Coretto (profiles/perfold, the
+                                            primary result): pf01.grid.<source>.<text>.<m>,
+                                            pf01.ann|cosine|dysph|cmp|energy|text|ctrl.*
+    pf01.sel.<voice|eeg>.*, pf01.sel.grid.* how stable the folds' choices are (extractors and grid
+                                            points chosen over the 15 folds of a cell)
+    pf01.vsfixed.<clf>.<source>.<text>.diff per-fold minus fixed EER (the fixed cell it mirrors),
+                                            and per-group summaries (voice, eeg, fusion)
+    pfsig.*, pfsiggroup.*                   its declared tests (10_thesis_perfold_significance.sh)
+    pfbx.*, pfbxsig.*, pfbxsiggroup.*       BIOMEX-DB under the per-fold protocol (profiles/pfbiomex),
+                                            compared with the Coretto per-fold cells
+                                            (11_thesis_pfbiomex_significance.sh)
+    world.pf.<co|bx>.eer.*                  WORLD Part B (EER) under the per-fold protocol
+                                            (world_eer_perfold.csv); Part A has no per-fold version
 
 The sentences, not only the numbers. A number that follows the data is not enough: "the
 same extractor wins on the three signals" has no number in it, and a re-run can make it
@@ -78,6 +92,10 @@ Usage:
         --base-facts results/thesis/base_facts.csv \\
         --biomex-profiles src/experiments/thesis/profiles/biomex \\
         --biomex-results results/thesis/biomex \\
+        --perfold-profiles src/experiments/thesis/profiles/perfold \\
+        --perfold-results results/thesis/perfold \\
+        --pfbiomex-profiles src/experiments/thesis/profiles/pfbiomex \\
+        --pfbiomex-results results/thesis/pfbiomex \\
         --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \\
         --identity-pilot results/thesis/pilot/pilot_verdict.json \\
         --identity-margin results/thesis/identity_margin/identity_margin_verdict.json \\
@@ -191,6 +209,7 @@ def phase00(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
         n.count(f"{prefix}.wins", row["fold_wins"])
 
     total = 0
+    gap_ratios = []
     for s in SIGNALS:
         every = []
         for fam in FAMILIES:
@@ -213,6 +232,12 @@ def phase00(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
         # The extractor with the smallest UNPENALIZED distance: it differs from the winner
         # when the penalty on contradiction decides the selection.
         cells(f"p00.{s}.mind", min(every, key=lambda r: r["mean_d_truth"]))
+        # The gap from the winner to the best automated extractor (AE or PCA), in units of the
+        # winner's sigma_loc: ch9 quotes its range over the three signals.
+        auto = min((tables[f"{fam}_{s}"][0] for fam in ("ae", "pca")),
+                   key=lambda r: r["mean_d_penalized"])
+        gap_ratios.append((auto["mean_d_penalized"] - ranked[0]["mean_d_penalized"])
+                          / ranked[0]["loso_sd"])
 
         # Winner stability over the speaker subsets (the subsets every profile scored).
         for kind in ("fold", "loso"):
@@ -287,10 +312,12 @@ def phase00(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
     bests = [float(n.values[f"p00.voice.scale.{x}.best"][1]) for x in ("linear", "mel", "bark")]
     n.num("p00.voice.scale.spread", max(bests) - min(bests))
     n.count("p00.n.total", total)
+    n.num("p00.gapratio.min", min(gap_ratios), digits=1)
+    n.num("p00.gapratio.max", max(gap_ratios), digits=1)
 
 
 def phase01(n: Numbers, profiles: pathlib.Path, results: pathlib.Path) -> None:
-    sets = P01.collect(profiles, results)
+    sets = P01.collect(profiles, results, "fixed")
 
     def metrics(prefix: str, run: dict) -> None:
         n.num(f"{prefix}.eer", run["mean_eer"])
@@ -496,8 +523,8 @@ def biomex(n: Numbers, profiles: pathlib.Path, results: pathlib.Path,
            co_profiles: pathlib.Path, co_results: pathlib.Path) -> None:
     """The BIOMEX-DB replication: bx.<kind>.<source>.<text>.<m>, its comparison with the same
     Coretto cell (bx.vs.*), and its significance families (bxsig.*, bxsiggroup.*)."""
-    sets = BX.collect(profiles, results)
-    co = P01.collect(co_profiles, co_results)
+    sets = BX.collect(profiles, results, "fixed")
+    co = P01.collect(co_profiles, co_results, "fixed")
 
     def metrics(prefix: str, run: dict) -> None:
         n.num(f"{prefix}.eer", run["mean_eer"])
@@ -549,6 +576,280 @@ def biomex(n: Numbers, profiles: pathlib.Path, results: pathlib.Path,
     significance(n, results, sig="bxsig", group_key="bxsiggroup", tag="bx01",
                  splits=(("ctrl", ("ann", "cosine")),),
                  script="04_thesis_biomex_significance.sh")
+
+
+VOICE_BASED = ("voice", "earlypron", "earlyimag", "latepron", "lateimag")   # use the voice extractor
+EEG_SIGNALS = ("eegpron", "eegimag")
+
+
+def selection_summary(n: Numbers, prefix: str, sets: dict) -> None:
+    """How stable the per-fold choices are (protocol §2: reported, not hidden), over the DSNN,
+    ANN and cosine cells: <prefix>.sel.<voice|eeg>.extractors.min|max (distinct extractors the
+    15 folds of one cell chose), .mode.label (the most-chosen extractor, when every cell of the
+    group agrees on it) and .mode.folds.min|max (how many folds chose it); .sel.voice.c1only
+    (1 if every extractor any voice-based fold chose is a non-cepstral handcrafted one);
+    .sel.grid.points.min|max (distinct grid points over the 15 folds of a network cell)."""
+    cells = [(k, r) for kind in ("grid", "ann", "cosine") for k, r in sets[kind].items()]
+    groups = {"voice": [r for k, r in cells if k[0] in VOICE_BASED],
+              "eeg": [r for k, r in cells if k[0] in EEG_SIGNALS]}
+    for group, runs in groups.items():
+        if not runs:
+            fail(f"{prefix}: no {group} cell to summarize the per-fold choices of")
+        distinct = [len({c["extractor"] for c in r["choices"]}) for r in runs]
+        n.count(f"{prefix}.sel.{group}.extractors.min", min(distinct))
+        n.count(f"{prefix}.sel.{group}.extractors.max", max(distinct))
+        modes, tops = set(), []
+        for r in runs:
+            counts: dict[str, int] = {}
+            for c in r["choices"]:
+                counts[c["extractor"]] = counts.get(c["extractor"], 0) + 1
+            top = max(counts.values())
+            modes |= {e for e, k in counts.items() if k == top}
+            tops.append(top)
+        if len(modes) == 1:
+            n.text(f"{prefix}.sel.{group}.mode.label", modes.pop())
+        n.count(f"{prefix}.sel.{group}.mode.folds.min", min(tops))
+        n.count(f"{prefix}.sel.{group}.mode.folds.max", max(tops))
+        n.count(f"{prefix}.sel.{group}.folds", len(runs[0]["choices"]))
+    chosen = {c["extractor"] for r in groups["voice"] for c in r["choices"]}
+    n.count(f"{prefix}.sel.voice.distinct", len(chosen))
+    n.count(f"{prefix}.sel.voice.c1only", int(all(e.endswith("(c1)") for e in chosen)))
+    points = [len({c["grid"] for c in r["choices"]}) for kind in ("grid", "ann")
+              for r in sets[kind].values()]
+    n.count(f"{prefix}.sel.grid.points.min", min(points))
+    n.count(f"{prefix}.sel.grid.points.max", max(points))
+
+
+def perfold(n: Numbers, profiles: pathlib.Path, results: pathlib.Path,
+            fixed_profiles: pathlib.Path, fixed_results: pathlib.Path) -> dict:
+    """The per-fold protocol on Coretto (profiles/perfold, the primary result): pf01.* with the
+    layout of p01.* minus the CV and standardization axes (one cell per source and text mode),
+    the stability of the choices (pf01.sel.*) and the comparison with the fixed configuration
+    (pf01.vsfixed.*, against the flat, standardized fixed cell it mirrors). Returns the sets
+    (pfbiomex compares with them)."""
+    sets = P01.with_protocol(P01.collect(profiles, results, "per-fold"), "per-fold")
+    fixed = P01.with_protocol(P01.collect(fixed_profiles, fixed_results, "fixed"), "fixed")
+    kinds = [k for k in sets if k != "protocol"]
+
+    def metrics(prefix: str, run: dict) -> None:
+        n.num(f"{prefix}.eer", run["mean_eer"])
+        n.num(f"{prefix}.auc", run["mean_auc"])
+        n.num(f"{prefix}.eersd", run["std_eer"])
+        n.num(f"{prefix}.aucsd", run["std_auc"])
+
+    grid = sets["grid"]
+    sources = P01.SOURCE_ORDER
+    cells = [(s, t) for s in sources for t in ("dep", "indep")]
+    if sorted(grid) != sorted(cells):
+        fail(f"per-fold grid cells {sorted(grid)} are not the {len(cells)} (source, text) cells")
+    order = sorted(cells, key=lambda k: grid[k]["mean_eer"])
+    for rank, key in enumerate(order, start=1):
+        metrics("pf01.grid." + ".".join(key), grid[key])
+        n.count("pf01.grid." + ".".join(key) + ".rank", rank)
+    for kind in ("ann", "cosine"):
+        for key, run in sets[kind].items():
+            metrics(f"pf01.{kind}." + ".".join(key), run)
+    for (src, scope, level), run in sets["dysph"].items():
+        metrics(f"pf01.dysph.{src}.{scope}.{level}", run)
+    for (src, text, fam), run in sets["cmp"].items():
+        metrics(f"pf01.cmp.{src}.{text}.{fam}", run)
+    for kind in kinds:
+        n.count(f"pf01.n.{kind}", len(sets[kind]))
+    n.count("pf01.n.total", sum(len(sets[k]) for k in kinds))
+    n.count("pf01.n.units", sum(r["n_reps"] for k in kinds for r in sets[k].values()))
+    n.count("pf01.cells", len(cells))
+    every = [(k, key, r) for k in kinds for key, r in sets[k].items()]
+    low = min(every, key=lambda e: e[2]["mean_eer"])
+    n.num("pf01.min.eer", low[2]["mean_eer"])
+
+    best = order[0]
+    n.text("pf01.best.label", f"{P01.SOURCE_LABELS[best[0]]}, {P01.TEXT_LABELS[best[1]]}")
+    metrics("pf01.best", grid[best])
+    voice = [k for k in order if k[0] == "voice"]
+    n.count("pf01.voice.first_rank", order.index(voice[0]) + 1)
+
+    def mean_eer(table: dict, keys) -> float:
+        return statistics.mean(table[k]["mean_eer"] for k in keys)
+
+    # Seen against unseen phrases, per source.
+    n.count("pf01.text.sources", len(sources))
+    n.count("pf01.text.seen_better", sum(1 for s in sources
+                                         if grid[(s, "dep")]["mean_eer"] < grid[(s, "indep")]["mean_eer"]))
+    n.num("pf01.text.mean.seen", mean_eer(grid, ((s, "dep") for s in sources)))
+    n.num("pf01.text.mean.unseen", mean_eer(grid, ((s, "indep") for s in sources)))
+    deltas = [grid[(s, "indep")]["mean_eer"] - grid[(s, "dep")]["mean_eer"] for s in sources]
+    n.num("pf01.text.delta.min", min(deltas))
+    n.num("pf01.text.delta.max", max(deltas))
+
+    # Controls: the DSNN against its twin (same search) and against no network.
+    n.count("pf01.ctrl.dsnn_better_ann", sum(1 for c in cells
+                                             if grid[c]["mean_eer"] < sets["ann"][c]["mean_eer"]))
+    n.count("pf01.ctrl.dsnn_better_cosine", sum(1 for c in cells
+                                                if grid[c]["mean_eer"] < sets["cosine"][c]["mean_eer"]))
+    diffs = [grid[c]["mean_eer"] - sets["ann"][c]["mean_eer"] for c in cells]
+    n.num("pf01.ctrl.dsnn_minus_ann.min", min(diffs))
+    n.num("pf01.ctrl.dsnn_minus_ann.max", max(diffs))
+    n.num("pf01.ctrl.dsnn_minus_ann.mean", statistics.mean(diffs))
+    for kind, table in (("dsnn", grid), ("ann", sets["ann"]), ("cosine", sets["cosine"])):
+        n.num(f"pf01.ctrl.mean.{kind}", mean_eer(table, cells))
+
+    # Energy (nJ per test sample, mean over the folds' chosen networks), DSNN/ANN per check.
+    ratios: dict[str, list[float]] = {k: [] for k, _ in P01.ENERGY_CHECKS}
+    for s in sources:
+        d, a = grid[(s, "dep")]["energy"], sets["ann"][(s, "dep")]["energy"]
+        n.num(f"pf01.energy.{s}.dsnn.nj", d["nj"], 0)
+        n.num(f"pf01.energy.{s}.ann.nj", a["nj"], 0)
+        n.num(f"pf01.energy.{s}.spikes", d["spikes"], 0)
+        for k, _ in P01.ENERGY_CHECKS:
+            ratios[k].append(d[k] / a[k])
+            n.num(f"pf01.energy.{s}.ratio.{k}", d[k] / a[k], 2)
+    for k, vals in ratios.items():
+        n.num(f"pf01.energy.ratio.{k}.min", min(vals), 2)
+        n.num(f"pf01.energy.ratio.{k}.max", max(vals), 2)
+    flat = [r for vals in ratios.values() for r in vals]
+    n.num("pf01.energy.ratio.all.min", min(flat), 2)
+    n.num("pf01.energy.ratio.all.max", max(flat), 2)
+    n.count("pf01.energy.dsnn_cheaper", sum(1 for r in flat if r < 1))
+
+    # Dysphonia: the rise of the EER from the clean cell to the full whisper.
+    for (src, scope) in sorted({(k[0], k[1]) for k in sets["dysph"]}):
+        n.num(f"pf01.dysph.{src}.{scope}.rise",
+              sets["dysph"][(src, scope, 100)]["mean_eer"] - grid[(src, "dep")]["mean_eer"])
+
+    # Extractor families through the same classifier, each the fold's best of its family.
+    cmp_cells = sorted({(k[0], k[1]) for k in sets["cmp"]})
+    n.count("pf01.cmp.cells", len(cmp_cells))
+    cm = sets["cmp"]
+    for fam in ("ae", "pca"):
+        n.count(f"pf01.cmp.hc_better_{fam}",
+                sum(1 for c in cmp_cells if cm[c + ("hc",)]["mean_eer"] < cm[c + (fam,)]["mean_eer"]))
+        d = [cm[c + (fam,)]["mean_eer"] - cm[c + ("hc",)]["mean_eer"] for c in cmp_cells]
+        n.num(f"pf01.cmp.{fam}_minus_hc.min", min(d))
+        n.num(f"pf01.cmp.{fam}_minus_hc.max", max(d))
+    for fam in FAMILIES:
+        vals = [cm[c + (fam,)]["mean_eer"] for c in cmp_cells]
+        n.num(f"pf01.cmp.{fam}.min", min(vals))
+        n.num(f"pf01.cmp.{fam}.max", max(vals))
+    n.count("pf01.cmp.pca_better_ae",
+            sum(1 for c in cmp_cells if cm[c + ("pca",)]["mean_eer"] < cm[c + ("ae",)]["mean_eer"]))
+    # Which autoencoder the folds of the comparison chose: the ANN-AE or the SNN-AE.
+    ae_choices = {sig: [c["extractor"] for (s, _t, fam), r in cm.items() if fam == "ae" and s == sig
+                        for c in r["choices"]] for sig in SIGNALS}
+    n.count("pf01.cmp.ae.folds", sum(len(v) for v in ae_choices.values()))
+    n.count("pf01.cmp.ae.snn", sum(e.startswith("SNN-AE") for v in ae_choices.values() for e in v))
+    for sig, v in ae_choices.items():
+        n.count(f"pf01.cmp.ae.snn.{sig}", sum(e.startswith("SNN-AE") for e in v))
+        n.count(f"pf01.cmp.ae.folds.{sig}", len(v))
+
+    selection_summary(n, "pf01", sets)
+
+    # Against the fixed configuration (descriptive: no test is declared for it).
+    groups = {"voice": ["voice"], "eeg": list(EEG_SIGNALS),
+              "fusion": [s for s in sources if s not in ("voice",) + EEG_SIGNALS]}
+    for kind, pf, fx in (("dsnn", grid, None), ("ann", sets["ann"], fixed["ann"]),
+                         ("cosine", sets["cosine"], fixed["cosine"])):
+        diff = {}
+        for c in cells:
+            ref = P01.dsnn_cell(fixed, c[0], c[1], "vs fixed") if fx is None \
+                else P01.require(fx, c, f"vs fixed ({kind})")
+            diff[c] = pf[c]["mean_eer"] - ref["mean_eer"]
+            n.num(f"pf01.vsfixed.{kind}.{c[0]}.{c[1]}.diff", diff[c])
+        n.num(f"pf01.vsfixed.{kind}.diff.min", min(diff.values()))
+        n.num(f"pf01.vsfixed.{kind}.diff.max", max(diff.values()))
+        for g, members in groups.items():
+            sub = [diff[c] for c in cells if c[0] in members]
+            n.count(f"pf01.vsfixed.{kind}.{g}.n", len(sub))
+            n.count(f"pf01.vsfixed.{kind}.{g}.up", sum(1 for x in sub if x > 0))
+            n.num(f"pf01.vsfixed.{kind}.{g}.mean", statistics.mean(sub))
+            n.num(f"pf01.vsfixed.{kind}.{g}.min", min(sub))
+            n.num(f"pf01.vsfixed.{kind}.{g}.max", max(sub))
+    return sets
+
+
+def pfbiomex(n: Numbers, profiles: pathlib.Path, results: pathlib.Path, co: dict) -> None:
+    """The BIOMEX-DB replication under the per-fold protocol (profiles/pfbiomex): pfbx.* with the
+    layout of bx.*, each cell compared with the Coretto PER-FOLD cell (`co`, from perfold()),
+    the stability of the choices (pfbx.sel.*) and its significance (pfbxsig.*, pfbxsiggroup.*)."""
+    sets = P01.with_protocol(BX.collect(profiles, results, "per-fold"), "per-fold")
+
+    def metrics(prefix: str, run: dict) -> None:
+        n.num(f"{prefix}.eer", run["mean_eer"])
+        n.num(f"{prefix}.auc", run["mean_auc"])
+        n.num(f"{prefix}.eersd", run["std_eer"])
+
+    kinds = [k for k in sets if k != "protocol"]
+    for kind in ("grid", "ann", "cosine"):
+        for (src, text), run in sets[kind].items():
+            metrics(f"pfbx.{'dsnn' if kind == 'grid' else kind}.{src}.{text}", run)
+    for (src, scope, level), run in sets["dysph"].items():
+        metrics(f"pfbx.dysph.{src}.{scope}.{level}", run)
+    for kind in kinds:
+        n.count(f"pfbx.n.{kind}", len(sets[kind]))
+    n.count("pfbx.n.total", sum(len(sets[k]) for k in kinds))
+    n.count("pfbx.n.units", sum(r["n_reps"] for k in kinds for r in sets[k].values()))
+
+    grid = sets["grid"]
+    cells = [(s, t) for s in BX.SOURCES for t in ("dep", "indep")]
+    n.count("pfbx.cells", len(cells))
+    order = sorted(cells, key=lambda c: grid[c]["mean_eer"])
+    n.text("pfbx.best.label", f"{P01.SOURCE_LABELS[order[0][0]]}, {P01.TEXT_LABELS[order[0][1]]}")
+    metrics("pfbx.best", grid[order[0]])
+    n.text("pfbx.worst.label", f"{P01.SOURCE_LABELS[order[-1][0]]}, {P01.TEXT_LABELS[order[-1][1]]}")
+    metrics("pfbx.worst", grid[order[-1]])
+    co_order = sorted(cells, key=lambda c: co["grid"][c]["mean_eer"])
+    n.text("pfbx.coretto.best.label",
+           f"{P01.SOURCE_LABELS[co_order[0][0]]}, {P01.TEXT_LABELS[co_order[0][1]]}")
+    n.count("pfbx.same_best_as_coretto", int(order[0] == co_order[0]))
+    n.count("pfbx.same_worst_as_coretto", int(order[-1] == co_order[-1]))
+    diffs = [grid[c]["mean_eer"] - co["grid"][c]["mean_eer"] for c in cells]
+    n.num("pfbx.vs.coretto.diff.min", min(diffs))
+    n.num("pfbx.vs.coretto.diff.max", max(diffs))
+    n.num("pfbx.vs.coretto.absdiff.mean", statistics.mean(abs(d) for d in diffs))
+    n.count("pfbx.vs.coretto.lower", sum(1 for d in diffs if d < 0))
+    n.num("pfbx.mean.dsnn", statistics.mean(grid[c]["mean_eer"] for c in cells))
+    n.num("pfbx.coretto.mean.dsnn", statistics.mean(co["grid"][c]["mean_eer"] for c in cells))
+    n.num("pfbx.mean.ann", statistics.mean(sets["ann"][c]["mean_eer"] for c in cells))
+    n.num("pfbx.mean.cosine", statistics.mean(sets["cosine"][c]["mean_eer"] for c in cells))
+    n.count("pfbx.ctrl.dsnn_better_cosine",
+            sum(1 for c in cells if grid[c]["mean_eer"] < sets["cosine"][c]["mean_eer"]))
+    voice = [c for c in order if c[0] == "voice"]
+    n.count("pfbx.voice.first_rank", order.index(voice[0]) + 1)
+    ratios = [grid[c]["nj"] / sets["ann"][c]["nj"] for c in cells]
+    n.num("pfbx.energy.ratio.min", min(ratios), 2)
+    n.num("pfbx.energy.ratio.max", max(ratios), 2)
+    n.count("pfbx.energy.dsnn_cheaper", sum(1 for r in ratios if r < 1))
+    for (src, scope) in sorted({(k[0], k[1]) for k in sets["dysph"]}):
+        n.num(f"pfbx.dysph.{src}.{scope}.rise",
+              sets["dysph"][(src, scope, 100)]["mean_eer"] - grid[(src, "dep")]["mean_eer"])
+    selection_summary(n, "pfbx", sets)
+    significance(n, results, sig="pfbxsig", group_key="pfbxsiggroup", tag="pfbx01",
+                 splits=(("ctrl", ("ann", "cosine")),),
+                 script="11_thesis_pfbiomex_significance.sh")
+
+
+def world_perfold(n: Numbers, out_dir: pathlib.Path) -> None:
+    """Part B of the WORLD analysis (EER, descriptive) under the per-fold protocol
+    (world_eer_perfold.csv, 08_ --protocol per-fold): world.pf.<co|bx>.eer.n|sig|absmax|pholm.min
+    and world.pf.eer.* over both bases. Part A (the margin) has no per-fold version: it reads one
+    extractor per profile, which a per-fold profile does not have."""
+    path = out_dir / "world_eer_perfold.csv"
+    if not path.is_file():
+        fail(f"{path} is missing; run 08_thesis_world_analysis.py --protocol per-fold "
+             "--bases coretto2017,biomex2021")
+    with open(path, newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    for base, b in WORLD_BASES.items():
+        sub = [r for r in rows if r["base"] == base]
+        if not sub:
+            fail(f"{path} has no {base} rows; run 08_ with --bases coretto2017,biomex2021")
+        n.count(f"world.pf.{b}.eer.n", len(sub))
+        n.count(f"world.pf.{b}.eer.sig", sum(r["significant"] == "1" for r in sub))
+        n.num(f"world.pf.{b}.eer.absmax", max(abs(float(r["delta"])) for r in sub), 3)
+        n.num(f"world.pf.{b}.eer.pholm.min", min(float(r["p_holm"]) for r in sub), 3)
+    n.count("world.pf.eer.n", len(rows))
+    n.count("world.pf.eer.sig", sum(r["significant"] == "1" for r in rows))
+    n.num("world.pf.eer.absmax", max(abs(float(r["delta"])) for r in rows), 3)
+    n.num("world.pf.eer.pholm.min", min(float(r["p_holm"]) for r in rows), 3)
 
 
 def ae_input(n: Numbers, path: pathlib.Path) -> None:
@@ -814,11 +1115,13 @@ def world_analysis(n: Numbers, out_dir: pathlib.Path) -> None:
 
 # Profile sets the prose counts that no results reader above counts: directory in the manifest
 # -> key. A set missing from the manifest (or empty) is refused.
-MANIFEST_SETS = {"pilot": "pilot.n.total", "world": "world.n.co", "bxworld": "world.n.bx"}
+MANIFEST_SETS = {"pilot": "pilot.n.total", "world": "world.n.co", "bxworld": "world.n.bx",
+                 "pfworld": "world.n.pf.co", "pfbxworld": "world.n.pf.bx"}
 
 
 def manifest_counts(n: Numbers, manifest: pathlib.Path) -> None:
-    """pilot.n.total, world.n.co, world.n.bx: the profiles profiles.manifest lists per set."""
+    """pilot.n.total, world.n.co, world.n.bx, world.n.pf.co, world.n.pf.bx: the profiles
+    profiles.manifest lists per set."""
     if not manifest.is_file():
         fail(f"{manifest} is missing; run scripts/pipeline/thesis/00_thesis_generate_profiles.py")
     entries = [line.strip() for line in manifest.read_text(encoding="utf-8").splitlines()
@@ -834,6 +1137,16 @@ def manifest_counts(n: Numbers, manifest: pathlib.Path) -> None:
 # sentence (as the thesis says it), and a condition on the keys; v(key) is the value as a
 # number, t(key) as text. Keep the two in step: change a sentence, change its claim.
 S3 = ("voice", "eegpron", "eegimag")
+# The Coretto cells whose EEG and voice features come from the handcrafted extractor and are
+# standardized ({} is the signal): the fixed configuration's grid (both CV schemes), its ANN and
+# cosine controls, the per-fold grid and controls, and both handcrafted comparison arms.
+_HC_STD_CELLS = [f"{p}.{k}.{{}}.{m}.eer" for p in ("p01", "pf01") for k in ("ann", "cosine")
+                 for m in ("dep", "indep")]
+_HC_STD_CELLS += [f"p01.grid.{{}}.{m}.{cv}.std.eer" for m in ("dep", "indep")
+                  for cv in ("flat", "nested")]
+_HC_STD_CELLS += [f"pf01.grid.{{}}.{m}.eer" for m in ("dep", "indep")]
+_HC_STD_CELLS += [f"{p}.cmp.{{}}.{m}.hc.eer" for p in ("p01", "pf01") for m in ("dep", "indep")]
+
 CLAIMS = [
     ("ch4: the DSNN fires in about a third of its spike slots, which the text calls not sparse",
      lambda v, t: 25 <= v("p01.energy.voice.spike.share") <= 45),
@@ -862,6 +1175,21 @@ CLAIMS = [
                       and v(f"p00.{s}.best.pca.dpen") < v(f"p00.{s}.best.ae.dpen") for s in S3)),
     ("ch9: the handcrafted winner is ahead of the best automated extractor on the three signals",
      lambda v, t: all(v(f"p00.{s}.winner.dpen") < v(f"p00.{s}.best.pca.dpen") for s in S3)),
+    ("ch9: that gap is 8-11 times the winner's sigma_loc, the larger sigma_loc of the two",
+     lambda v, t: 8 <= v("p00.gapratio.min") and v("p00.gapratio.max") <= 11
+     and all(v(f"p00.{s}.winner.loso") >= max(v(f"p00.{s}.best.ae.loso"),
+                                              v(f"p00.{s}.best.pca.loso")) for s in S3)),
+    ("ch9 EEG caveat: with the handcrafted extractor and standardized features, both EEG "
+     "conditions beat the voice in every Coretto cell (fixed and per-fold protocols)",
+     lambda v, t: all(v(c.format(e)) < v(c.format("voice"))
+                      for c in _HC_STD_CELLS for e in ("eegpron", "eegimag"))),
+    ("ch9 EEG caveat: without standardization the voice beats both EEG conditions in every cell",
+     lambda v, t: all(v(f"p01.grid.voice.{m}.{cv}.raw.eer") < v(f"p01.grid.{e}.{m}.{cv}.raw.eer")
+                      for m in ("dep", "indep") for cv in ("flat", "nested")
+                      for e in ("eegpron", "eegimag"))),
+    ("ch9 EEG caveat: with an autoencoder or PCA and seen phrases the voice beats pronounced EEG",
+     lambda v, t: all(v(f"{p}.cmp.voice.dep.{fam}.eer") < v(f"{p}.cmp.eegpron.dep.{fam}.eer")
+                      for p in ("p01", "pf01") for fam in ("ae", "pca"))),
     ("ch9: the three ANN-AE are the first three autoencoders on the three signals",
      lambda v, t: all(t(f"p00.{s}.ae.{r}.label").startswith("ANN-AE")
                       for s in S3 for r in (1, 2, 3))),
@@ -877,53 +1205,12 @@ CLAIMS = [
      lambda v, t: all(v(f"p00.{s}.c1.best") < v(f"p00.{s}.c2.best")
                       and v(f"p00.{s}.c2.mean") < v(f"p00.{s}.c1.mean")
                       for s in ("eegpron", "eegimag"))),
-    ("ch9: every standardized EEG/fusion cell of the grid ranks before the first voice cell",
-     lambda v, t: v("p01.voice.first_rank") == 25),
-    ("ch9: no comparison with voice is significant",
-     lambda v, t: v("siggroup.vsvoice.significant") == 0),
-    ("ch9: no fusion differs significantly from its EEG; with unseen phrases an EEG is ahead "
-     "of its late fusion",
-     lambda v, t: v("siggroup.fusion.significant") == 0
-     and v("p01.grid.eegpron.indep.flat.std.eer") < v("p01.grid.latepron.indep.flat.std.eer")),
     ("ch9: standardization lowers the EER in every cell",
      lambda v, t: v("p01.std.better") == v("p01.std.pairs")),
     ("ch9: flat CV gives the lower EER in most cells",
      lambda v, t: v("p01.cv.flat_better") >= 0.75 * v("p01.cv.pairs")),
-    ("ch9: the EEG condition makes no significant difference",
-     lambda v, t: v("siggroup.cond.significant") == 0),
-    ("ch9: the DSNN differs significantly from neither control",
-     lambda v, t: v("siggroup.ctrl.significant") == 0),
-    ("ch9: mean EER orders DSNN < ANN < cosine",
-     lambda v, t: v("p01.ctrl.mean.dsnn") < v("p01.ctrl.mean.ann") < v("p01.ctrl.mean.cosine")),
-    ("ch9: the DSNN is never the cheaper network, under any check",
-     lambda v, t: v("p01.energy.dsnn_cheaper") == 0),
-    ("ch9: under full whisper voice rises more than any fusion, whose largest rise is "
-     "late fusion (imagined), enrolment and probes",
-     lambda v, t: all(v("p01.dysph.lateimag.test.rise") >= v(f"p01.dysph.{s}.{sc}.rise")
-                      for s in ("earlypron", "earlyimag", "latepron", "lateimag")
-                      for sc in ("probes", "test"))
-     and v("p01.dysph.voice.probes.rise") > v("p01.dysph.lateimag.test.rise")),
-    ("ch9: no degradation effect is significant",
-     lambda v, t: v("siggroup.dysph.significant") == 0),
-    ("ch9/ch10/abstract: through the classifier no automated extractor differs "
-     "significantly from the handcrafted one",
-     lambda v, t: v("siggroup.cmp.significant") == 0),
-    ("ch9: voice, both automated extractors within 0.03 EER of the handcrafted one, one on "
-     "each side (seen phrases)",
-     lambda v, t: abs(v("p01.cmp.voice.dep.ae.eer") - v("p01.cmp.voice.dep.hc.eer")) < 0.03
-     and abs(v("p01.cmp.voice.dep.pca.eer") - v("p01.cmp.voice.dep.hc.eer")) < 0.03
-     and (v("p01.cmp.voice.dep.ae.eer") - v("p01.cmp.voice.dep.hc.eer"))
-     * (v("p01.cmp.voice.dep.pca.eer") - v("p01.cmp.voice.dep.hc.eer")) < 0),
-    ("ch9: pronounced EEG, handcrafted ahead of both; imagined EEG, behind both (both text modes)",
-     lambda v, t: all(v(f"p01.cmp.eegpron.{x}.hc.eer") < v(f"p01.cmp.eegpron.{x}.{f}.eer")
-                      and v(f"p01.cmp.eegimag.{x}.hc.eer") > v(f"p01.cmp.eegimag.{x}.{f}.eer")
-                      for x in ("dep", "indep") for f in ("ae", "pca"))),
-    ("ch9/ch10: PCA on imagined EEG, seen phrases, is the lowest EER of the whole experiment",
-     lambda v, t: v("p01.cmp.eegimag.dep.pca.eer") == v("p01.min.eer")),
     ("ch9 Q3: the autoencoder Phase 00 picked is the ANN-AE on the three signals",
      lambda v, t: all(t(f"p00.{s}.best.ae.label").startswith("ANN-AE") for s in S3)),
-    ("abstract: the best cell of the main grid is late fusion with imagined-speech EEG",
-     lambda v, t: t("p01.best.label").startswith("Fusão tardia (imaginada)")),
     ("ch8: every Coretto trial equals the Zenodo copy",
      lambda v, t: v("base.coretto.mirror.equal") == v("base.coretto.trials")),
     ("ch8: the base holds one S01 pronounced /o/ trial more than the paper's Table 4",
@@ -940,56 +1227,13 @@ CLAIMS = [
     ("ch8: BIOMEX-DB is upsampled to the Coretto rates (written at 44.1 kHz / 1024 Hz)",
      lambda v, t: v("base.biomex.voice.sample.rate") == 44100
      and v("base.biomex.eeg.sample.rate") == 1024),
-    ("ch9 bx: the best and the worst cell are the same on both bases",
-     lambda v, t: v("bx.same_best_as_coretto") == 1 and v("bx.same_worst_as_coretto") == 1),
-    ("ch9 bx: every EEG/fusion cell ranks before both voice cells",
-     lambda v, t: v("bx.voice.first_rank") == v("bx.cells") - 1),
-    ("ch9 bx: late fusion beats voice significantly in both text modes; EEG alone does not",
+    ("ch9 bx (fixed configuration, as the comparison): late fusion beat voice significantly in "
+     "both text modes, EEG alone did not; and no text-mode effect was significant",
      lambda v, t: all(v(f"bxsig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.pholm") < 0.05
                       and v(f"bxsig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta") < 0
                       and v(f"bxsig.vsvoice_{x}.dsnn_eegpron_{x}_flat_std.pholm") >= 0.05
-                      for x in ("dep", "indep"))),
-    ("ch9 bx: on Coretto the same late-fusion-vs-voice difference was of the same order "
-     "(same sign, at least half the BIOMEX size), so the change is one of power",
-     lambda v, t: all(v(f"sig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta") < 0
-                      and abs(v(f"sig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta"))
-                      >= 0.5 * abs(v(f"bxsig.vsvoice_{x}.dsnn_latepron_{x}_flat_std.delta"))
-                      for x in ("dep", "indep"))),
-    ("ch9 bx: no fusion differs significantly from its EEG",
-     lambda v, t: v("bxsiggroup.fusion.significant") == 0),
-    ("ch9 bx: the DSNN differs from its ANN twin in no cell, not even nominally",
-     lambda v, t: v("bxsiggroup.ctrl.ann.significant") == 0
-     and v("bxsiggroup.ctrl.ann.nominal") == 0),
-    ("ch9 bx: cosine is behind the DSNN in every cell, significantly in some, all in the "
-     "DSNN's favour",
-     lambda v, t: v("bx.ctrl.dsnn_better_cosine") == v("bx.cells")
-     and v("bxsiggroup.ctrl.cosine.significant") > 0
-     and v("bxsiggroup.ctrl.cosine.significant")
-     == v("bxsiggroup.ctrl.cosine.significant_ref_better")),
-    ("ch9 bx: the DSNN is never the cheaper network",
-     lambda v, t: v("bx.energy.dsnn_cheaper") == 0),
-    ("ch9 bx: under full whisper voice rises more than any fusion; no degradation effect is "
-     "significant",
-     lambda v, t: min(v("bx.dysph.voice.probes.rise"), v("bx.dysph.voice.test.rise"))
-     > max(v(f"bx.dysph.{s}.{sc}.rise") for s in ("earlypron", "latepron")
-           for sc in ("probes", "test"))
-     and v("bxsiggroup.dysph.significant") == 0),
-    ("ch9 bx: unseen phrases give the higher EER in every source, none significantly",
-     lambda v, t: all(v(f"bxsig.text_{s}.dsnn_{s}_indep_flat_std.delta") > 0
-                      for s in ("voice", "eegpron", "earlypron", "latepron"))
+                      for x in ("dep", "indep"))
      and v("bxsiggroup.text.significant") == 0),
-    ("ch9/ch10/abstract bx: of the Coretto conclusions BIOMEX-DB can test, five repeat (fusion "
-     "vs EEG, DSNN vs ANN, energy, dysphonia, text mode) and exactly two change (late fusion vs "
-     "voice, network vs cosine), each from not significant to significant",
-     lambda v, t: [v("bxsiggroup.fusion.significant") == 0 and v("siggroup.fusion.significant") == 0,
-                   v("bxsiggroup.ctrl.ann.significant") == 0 and v("siggroup.ctrl.ann.significant") == 0,
-                   v("bx.energy.dsnn_cheaper") == 0 and v("p01.energy.dsnn_cheaper") == 0,
-                   v("bxsiggroup.dysph.significant") == 0 and v("siggroup.dysph.significant") == 0,
-                   v("bxsiggroup.text.significant") == 0 and v("siggroup.text.significant") == 0,
-                   ].count(True) == 5
-     and v("siggroup.vsvoice.significant") == 0 and v("bxsiggroup.vsvoice.significant") > 0
-     and v("siggroup.ctrl.cosine.significant") == 0
-     and v("bxsiggroup.ctrl.cosine.significant") > 0),
     ("ch8 cal: tremor does what is asked",
      lambda v, t: v("cal.tremor.ratio") >= 0.95),
     ("ch8 cal: jitter reads below the request, the same on both speakers",
@@ -1076,9 +1320,139 @@ CLAIMS = [
      lambda v, t: v("world.floor.bx.supported") == 0 and v("world.floor.bx.contradicted") == 0
      and v("world.floor.bx.r") > 0 and v("world.floor.co.r") > 0
      and v("world.floor.bx.r") < v("world.floor.bx.power.r")),
-    ("ch9 Q4: seen phrases give the lower EER in most sources, none significantly",
-     lambda v, t: v("p01.text.seen_better") > v("p01.text.sources") / 2
-     and v("siggroup.text.significant") == 0 and v("siggroup.text.nominal") == 0),
+    # --- The per-fold protocol (the primary result since 2026-11-18) ---------------------
+    ("pf ch9: on EEG every fold of every cell chose the same extractor, the Phase 00 winner; on "
+     "voice the 15 folds chose several, all non-cepstral handcrafted, the winner the most often",
+     lambda v, t: v("pf01.sel.eeg.extractors.max") == 1
+     and t("pf01.sel.eeg.mode.label") == t("p00.eegpron.winner.label")
+     and v("pf01.sel.voice.extractors.min") > 1 and v("pf01.sel.voice.c1only") == 1
+     and t("pf01.sel.voice.mode.label") == t("p00.voice.winner.label")),
+    ("pf ch9: no grid point is chosen by most folds of any cell",
+     lambda v, t: v("pf01.sel.grid.points.min") > 2),
+    ("pf ch9/abstract: the best cell is late fusion with imagined-speech EEG, seen phrases",
+     lambda v, t: t("pf01.best.label") == "Fusão tardia (imaginada), frases vistas"),
+    ("pf ch9: every EEG/fusion cell ranks before the first voice cell",
+     lambda v, t: v("pf01.voice.first_rank") == v("pf01.cells") - 1),
+    ("pf ch9: no comparison with voice is significant, not even nominally",
+     lambda v, t: v("pfsiggroup.vsvoice.significant") == 0
+     and v("pfsiggroup.vsvoice.nominal") == 0),
+    ("pf ch9: no fusion differs significantly from its EEG",
+     lambda v, t: v("pfsiggroup.fusion.significant") == 0),
+    ("pf ch9: the EEG condition makes no significant difference",
+     lambda v, t: v("pfsiggroup.cond.significant") == 0),
+    ("pf ch9: the DSNN differs significantly from neither control, not even nominally",
+     lambda v, t: v("pfsiggroup.ctrl.significant") == 0 and v("pfsiggroup.ctrl.nominal") == 0),
+    ("pf ch9: DSNN and ANN tie on average (within 0.005 EER), both ahead of cosine",
+     lambda v, t: abs(v("pf01.ctrl.mean.dsnn") - v("pf01.ctrl.mean.ann")) < 0.005
+     and max(v("pf01.ctrl.mean.dsnn"), v("pf01.ctrl.mean.ann")) < v("pf01.ctrl.mean.cosine")),
+    ("pf ch9: the DSNN is the costlier network under the primary count and every memory check; "
+     "only arithmetic alone, on imagined EEG, puts it below its twin (the two networks the "
+     "folds chose differ in size)",
+     lambda v, t: v("pf01.energy.ratio.nj.min") > 1
+     and all(v(f"pf01.energy.ratio.{k}.min") > 1
+             for k in ("nj_as_executed", "nj_sram8k", "nj_sram32k", "nj_sram1m"))
+     and v("pf01.energy.dsnn_cheaper") == 1 and v("pf01.energy.eegimag.ratio.ops_nj") < 1),
+    ("pf ch9: under full whisper voice rises more than any fusion, whose largest rise is late "
+     "fusion (pronounced), enrolment and probes; no degradation effect is significant",
+     lambda v, t: all(v("pf01.dysph.latepron.test.rise") >= v(f"pf01.dysph.{s}.{sc}.rise")
+                      for s in ("earlypron", "earlyimag", "latepron", "lateimag")
+                      for sc in ("probes", "test"))
+     and min(v("pf01.dysph.voice.probes.rise"), v("pf01.dysph.voice.test.rise"))
+     > v("pf01.dysph.latepron.test.rise")
+     and v("pfsiggroup.dysph.significant") == 0),
+    ("pf ch9/ch10/abstract: through the classifier no automated extractor differs "
+     "significantly from the handcrafted one",
+     lambda v, t: v("pfsiggroup.cmp.significant") == 0),
+    ("pf ch9: on voice and pronounced EEG the handcrafted extractor is ahead of both automated "
+     "families in both text modes; on imagined EEG PCA is ahead of it in both",
+     lambda v, t: all(v(f"pf01.cmp.{s}.{x}.hc.eer") < v(f"pf01.cmp.{s}.{x}.{f}.eer")
+                      for s in ("voice", "eegpron") for x in ("dep", "indep")
+                      for f in ("ae", "pca"))
+     and all(v(f"pf01.cmp.eegimag.{x}.pca.eer") < v(f"pf01.cmp.eegimag.{x}.hc.eer")
+             for x in ("dep", "indep"))),
+    ("pf ch9/ch10: PCA on imagined EEG, unseen phrases, is the lowest EER of the per-fold "
+     "experiment",
+     lambda v, t: v("pf01.cmp.eegimag.indep.pca.eer") == v("pf01.min.eer")),
+    ("pf ch9 Q4: seen phrases give the lower EER in most sources, none significantly, not even "
+     "nominally",
+     lambda v, t: v("pf01.text.seen_better") > v("pf01.text.sources") / 2
+     and v("pfsiggroup.text.significant") == 0 and v("pfsiggroup.text.nominal") == 0),
+    ("pf ch9 vs fixed: choosing inside the fold lowers the voice EER in both text modes and "
+     "raises it in most fusion cells (DSNN)",
+     lambda v, t: v("pf01.vsfixed.dsnn.voice.up") == 0
+     and v("pf01.vsfixed.dsnn.fusion.up") > v("pf01.vsfixed.dsnn.fusion.n") / 2),
+    ("pf ch9 vs fixed: the verdicts of the declared tests on Coretto are the same under both "
+     "protocols (no family significant in either)",
+     lambda v, t: all(v(f"pfsiggroup.{g}.significant") == 0 and v(f"siggroup.{g}.significant") == 0
+                      for g in ("vsvoice", "fusion", "cond", "ctrl", "cmp", "dysph", "text"))),
+    ("pf ch9 bx: on BIOMEX-DB too every EEG fold chose the Phase 00 winner, and voice folds "
+     "chose several extractors, PCA among them",
+     lambda v, t: v("pfbx.sel.eeg.extractors.max") == 1
+     and t("pfbx.sel.eeg.mode.label") == t("p00.eegpron.winner.label")
+     and v("pfbx.sel.voice.extractors.min") > 1 and v("pfbx.sel.voice.c1only") == 0),
+    ("pf ch9 bx: the worst cell is the same on both bases (voice, unseen phrases), the best is not",
+     lambda v, t: v("pfbx.same_worst_as_coretto") == 1 and v("pfbx.same_best_as_coretto") == 0
+     and t("pfbx.worst.label") == "Voz, frases não vistas"),
+    ("pf ch9 bx: late fusion is ahead of voice in both text modes, but not significantly",
+     lambda v, t: all(v(f"pfbxsig.vsvoice_{x}.dsnn_latepron_{x}.delta") < 0
+                      and v(f"pfbxsig.vsvoice_{x}.dsnn_latepron_{x}.pholm") >= 0.05
+                      for x in ("dep", "indep"))
+     and v("pfbxsiggroup.vsvoice.significant") == 0),
+    ("pf ch9 bx: no fusion differs significantly from its EEG",
+     lambda v, t: v("pfbxsiggroup.fusion.significant") == 0),
+    ("pf ch9 bx: the DSNN differs from its ANN twin in no cell, not even nominally",
+     lambda v, t: v("pfbxsiggroup.ctrl.ann.significant") == 0
+     and v("pfbxsiggroup.ctrl.ann.nominal") == 0),
+    ("pf ch9 bx: cosine is behind the DSNN in every cell, significantly in some, all in the "
+     "DSNN's favour",
+     lambda v, t: v("pfbx.ctrl.dsnn_better_cosine") == v("pfbx.cells")
+     and v("pfbxsiggroup.ctrl.cosine.significant") > 0
+     and v("pfbxsiggroup.ctrl.cosine.significant")
+     == v("pfbxsiggroup.ctrl.cosine.significant_ref_better")),
+    ("pf ch9 bx: the DSNN is never the cheaper network",
+     lambda v, t: v("pfbx.energy.dsnn_cheaper") == 0),
+    ("pf ch9 bx: under full whisper voice and late fusion rise by about the same (within "
+     "0.015), early fusion by less than 0.01; no degradation effect is significant",
+     lambda v, t: max(abs(v(f"pfbx.dysph.voice.{a}.rise") - v(f"pfbx.dysph.latepron.{b}.rise"))
+                      for a in ("probes", "test") for b in ("probes", "test")) < 0.015
+     and max(v("pfbx.dysph.earlypron.probes.rise"), v("pfbx.dysph.earlypron.test.rise")) < 0.01
+     and v("pfbxsiggroup.dysph.significant") == 0),
+    ("pf ch9 bx: unseen phrases give the higher EER in every source, significantly for voice "
+     "and late fusion only",
+     lambda v, t: all(v(f"pfbxsig.text_{s}.dsnn_{s}_indep.delta") > 0
+                      for s in ("voice", "eegpron", "earlypron", "latepron"))
+     and v("pfbxsig.text_voice.dsnn_voice_indep.pholm") < 0.05
+     and v("pfbxsig.text_latepron.dsnn_latepron_indep.pholm") < 0.05
+     and v("pfbxsiggroup.text.significant") == 2),
+    ("pf ch9/ch10/abstract bx: of the Coretto conclusions BIOMEX-DB can test, five repeat (fusion "
+     "vs EEG, DSNN vs ANN, energy, dysphonia, late fusion vs voice) and exactly two change "
+     "(network vs cosine, text mode), each from not significant to significant",
+     lambda v, t: all([v("pfbxsiggroup.fusion.significant") == 0
+                       and v("pfsiggroup.fusion.significant") == 0,
+                       v("pfbxsiggroup.ctrl.ann.significant") == 0
+                       and v("pfsiggroup.ctrl.ann.significant") == 0,
+                       v("pfbx.energy.ratio.min") > 1 and v("pf01.energy.ratio.nj.min") > 1,
+                       v("pfbxsiggroup.dysph.significant") == 0
+                       and v("pfsiggroup.dysph.significant") == 0,
+                       v("pfbxsiggroup.vsvoice.significant") == 0
+                       and v("pfsiggroup.vsvoice.significant") == 0])
+     and v("pfsiggroup.ctrl.cosine.significant") == 0
+     and v("pfbxsiggroup.ctrl.cosine.significant") > 0
+     and v("pfsiggroup.text.significant") == 0 and v("pfbxsiggroup.text.significant") > 0),
+    ("pf ch9 WORLD: under the per-fold protocol too no EER comparison is significant on either "
+     "base, and none moves the EER by 0.02",
+     lambda v, t: v("world.pf.eer.sig") == 0 and v("world.pf.eer.absmax") < 0.02),
+    ("pf ch9: with unseen phrases pronounced EEG is ahead of its late fusion",
+     lambda v, t: v("pf01.grid.eegpron.indep.eer") < v("pf01.grid.latepron.indep.eer")),
+    ("pf ch9 Q3: PCA is ahead of the autoencoder in most cells",
+     lambda v, t: v("pf01.cmp.pca_better_ae") > v("pf01.cmp.cells") / 2),
+    ("pf ch9 Q3: the SNN-AE won few of the comparison's autoencoder choices, none on imagined EEG",
+     lambda v, t: 0 < v("pf01.cmp.ae.snn") < v("pf01.cmp.ae.folds") / 4
+     and v("pf01.cmp.ae.snn.eegimag") == 0),
+    ("pf ch9 Q4: on Coretto unseen phrases cost less than one percentage point of EER on average",
+     lambda v, t: 0 < v("pf01.text.mean.unseen") - v("pf01.text.mean.seen") < 0.01),
+    ("pf ch9 bx: unlike Coretto, voice with seen phrases ranks ahead of part of the EEG/fusion cells",
+     lambda v, t: v("pfbx.voice.first_rank") < v("pfbx.cells") - 1),
 ]
 
 
@@ -1103,6 +1477,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Write the numbers the thesis prose quotes.")
     for arg in ("--phase00-profiles", "--phase00-results", "--phase01-profiles",
                 "--phase01-results", "--biomex-profiles", "--biomex-results",
+                "--perfold-profiles", "--perfold-results", "--pfbiomex-profiles",
+                "--pfbiomex-results",
                 "--ae-input-reference", "--base-facts", "--dysphonia-calibration",
                 "--identity-pilot", "--identity-margin", "--world-analysis", "--profiles-manifest",
                 "--eeg-band-power", "--out"):
@@ -1118,10 +1494,17 @@ def main() -> int:
     base_facts(n, pathlib.Path(args.base_facts))
     biomex(n, pathlib.Path(args.biomex_profiles), pathlib.Path(args.biomex_results),
            pathlib.Path(args.phase01_profiles), pathlib.Path(args.phase01_results))
+    co_perfold = perfold(n, pathlib.Path(args.perfold_profiles), pathlib.Path(args.perfold_results),
+                         pathlib.Path(args.phase01_profiles), pathlib.Path(args.phase01_results))
+    significance(n, pathlib.Path(args.perfold_results), sig="pfsig", group_key="pfsiggroup",
+                 tag="pf01", splits=(("ctrl", ("ann", "cosine")), ("cmp", ("cmp-ae", "cmp-pca"))),
+                 script="10_thesis_perfold_significance.sh")
+    pfbiomex(n, pathlib.Path(args.pfbiomex_profiles), pathlib.Path(args.pfbiomex_results), co_perfold)
     dysphonia_calibration(n, pathlib.Path(args.dysphonia_calibration))
     identity_pilot(n, pathlib.Path(args.identity_pilot))
     identity_margin(n, pathlib.Path(args.identity_margin))
     world_analysis(n, pathlib.Path(args.world_analysis))
+    world_perfold(n, pathlib.Path(args.world_analysis))
     manifest_counts(n, pathlib.Path(args.profiles_manifest))
     eeg_band_power(n, pathlib.Path(args.eeg_band_power))
     check_claims(n)

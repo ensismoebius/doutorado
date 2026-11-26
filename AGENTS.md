@@ -24,6 +24,18 @@ clang-format --check src/**/*.cpp src/**/*.hpp include/**/*.hpp
 - **Tests**: GoogleTest, run via `ctest` or ninja test targets
 - **Formatting**: `.clang-format` in repo root; run `clang-format -i` before committing
 
+## Python environment: shared `~/.venv` (PERMANENT)
+
+The machine has ONE Python env, `~/.venv`, shared by every project. Never create a
+venv/conda env (`python -m venv`, `uv venv`, `virtualenv`, conda/mamba) — not even
+the `.venv` older docs mention. `software/nn` uses `$HOME/.venv`: CMake
+(`cmake/VendorPythonEnv.cmake`, `cmake/VendorMatplotlibCpp.cmake`) installs
+`scripts/requirements.txt` + numpy/matplotlib into it at configure time and refuses
+(FATAL_ERROR) to delete or recreate a broken shared venv — keep that guard. Scripts
+run `~/.venv/bin/python` (fallback `python3`). Install extra deps with
+`~/.venv/bin/pip`; torch is the CPU build. Version conflict → ask the user. The
+GridUnesp cluster follows the same rule: one `~/.venv` there.
+
 ## Directory Ownership
 
 | Path | Purpose |

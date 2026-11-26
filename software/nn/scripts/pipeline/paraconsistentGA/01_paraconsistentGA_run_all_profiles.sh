@@ -38,7 +38,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
 PY="python3"
-if [[ -x "$ROOT_DIR/.venv/bin/python3" ]]; then PY="$ROOT_DIR/.venv/bin/python3"; fi
+if [[ -x "$HOME/.venv/bin/python3" ]]; then PY="$HOME/.venv/bin/python3"; fi
 
 REFERENCE_BUILD="max-performance"
 

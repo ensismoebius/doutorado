@@ -1,0 +1,15 @@
+source,text,dsnn_eer,dsnn_std,ann_eer,ann_std,cosine_eer,dsnn_nj,ann_nj,dsnn_over_ann
+Voz,frases vistas,0.3068,0.0501,0.3032,0.0664,0.3661,11413.16,1345.06,8.49
+Voz,frases não vistas,0.3209,0.0178,0.3160,0.0273,0.3495,6803.79,1019.85,6.67
+EEG (fala pronunciada),frases vistas,0.2827,0.0033,0.2713,0.0031,0.2831,14199.26,1835.80,7.73
+EEG (fala pronunciada),frases não vistas,0.2395,0.0318,0.2614,0.0228,0.2804,21116.31,935.92,22.56
+EEG (fala imaginada),frases vistas,0.2531,0.0317,0.2423,0.0229,0.2746,5748.49,1408.88,4.08
+EEG (fala imaginada),frases não vistas,0.2747,0.0369,0.2635,0.0244,0.2780,10526.00,1190.20,8.84
+Fusão precoce (pronunciada),frases vistas,0.2748,0.0571,0.2824,0.0573,0.3163,10929.13,1367.43,7.99
+Fusão precoce (pronunciada),frases não vistas,0.2830,0.0264,0.2674,0.0269,0.3190,8952.82,639.82,13.99
+Fusão precoce (imaginada),frases vistas,0.2773,0.0221,0.2717,0.0198,0.3440,10125.21,1122.57,9.02
+Fusão precoce (imaginada),frases não vistas,0.2681,0.0248,0.2758,0.0166,0.3133,10715.24,613.78,17.46
+Fusão tardia (pronunciada),frases vistas,0.2646,0.0293,0.2689,0.0386,0.3091,10145.73,2115.11,4.80
+Fusão tardia (pronunciada),frases não vistas,0.2692,0.0410,0.2739,0.0019,0.2805,13271.49,1861.37,7.13
+Fusão tardia (imaginada),frases vistas,0.2339,0.0549,0.2470,0.0610,0.3084,16483.39,2452.17,6.72
+Fusão tardia (imaginada),frases não vistas,0.2495,0.0323,0.2600,0.0375,0.2884,7021.46,1868.32,3.76

@@ -100,7 +100,7 @@ fi
 # source_revisions.log; on the cluster it comes from the SOURCE_REVISION that
 # gridunesp_deploy.sh shipped, there being no git there. See _provenance.sh.
 PY="python3"
-[[ -x "$ROOT_DIR/.venv/bin/python3" ]] && PY="$ROOT_DIR/.venv/bin/python3"
+[[ -x "$HOME/.venv/bin/python3" ]] && PY="$HOME/.venv/bin/python3"
 # shellcheck source=./_provenance.sh
 source "$ROOT_DIR/scripts/pipeline/meeting01/_provenance.sh"
 provenance_resolve "$ROOT_DIR" "$PY"
@@ -141,7 +141,7 @@ echo "[loso-run] source revision: ${MEETING01_GIT_COMMIT}"
 provenance_log_start "$ROOT_DIR" "$RESUME"
 
 echo "[loso-run] live dashboard (separate terminal, from software/nn):"
-echo "[loso-run]   ${ROOT_DIR}/.venv/bin/python3 scripts/pipeline/meeting01/monitor.py --run-tag meeting01_loso"
+echo "[loso-run]   ${HOME}/.venv/bin/python3 scripts/pipeline/meeting01/monitor.py --run-tag meeting01_loso"
 echo "[loso-run]   (add --plain when piped / not a terminal; --rank N for one config's detail)"
 
 # One compute thread unless the caller chose otherwise. Unset, OpenMP and OpenBLAS each size

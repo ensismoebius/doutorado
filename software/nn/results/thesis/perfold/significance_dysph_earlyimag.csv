@@ -1,0 +1,3 @@
+reference,condition,metric,pairing,n_folds_ref,n_folds_cond,mean_ref,mean_cond,delta_mean,cohens_d,p_value,p_holm,holm_family_size,test,significant_0.05,note
+e05_pf01_dsnn_earlyimag_dep,e05_pf01_dysph_earlyimag_probes_l100,eer,corrected,15,15,0.27729013333333336,0.28728286666666664,0.009992733333333281,0.1522276978829805,0.5040101653302452,1.0,2,corrected-t(paired),0,
+e05_pf01_dsnn_earlyimag_dep,e05_pf01_dysph_earlyimag_test_l100,eer,corrected,15,15,0.27729013333333336,0.2898066,0.01251646666666667,0.19530442913367294,0.5053564981944425,1.0,2,corrected-t(paired),0,

@@ -24,6 +24,15 @@ The experiment consists of two stages:
 > the committed results through generated tables and `\tn{}` keys (§10); the Phase 00 winners
 > are in `results/thesis/phase00/winners.json`.
 
+> **Status (2026-11-25): the per-fold protocol is the primary result.** Each outer fold now
+> chooses its extractor ($D_{\text{pen}}$ on its own training speakers) and the classifier's
+> hyperparameters (inner search), so no test speaker helps choose what it is scored with
+> ([Thesis per-fold protocol](Thesis-Per-Fold-Protocol.md)). `perfold`, `pfbiomex` and `pfworld`
+> have run and are committed with their tables (`perfold_*.csv`, `pfbiomex_*.csv`,
+> `world_eer_perfold.csv`) and declared tests (`10_`, `11_`, `08_ --protocol per-fold`), and
+> `pfbxworld` (2026-11-26) with them. The fixed-configuration results below become the comparison.
+> The thesis text quotes the per-fold numbers since 2026-11-26 (ch. 8-10 and the abstracts).
+
 > **Follow-up search:** because the hand-picked autoencoder profiles lose to handcrafted
 > features on `D_penalized` (the winner of every signal in `winners.json` is handcrafted), the [paraconsistentGA](ParaconsistentGA.md)
 > experiment searches the same architecture axes automatically with NSGA-II, to test
@@ -396,6 +405,8 @@ python3 scripts/pipeline/thesis/thesis_build_text_numbers.py \
   --ae-input-reference results/thesis/ae_input_reference.csv \
   --base-facts results/thesis/base_facts.csv \
   --biomex-profiles src/experiments/thesis/profiles/biomex --biomex-results results/thesis/biomex \
+  --perfold-profiles src/experiments/thesis/profiles/perfold --perfold-results results/thesis/perfold \
+  --pfbiomex-profiles src/experiments/thesis/profiles/pfbiomex --pfbiomex-results results/thesis/pfbiomex \
   --dysphonia-calibration results/thesis/dysphonia_calibration/calibration.json \
   --identity-pilot results/thesis/pilot/pilot_verdict.json \
   --identity-margin results/thesis/identity_margin/identity_margin_verdict.json \
@@ -666,7 +677,7 @@ python3 scripts/data/biomex_verify.py --src ~/Documentos/academico/UNESP/doutora
 THESIS_PHASE=biomex sbatch --array=0-47 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 # after the array: results/thesis/biomex/ back from the cluster (rsync, no --delete), then
 scripts/pipeline/thesis/04_thesis_biomex_significance.sh src/experiments/thesis/profiles/biomex results/thesis/biomex
-python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --profiles-dir src/experiments/thesis/profiles/biomex \
+python3 scripts/pipeline/thesis/thesis_build_biomex_tables.py --protocol fixed --profiles-dir src/experiments/thesis/profiles/biomex \
   --results-dir results/thesis/biomex --coretto-profiles-dir src/experiments/thesis/profiles/phase01 \
   --coretto-results-dir results/thesis/phase01 --tables-dir ../../documentation/00-thesis/monography/tables
 ```
@@ -1197,7 +1208,7 @@ A fourth script, not yet chained into `run_thesis_profiles.sh`, ranks the Phase 
 
 ```bash
 # Regenerate the thesis Phase 01 tables (grid, controls, dysphonia, extractors, energy):
-python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py \
+python3 scripts/pipeline/thesis/thesis_build_phase01_auth_tables.py --protocol fixed \
   --profiles-dir src/experiments/thesis/profiles/phase01 \
   --results-dir  results/thesis/phase01 \
   --tables-dir   ../../documentation/00-thesis/monography/tables
@@ -1220,6 +1231,13 @@ runs from start to finish.
 |---|---|---|---|---|
 | 00 | one profile (all its repetitions) | 275 | `--array=0-63`, ~4–5 units per task | A handcrafted profile extracts its features once for all repetitions, because they do not depend on the seed. Split by repetition, it would extract them three times. The slowest profile took 230 s (array 5323006). |
 | 01 | one (profile, repetition) | 142 × 3 = 426 | `--array=0-141`, 3 units per task | Repetitions are whole trainings with their own seeds. |
+| `perfold`, `pfbiomex`, `pfbxworld` | one (profile, repetition) | 300, 144, 270 | `--array=0-99`, `0-47`, `0-269` (1 unit per task: ~11 h each, max 13.9 h) | As Phase 01. `pfbxworld` must be split: a whole BIOMEX-DB WORLD profile takes ~43 h. |
+| `pfworld` | one profile | 150 | `--array=0-149` | As `world`: the WORLD resynthesis runs once before the repetition loop. |
+
+The four per-fold phases ([Thesis per-fold protocol](Thesis-Per-Fold-Protocol.md)) read the
+handcrafted candidates from a feature cache that `thesis_warm_feature_cache.sbatch` fills once
+per deploy, and a unit stops on a miss
+([Running Thesis Profiles § Feature cache](../Guides/Running-Thesis-Profiles.md#feature-cache-per-fold-phases-only)).
 
 Task `t` of `N` runs units `t, t+N, t+2N, …` of the sorted list, one after another:
 
@@ -1303,6 +1321,9 @@ THESIS_PHASE=phase00 sbatch --array=0-63 scripts/pipeline/thesis/thesis_gridunes
 rsync -avz <user>@access.grid.unesp.br:software/nn/results/thesis/phase00/ results/thesis/phase00/
 # after the hand-off is committed and deployed: Phase 01, one (profile, repetition) per task
 THESIS_PHASE=phase01 sbatch --array=0-141 scripts/pipeline/thesis/thesis_gridunesp.sbatch
+# per-fold protocol: warm the cache for this deploy, then one phase at a time
+sbatch --array=0-10 scripts/pipeline/thesis/thesis_warm_feature_cache.sbatch
+THESIS_PHASE=perfold sbatch --array=0-99 scripts/pipeline/thesis/thesis_gridunesp.sbatch
 ```
 
 **What it refuses, and what it records.** Each line below is a loud stop. None of these cases

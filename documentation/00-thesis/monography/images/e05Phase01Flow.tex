@@ -18,20 +18,20 @@
     node distance=0.5cm
 ]
 
-\node[startstop] (win) {Vetores vencedores da Fase 00 (voz, EEG)};
-\node[src, below=of win] (build)
+\node[startstop] (win) {Dobra externa: 12 locutores de treino, 3 de teste};
+\node[proc, below=of win] (rank)
+    {ordenar os candidatos do sinal por $D_{\text{penalizado}}$, só com o treino\\ (\textit{autoencoders} e PCA reajustados) $\to$ extrator da dobra};
+\node[src, below=of rank] (build)
     {montar a fonte:\\ voz $\mid$ EEG $\mid$ fundida-precoce $\mid$ fundida-tardia};
-\node[proc, below=of build] (encode)
-    {o vetor entra como corrente, igual nos $T = 16$ passos};
-\node[proc, below=of encode] (dsnn)
-    {classificador DSNN residual (LIF + BPTT)\\ saída $=$ média dos \textit{logits} sobre os $T$ passos};
-\node[proc, below=of dsnn] (cv)
-    {validação cruzada por locutor (aninhada ou plana),\\ frases vistas ou não vistas};
-\node[startstop, below=of cv] (metrics) {EER e AUC (protocolo de verificação)};
+\node[proc, below=of build] (search)
+    {busca interna: 36 pontos $\times$ 4 dobras internas por locutor\\ $\to$ ponto de menor EER médio de validação};
+\node[proc, below=of search] (dsnn)
+    {retreinar o ponto sobre os 12 locutores: DSNN residual\\ (LIF + BPTT), o vetor constante nos $T = 16$ passos};
+\node[startstop, below=of dsnn] (metrics) {uma única avaliação nos 3 locutores de teste: EER e AUC};
 
-\draw[arr] (win)    -- (build);
-\draw[arr] (build)  -- (encode);
-\draw[arr] (encode) -- (dsnn);
-\draw[arr] (dsnn)   -- (cv);
-\draw[arr] (cv)     -- (metrics);
+\draw[arr] (win)    -- (rank);
+\draw[arr] (rank)   -- (build);
+\draw[arr] (build)  -- (search);
+\draw[arr] (search) -- (dsnn);
+\draw[arr] (dsnn)   -- (metrics);
 \end{tikzpicture}

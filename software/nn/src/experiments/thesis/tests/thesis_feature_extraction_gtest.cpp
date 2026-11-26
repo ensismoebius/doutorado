@@ -947,3 +947,103 @@ TEST(ThesisAeLoss, ParsedFromProfileJson)
     EXPECT_EQ(cfg.feature_extraction.autoencoder.ae_loss_type, "mae");
     EXPECT_NO_THROW(cfg.validate());
 }
+
+// ─── fit-on-rows (per-fold protocol) ──────────────────────────────────────────
+// The per-fold protocol fits PCA and the autoencoders on a fold's TRAINING speakers only and
+// applies them to every sample (.wiki/Experiments/Thesis-Per-Fold-Protocol.md). The property
+// that makes that leak-free is not "the code takes a row list" but this: a sample OUTSIDE the
+// fit rows cannot change any feature. These tests change such a sample's signal and require
+// every other sample's features to stay bit-identical. A path that quietly fitted on every row
+// would fail them, because the changed sample would move the fit.
+namespace
+{
+std::vector<FeatureSet> run_fitted(const ThesisDatasetView& view,
+    const ThesisConfig::FeatureExtraction& fe,
+    const std::vector<size_t>& rows,
+    std::uint32_t seed)
+{
+    ThesisConfig cfg = test::phase00("eeg");
+    cfg.experiment.seed = seed;
+    cfg.feature_extraction = fe;
+    if (fe.strategy == "autoencoder") cfg.training = make_ae_training();
+    cfg.validate();
+    return extract_features_fitted_on(view, cfg, rows, nullptr);
+}
+
+ThesisConfig::FeatureExtraction make_pca_fe(int k)
+{
+    ThesisConfig::FeatureExtraction fe;
+    fe.strategy = "pca";
+    fe.pca.n_components = k;
+    return fe;
+}
+
+// Every sample except `changed` must carry identical features in a and b.
+void expect_unchanged_except(
+    const std::vector<FeatureSet>& a, const std::vector<FeatureSet>& b, size_t changed)
+{
+    ASSERT_EQ(a.size(), 1u);
+    ASSERT_EQ(b.size(), 1u);
+    ASSERT_EQ(a[0].vectors.size(), b[0].vectors.size());
+    for (size_t i = 0; i < a[0].vectors.size(); ++i)
+    {
+        if (i == changed) continue;
+        ASSERT_EQ(a[0].vectors[i].size(), b[0].vectors[i].size());
+        for (size_t k = 0; k < a[0].vectors[i].size(); ++k)
+            EXPECT_DOUBLE_EQ(a[0].vectors[i][k], b[0].vectors[i][k])
+                << "sample " << i << " dim " << k
+                << ": a sample outside the fit rows moved the fitted extractor (leak)";
+    }
+}
+} // namespace
+
+TEST(ThesisFitRows, OutsideSampleCannotMoveTheFit)
+{
+    const std::vector<size_t> rows = {0, 1, 2, 3, 4, 5};
+    const size_t outside = 7;
+    for (const auto& fe : {make_pca_fe(2),
+             make_ae_fe("ann-ae", "direct", 0),
+             make_ae_fe("snn-ae", "poisson", 8),
+             make_ae_fe("snn-ae", "latency", 8)})
+    {
+        SCOPED_TRACE(fe.strategy == "pca" ? std::string("pca")
+                                          : fe.autoencoder.model.get() + "/" +
+                                                (fe.autoencoder.model.get() == "snn-ae"
+                                                        ? fe.autoencoder.encoding.get()
+                                                        : std::string("direct")));
+        auto view = make_multi_view(8);
+        const auto before = run_fitted(view, fe, rows, 7u);
+        view.samples[outside].eeg = make_column_tensor(1024, 300.0, 1024.0); // another signal
+        const auto after = run_fitted(view, fe, rows, 7u);
+        expect_unchanged_except(before, after, outside);
+        // ...and the changed sample itself is still transformed (not dropped): its row changed.
+        EXPECT_NE(before[0].vectors[outside], after[0].vectors[outside]);
+    }
+}
+
+TEST(ThesisFitRows, EveryRowIsTheTransductiveExtraction)
+{
+    auto view = make_multi_view(8);
+    std::vector<size_t> every(view.samples.size());
+    for (size_t i = 0; i < every.size(); ++i) every[i] = i;
+    for (const auto& fe : {make_pca_fe(2), make_ae_fe("snn-ae", "poisson", 8)})
+    {
+        ThesisConfig cfg = test::phase00("eeg");
+        cfg.experiment.seed = 7u;
+        cfg.feature_extraction = fe;
+        if (fe.strategy == "autoencoder") cfg.training = make_ae_training();
+        cfg.validate();
+        const auto a = extract_features(view, cfg, nullptr);
+        const auto b = extract_features_fitted_on(view, cfg, every, nullptr);
+        expect_unchanged_except(a, b, view.samples.size()); // no exception index: all equal
+    }
+}
+
+TEST(ThesisFitRows, RefusesBadRows)
+{
+    auto view = make_multi_view(8);
+    EXPECT_THROW((void) run_fitted(view, make_pca_fe(2), {}, 7u), std::invalid_argument);
+    EXPECT_THROW((void) run_fitted(view, make_pca_fe(2), {0, 2, 1, 3}, 7u), std::invalid_argument);
+    EXPECT_THROW((void) run_fitted(view, make_pca_fe(2), {0, 1, 1, 3}, 7u), std::invalid_argument);
+    EXPECT_THROW((void) run_fitted(view, make_pca_fe(2), {0, 1, 2, 8}, 7u), std::invalid_argument);
+}

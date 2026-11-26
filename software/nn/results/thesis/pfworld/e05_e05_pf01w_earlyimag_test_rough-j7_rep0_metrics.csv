@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.229412,0.853979,21221.459,35.789,results/thesis/pfworld/models/e05_pf01w_earlyimag_test_rough-j7_rep0/per-fold-fused-early/fold_0.bin
+per-fold-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.452663,0.564266,22389.246,36.094,results/thesis/pfworld/models/e05_pf01w_earlyimag_test_rough-j7_rep0/per-fold-fused-early/fold_1.bin
+per-fold-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.239583,0.842000,16323.136,30.140,results/thesis/pfworld/models/e05_pf01w_earlyimag_test_rough-j7_rep0/per-fold-fused-early/fold_2.bin
+per-fold-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.418605,0.580855,14205.139,24.947,results/thesis/pfworld/models/e05_pf01w_earlyimag_test_rough-j7_rep0/per-fold-fused-early/fold_3.bin
+per-fold-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.329730,0.771322,3818.441,7.734,results/thesis/pfworld/models/e05_pf01w_earlyimag_test_rough-j7_rep0/per-fold-fused-early/fold_4.bin

@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-voice,dsnn,dependent,0,nan,nan,nan,nan,nan,0.383041,0.687203,7123.705,11.728,results/thesis/pfworld/models/e05_pf01w_voice_probes_tremor-d2_rep2/per-fold-voice/fold_0.bin
+per-fold-voice,dsnn,dependent,1,nan,nan,nan,nan,nan,0.390374,0.726544,7109.231,13.384,results/thesis/pfworld/models/e05_pf01w_voice_probes_tremor-d2_rep2/per-fold-voice/fold_1.bin
+per-fold-voice,dsnn,dependent,2,nan,nan,nan,nan,nan,0.363636,0.675039,13931.471,22.611,results/thesis/pfworld/models/e05_pf01w_voice_probes_tremor-d2_rep2/per-fold-voice/fold_2.bin
+per-fold-voice,dsnn,dependent,3,nan,nan,nan,nan,nan,0.355030,0.661251,6948.163,11.008,results/thesis/pfworld/models/e05_pf01w_voice_probes_tremor-d2_rep2/per-fold-voice/fold_3.bin
+per-fold-voice,dsnn,dependent,4,nan,nan,nan,nan,nan,0.243243,0.849116,28920.136,49.128,results/thesis/pfworld/models/e05_pf01w_voice_probes_tremor-d2_rep2/per-fold-voice/fold_4.bin

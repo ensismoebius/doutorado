@@ -1,0 +1,61 @@
+classifier,source,text,folds,extractor,n_extractors,grid_point,n_grid_points
+dsnn,Voz,frases vistas,15,Haar + Linear (c1) (6/15),8,3 empatados (2/15 cada),12
+dsnn,Voz,frases não vistas,15,Haar + Linear (c1) (6/15),8,256/0/1e-03/0e+00 (2/15),14
+dsnn,EEG (fala pronunciada),frases vistas,15,Haar + Linear (c1) (15/15),1,256/1/1e-03/0e+00 (3/15),11
+dsnn,EEG (fala pronunciada),frases não vistas,15,Haar + Linear (c1) (15/15),1,5 empatados (2/15 cada),10
+dsnn,EEG (fala imaginada),frases vistas,15,Haar + Linear (c1) (15/15),1,15 empatados (1/15 cada),15
+dsnn,EEG (fala imaginada),frases não vistas,15,Haar + Linear (c1) (15/15),1,128/0/1e-03/0e+00 (3/15),10
+dsnn,Fusão precoce (pronunciada),frases vistas,15,Haar + Linear (c1) (6/15),8,3 empatados (2/15 cada),12
+dsnn,Fusão precoce (pronunciada),frases não vistas,15,Haar + Linear (c1) (6/15),8,256/0/1e-03/0e+00 = 64/1/1e-03/0e+00 (2/15),13
+dsnn,Fusão precoce (imaginada),frases vistas,15,Haar + Linear (c1) (6/15),8,3 empatados (2/15 cada),12
+dsnn,Fusão precoce (imaginada),frases não vistas,15,Haar + Linear (c1) (6/15),8,128/0/1e-03/0e+00 (3/15),11
+dsnn,Fusão tardia (pronunciada),frases vistas,15,Haar + Linear (c1) (6/15),8,256/1/1e-03/1e-04 = 64/2/1e-03/1e-04 (3/15),10
+dsnn,Fusão tardia (pronunciada),frases não vistas,15,Haar + Linear (c1) (6/15),8,64/1/1e-03/0e+00 (3/15),10
+dsnn,Fusão tardia (imaginada),frases vistas,15,Haar + Linear (c1) (6/15),8,128/0/1e-03/0e+00 = 256/1/1e-03/1e-04 (3/15),11
+dsnn,Fusão tardia (imaginada),frases não vistas,15,Haar + Linear (c1) (6/15),8,3 empatados (2/15 cada),12
+ann,Voz,frases vistas,15,Haar + Linear (c1) (6/15),8,256/0/1e-03/0e+00 (5/15),9
+ann,Voz,frases não vistas,15,Haar + Linear (c1) (6/15),8,64/0/1e-03/0e+00 (4/15),11
+ann,EEG (fala pronunciada),frases vistas,15,Haar + Linear (c1) (15/15),1,128/0/1e-03/0e+00 = 256/2/1e-03/0e+00 (2/15),13
+ann,EEG (fala pronunciada),frases não vistas,15,Haar + Linear (c1) (15/15),1,128/0/1e-03/0e+00 = 256/0/1e-03/0e+00 (3/15),9
+ann,EEG (fala imaginada),frases vistas,15,Haar + Linear (c1) (15/15),1,4 empatados (2/15 cada),11
+ann,EEG (fala imaginada),frases não vistas,15,Haar + Linear (c1) (15/15),1,256/0/3e-04/0e+00 (2/15),14
+ann,Fusão precoce (pronunciada),frases vistas,15,Haar + Linear (c1) (6/15),8,256/0/1e-03/0e+00 (4/15),10
+ann,Fusão precoce (pronunciada),frases não vistas,15,Haar + Linear (c1) (6/15),8,256/0/1e-03/0e+00 (4/15),8
+ann,Fusão precoce (imaginada),frases vistas,15,Haar + Linear (c1) (6/15),8,4 empatados (2/15 cada),11
+ann,Fusão precoce (imaginada),frases não vistas,15,Haar + Linear (c1) (6/15),8,128/0/1e-03/0e+00 (4/15),9
+ann,Fusão tardia (pronunciada),frases vistas,15,Haar + Linear (c1) (6/15),8,128/0/1e-03/0e+00 = 256/1/1e-03/0e+00 (3/15),9
+ann,Fusão tardia (pronunciada),frases não vistas,15,Haar + Linear (c1) (6/15),8,128/0/1e-03/0e+00 (5/15),8
+ann,Fusão tardia (imaginada),frases vistas,15,Haar + Linear (c1) (6/15),8,128/0/1e-03/0e+00 = 256/1/1e-03/0e+00 (4/15),9
+ann,Fusão tardia (imaginada),frases não vistas,15,Haar + Linear (c1) (6/15),8,3 empatados (3/15 cada),7
+cosine,Voz,frases vistas,15,Haar + Linear (c1) (6/15),8,—,—
+cosine,Voz,frases não vistas,15,Haar + Linear (c1) (6/15),8,—,—
+cosine,EEG (fala pronunciada),frases vistas,15,Haar + Linear (c1) (15/15),1,—,—
+cosine,EEG (fala pronunciada),frases não vistas,15,Haar + Linear (c1) (15/15),1,—,—
+cosine,EEG (fala imaginada),frases vistas,15,Haar + Linear (c1) (15/15),1,—,—
+cosine,EEG (fala imaginada),frases não vistas,15,Haar + Linear (c1) (15/15),1,—,—
+cosine,Fusão precoce (pronunciada),frases vistas,15,Haar + Linear (c1) (6/15),8,—,—
+cosine,Fusão precoce (pronunciada),frases não vistas,15,Haar + Linear (c1) (6/15),8,—,—
+cosine,Fusão precoce (imaginada),frases vistas,15,Haar + Linear (c1) (6/15),8,—,—
+cosine,Fusão precoce (imaginada),frases não vistas,15,Haar + Linear (c1) (6/15),8,—,—
+cosine,Fusão tardia (pronunciada),frases vistas,15,Haar + Linear (c1) (6/15),8,—,—
+cosine,Fusão tardia (pronunciada),frases não vistas,15,Haar + Linear (c1) (6/15),8,—,—
+cosine,Fusão tardia (imaginada),frases vistas,15,Haar + Linear (c1) (6/15),8,—,—
+cosine,Fusão tardia (imaginada),frases não vistas,15,Haar + Linear (c1) (6/15),8,—,—
+cmp-hc,Voz,frases vistas,15,Haar + Linear (c1) (6/15),8,3 empatados (2/15 cada),12
+cmp-hc,Voz,frases não vistas,15,Haar + Linear (c1) (6/15),8,256/0/1e-03/0e+00 (2/15),14
+cmp-hc,EEG (fala pronunciada),frases vistas,15,Haar + Linear (c1) (15/15),1,256/1/1e-03/0e+00 (3/15),11
+cmp-hc,EEG (fala pronunciada),frases não vistas,15,Haar + Linear (c1) (15/15),1,5 empatados (2/15 cada),10
+cmp-hc,EEG (fala imaginada),frases vistas,15,Haar + Linear (c1) (15/15),1,15 empatados (1/15 cada),15
+cmp-hc,EEG (fala imaginada),frases não vistas,15,Haar + Linear (c1) (15/15),1,128/0/1e-03/0e+00 (3/15),10
+cmp-ae,Voz,frases vistas,15,ANN-AE (base) (8/15),4,256/0/1e-03/0e+00 = 256/1/1e-03/1e-04 (3/15),11
+cmp-ae,Voz,frases não vistas,15,ANN-AE (base) (8/15),4,128/1/1e-03/1e-04 = 128/2/1e-03/1e-04 (3/15),10
+cmp-ae,EEG (fala pronunciada),frases vistas,15,ANN-AE (base) (12/15),3,4 empatados (2/15 cada),11
+cmp-ae,EEG (fala pronunciada),frases não vistas,15,ANN-AE (base) (12/15),3,256/2/1e-03/0e+00 = 64/2/1e-03/1e-04 (3/15),8
+cmp-ae,EEG (fala imaginada),frases vistas,15,ANN-AE (base) (15/15),1,64/1/1e-03/0e+00 (3/15),10
+cmp-ae,EEG (fala imaginada),frases não vistas,15,ANN-AE (base) (15/15),1,64/0/1e-03/0e+00 (4/15),9
+cmp-pca,Voz,frases vistas,15,PCA (k = 8) (15/15),1,256/0/1e-03/0e+00 (3/15),11
+cmp-pca,Voz,frases não vistas,15,PCA (k = 8) (15/15),1,256/0/3e-04/0e+00 (3/15),11
+cmp-pca,EEG (fala pronunciada),frases vistas,15,PCA (k = 8) (15/15),1,256/0/3e-04/0e+00 (6/15),9
+cmp-pca,EEG (fala pronunciada),frases não vistas,15,PCA (k = 8) (15/15),1,128/0/1e-03/0e+00 = 64/0/1e-03/0e+00 (2/15),13
+cmp-pca,EEG (fala imaginada),frases vistas,15,PCA (k = 8) (15/15),1,4 empatados (2/15 cada),11
+cmp-pca,EEG (fala imaginada),frases não vistas,15,PCA (k = 8) (15/15),1,256/0/3e-04/0e+00 (6/15),8

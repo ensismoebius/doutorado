@@ -1,0 +1,3 @@
+reference,condition,metric,pairing,n_folds_ref,n_folds_cond,mean_ref,mean_cond,delta_mean,cohens_d,p_value,p_holm,holm_family_size,test,significant_0.05,note
+e05_pf01_cmp-hc_eegpron_dep,e05_pf01_cmp-pca_eegpron_dep,eer,corrected,15,15,0.282743,0.3612028,0.07845979999999997,0.8937755750686689,0.2685924295767451,0.5371848591534902,2,corrected-t(paired),0,
+e05_pf01_cmp-hc_eegpron_dep,e05_pf01_cmp-ae_eegpron_dep,eer,corrected,15,15,0.282743,0.36382800000000004,0.08108500000000002,0.8954514259361648,0.2904420647648902,0.5371848591534902,2,corrected-t(paired),0,

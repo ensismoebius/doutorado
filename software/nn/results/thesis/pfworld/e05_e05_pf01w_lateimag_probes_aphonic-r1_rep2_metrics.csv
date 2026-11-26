@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-late,dsnn,dependent,0,nan,nan,nan,nan,nan,0.198830,0.882836,35067.332,57.474,results/thesis/pfworld/models/e05_pf01w_lateimag_probes_aphonic-r1_rep2/per-fold-fused-late/fold_0.bin
+per-fold-fused-late,dsnn,dependent,1,nan,nan,nan,nan,nan,0.251337,0.843161,8883.279,17.470,results/thesis/pfworld/models/e05_pf01w_lateimag_probes_aphonic-r1_rep2/per-fold-fused-late/fold_1.bin
+per-fold-fused-late,dsnn,dependent,2,nan,nan,nan,nan,nan,0.403409,0.638736,33891.256,52.123,results/thesis/pfworld/models/e05_pf01w_lateimag_probes_aphonic-r1_rep2/per-fold-fused-late/fold_2.bin
+per-fold-fused-late,dsnn,dependent,3,nan,nan,nan,nan,nan,0.242604,0.856640,33455.277,49.634,results/thesis/pfworld/models/e05_pf01w_lateimag_probes_aphonic-r1_rep2/per-fold-fused-late/fold_3.bin
+per-fold-fused-late,dsnn,dependent,4,nan,nan,nan,nan,nan,0.232432,0.843886,5232.808,9.459,results/thesis/pfworld/models/e05_pf01w_lateimag_probes_aphonic-r1_rep2/per-fold-fused-late/fold_4.bin

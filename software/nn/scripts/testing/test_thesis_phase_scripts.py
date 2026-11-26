@@ -18,6 +18,7 @@ import importlib.util
 import json
 import re
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -338,7 +339,7 @@ class GeneratedTree(unittest.TestCase):
         requests = GEN.load_calibration(TRACKED_CALIBRATION)
         rows = list(GEN.phase00()) + list(GEN.phase01(winners, fused)) + \
             list(GEN.biomex(winners, fused)) + list(GEN.pilot(winners, fused)) + \
-            list(GEN.world(winners, fused, requests))
+            list(GEN.world(winners, fused, requests)) + list(GEN.per_fold(requests))
         differ = []
         for rel, prof in rows:
             with open(os.path.join(GEN.PROFILES, rel), encoding="utf-8") as f:
@@ -348,6 +349,73 @@ class GeneratedTree(unittest.TestCase):
         with open(os.path.join(GEN.PROFILES, "profiles.manifest"), encoding="utf-8") as f:
             listed = sorted(l.strip() for l in f if l.strip() and not l.startswith("#"))
         self.assertEqual(listed, sorted(["debug.json"] + [rel for rel, _ in rows]))
+
+
+class PerFoldProfiles(unittest.TestCase):
+    """The per-fold protocol's profiles (.wiki/Experiments/Thesis-Per-Fold-Protocol.md): the
+    mirror of the fixed grid's flat standardized cells, the Phase 00 set as candidates, and
+    none of the keys the selection owns."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = list(GEN.per_fold(GEN.load_calibration(TRACKED_CALIBRATION)))
+        cls.profiles = {os.path.basename(rel)[:-5]: prof for rel, prof in cls.rows}
+
+    def test_shape(self):
+        by_dir = {}
+        for rel, _ in self.rows:
+            by_dir[rel.split("/")[0]] = by_dir.get(rel.split("/")[0], 0) + 1
+        self.assertEqual(by_dir, {"perfold": 7 * 2 * 3 + 5 * 8 + 3 * 3 * 2,
+                                  "pfbiomex": 4 * 2 * 3 + 3 * 8,
+                                  "pfworld": 5 * 2 * 15, "pfbxworld": 3 * 2 * 15})
+
+    def test_candidates_are_the_phase00_set_in_its_order(self):
+        for sig in SIGNALS:
+            want = [fe for _, fe in GEN.phase00_extractors(sig)]
+            got = [c["feature_extraction"]
+                   for c in self.profiles[f"pf01_dsnn_{sig}_dep"]["selection"]["extractor_candidates"]]
+            self.assertEqual(got, want, sig)
+        # A fusion ranks the voice (its winner feeds both parts).
+        fused = self.profiles["pf01_dsnn_latepron_dep"]["selection"]
+        self.assertEqual(fused["rank_modality"], "voice")
+        self.assertEqual(len(fused["extractor_candidates"]),
+                         len(list(GEN.phase00_extractors("voice"))))
+
+    def test_an_autoencoder_candidate_keeps_its_phase00_budget(self):
+        for c in self.profiles["pf01_ann_voice_dep"]["selection"]["extractor_candidates"]:
+            if c["feature_extraction"]["strategy"] == "autoencoder":
+                self.assertEqual(c["training"], GEN.AE_TRAINING)
+            else:
+                self.assertNotIn("training", c)
+
+    def test_comparison_profiles_hold_one_family(self):
+        for fam, strategy in (("hc", "handcrafted"), ("ae", "autoencoder"), ("pca", "pca")):
+            cands = self.profiles[f"pf01_cmp-{fam}_eegpron_dep"]["selection"]["extractor_candidates"]
+            self.assertTrue(cands)
+            self.assertEqual({c["feature_extraction"]["strategy"] for c in cands}, {strategy})
+
+    def test_owned_keys_are_absent_and_the_grid_is_the_rule(self):
+        for name, prof in self.profiles.items():
+            self.assertNotIn("feature_extraction", prof, name)
+            self.assertNotIn("layer_spec", prof["classifier"], name)
+            for key in ("learning_rate", "weight_decay", "nested_cv", "early_stop_patience"):
+                self.assertNotIn(key, prof["training"], name)
+            self.assertFalse(prof["paraconsistent"]["enabled"], name)
+            grid = {k: v for k, v in prof["selection"].items() if k in GEN.SELECTION_GRID}
+            want = {} if prof["classifier"]["type"] == "cosine" else GEN.SELECTION_GRID
+            self.assertEqual(grid, want, name)
+        self.assertEqual(GEN.SELECTION_GRID["hidden_widths"], [64, 128, 256])
+        self.assertEqual(GEN.SELECTION_GRID["residual_blocks"], [0, 1, 2])
+        self.assertEqual(GEN.SELECTION_GRID["learning_rates"], [0.001, 0.0003])
+        self.assertEqual(GEN.SELECTION_GRID["weight_decays"], [0.0, 0.0001])
+        self.assertEqual(GEN.SELECTION_GRID["inner_k"], 4)
+
+    def test_every_fixed_profile_declares_the_fixed_configuration(self):
+        winners = GEN.load_winners(TRACKED_WINNERS)
+        rows = list(GEN.phase01(winners, "voice")) + list(GEN.biomex(winners, "voice"))
+        for rel, prof in rows:
+            self.assertEqual(prof["selection"], {"enabled": False}, rel)
+            self.assertIn("feature_extraction", prof, rel)
 
 
 class WorldFloor(unittest.TestCase):
@@ -427,6 +495,33 @@ class WorldAnalysis(unittest.TestCase):
         self.assertEqual(names, ["control"] + self.m08.LEVELS)
         self.assertEqual({b: (ph, pre, src) for b, (ph, pre, src) in self.m08.BASES.items()},
                          {base: (ph, pre, src) for ph, (base, pre, src) in GEN.WORLD_GRIDS.items()})
+
+    def test_per_fold_bases_are_the_generators_per_fold_world_dirs(self):
+        # The per-fold WORLD grid mirrors the fixed one: same sources, the generator's prefixes.
+        for base, (phase, prefix, sources) in self.m08.PER_FOLD_BASES.items():
+            fixed_phase, fixed_prefix, fixed_sources = self.m08.BASES[base]
+            self.assertEqual(phase, "pf" + fixed_phase)
+            self.assertEqual(prefix, GEN.PER_FOLD_WORLD_PREFIX[fixed_prefix])
+            self.assertEqual(sources, fixed_sources)
+
+    def test_protocol_arguments_are_refused_out_of_place(self):
+        script = os.path.join(HERE_PIPE, "08_thesis_world_analysis.py")
+        common = ["--profiles-root", "x", "--results-root", "y", "--out", tempfile.mkdtemp()]
+        cases = (
+            (["--protocol", "per-fold"], "needs --bases"),
+            (["--protocol", "per-fold", "--bases", "coretto2017", "--features", "f"],
+             "--features belongs to --protocol fixed"),
+            (["--protocol", "per-fold", "--bases", "coretto2017,coretto2017"], "at most once"),
+            (["--protocol", "per-fold", "--bases", "nope"], "at most once"),
+            (["--protocol", "fixed"], "needs --features"),
+            (["--protocol", "fixed", "--features", "f", "--bases", "coretto2017"],
+             "takes no --bases"),
+        )
+        for extra, message in cases:
+            r = subprocess.run([sys.executable, script, *extra, *common], check=False,
+                               capture_output=True, text=True)
+            self.assertNotEqual(r.returncode, 0, extra)
+            self.assertIn(message, r.stderr + r.stdout, extra)
 
 
 class Phase00Tables(unittest.TestCase):
@@ -521,12 +616,35 @@ class Phase01Tables(unittest.TestCase):
 
     def run_tables(self):
         return subprocess.run(
-            [sys.executable, AUTH_TABLES, "--profiles-dir", self.p01, "--results-dir", self.res,
-             "--tables-dir", self.tables], check=False, capture_output=True, text=True)
+            [sys.executable, AUTH_TABLES, "--protocol", "fixed", "--profiles-dir", self.p01,
+             "--results-dir", self.res, "--tables-dir", self.tables],
+            check=False, capture_output=True, text=True)
 
     def read(self, table):
         with open(os.path.join(self.tables, f"phase01_{table}.csv"), newline="") as f:
             return list(csv.DictReader(f))
+
+    def test_refuses_a_per_fold_summary(self):
+        prof = self.all01["p01_dsnn_voice_dep_flat_std"]
+        tag = "e05_e05_p01_dsnn_voice_dep_flat_std_rep0"
+        path = os.path.join(self.res, f"{tag}_summary.json")
+        with open(path) as f:
+            summary = json.load(f)
+        summary["protocol"] = "per-fold"
+        write_json(path, summary)
+        r = self.run_tables()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("the summary says protocol 'per-fold'", r.stderr)
+        del prof
+
+    def test_the_fixed_protocol_takes_no_fixed_dirs(self):
+        r = subprocess.run(
+            [sys.executable, AUTH_TABLES, "--protocol", "fixed", "--profiles-dir", self.p01,
+             "--results-dir", self.res, "--tables-dir", self.tables,
+             "--fixed-profiles-dir", self.p01, "--fixed-results-dir", self.res],
+            check=False, capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("belong to --protocol per-fold", r.stderr)
 
     def test_ranks_by_eer_with_labels_from_the_config(self):
         r = self.run_tables()
@@ -556,7 +674,7 @@ class Phase01Tables(unittest.TestCase):
         write_json(os.path.join(self.p01, "a_voice.json"), self.all01["p01_dsnn_voice_dep_flat_std"])
         r = self.run_tables()
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("belongs to no Phase 01 set", r.stderr)
+        self.assertIn("belongs to no fixed Phase 01 set", r.stderr)
 
     def test_refuses_a_name_its_config_contradicts(self):
         prof = json.loads(json.dumps(self.all01["p01_dsnn_voice_dep_flat_std"]))
@@ -589,6 +707,195 @@ class Phase01Tables(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
 
+def per_fold_profiles(phase="perfold"):
+    """{stem: profile} of one per-fold directory, exactly as the generator writes them."""
+    rows = GEN.per_fold(GEN.load_calibration(TRACKED_CALIBRATION))
+    return {os.path.basename(rel)[:-len(".json")]: prof
+            for rel, prof in rows if rel.split("/")[0] == phase}
+
+
+def per_fold_summary(prof, eer, extractor_index=0, grid_index=0, k_folds=5):
+    """A per-fold summary as thesis writes it: protocol, and per fold the selection record
+    (every candidate ranked, the chosen one; for a network every grid point, the chosen one)."""
+    sel = prof["selection"]
+    n_cands = len(sel["extractor_candidates"])
+    folds = []
+    for f in range(k_folds):
+        record = {"extractors": [{"label": "x", "d_penalized": 1.0}] * n_cands,
+                  "extractor_index": extractor_index, "extractor_label": "x",
+                  "param_count": 0, "fold_ms": 1.0}
+        if prof["classifier"]["type"] != "cosine":
+            grid = [{"hidden_width": w, "residual_blocks": b, "learning_rate": lr,
+                     "weight_decay": wd, "param_count": 1, "inner_eer": [0.3],
+                     "mean_inner_eer": 0.3}
+                    for w in sel["hidden_widths"] for b in sel["residual_blocks"]
+                    for lr in sel["learning_rates"] for wd in sel["weight_decays"]]
+            record.update(grid=grid, grid_index=grid_index)
+        folds.append({"fold": f, "selection": record})
+    r = {"mean_eer": eer, "mean_auc": 0.9, "fold_models": folds}
+    if prof["classifier"]["type"] != "cosine":
+        r["energy"] = ENERGY
+    return {"protocol": "per-fold", "results": [r]}
+
+
+class PerFoldTables(unittest.TestCase):
+    """The per-fold protocol's tables: the same five sets without the CV/standardization axes,
+    the folds' choices reported, and every cell beside its fixed-grid twin."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.pf = os.path.join(self.tmp, "perfold")
+        self.p01 = os.path.join(self.tmp, "phase01")
+        self.res = os.path.join(self.tmp, "results_pf")
+        self.res01 = os.path.join(self.tmp, "results_p01")
+        self.tables = os.path.join(self.tmp, "tables")
+        self.allpf = per_fold_profiles()
+        for i, (name, prof) in enumerate(sorted(self.allpf.items())):
+            write_json(os.path.join(self.pf, f"{name}.json"), prof)
+            for k, t in enumerate(rep_tags(prof)):
+                # Folds 0-4 of rep 0 choose candidate 0; reps 1-2 choose candidate 1, so the
+                # most chosen extractor is candidate 1 (10/15) wherever there are two.
+                idx = 0 if k == 0 or len(prof["selection"]["extractor_candidates"]) == 1 else 1
+                write_json(os.path.join(self.res, f"{t}_summary.json"),
+                           per_fold_summary(prof, 0.20 + 0.001 * i + 0.01 * k, idx, grid_index=k))
+        for name, prof in generated("phase01").items():
+            write_json(os.path.join(self.p01, f"{name}.json"), prof)
+            for t in rep_tags(prof):
+                r = {"mean_eer": 0.30, "mean_auc": 0.9}
+                if prof["classifier"]["type"] != "cosine":
+                    r["energy"] = ENERGY
+                write_json(os.path.join(self.res01, f"{t}_summary.json"), {"results": [r]})
+
+    def run_tables(self, *extra, fixed=True):
+        args = [sys.executable, AUTH_TABLES, "--protocol", "per-fold", "--profiles-dir", self.pf,
+                "--results-dir", self.res, "--tables-dir", self.tables, *extra]
+        if fixed:
+            args += ["--fixed-profiles-dir", self.p01, "--fixed-results-dir", self.res01]
+        return subprocess.run(args, check=False, capture_output=True, text=True)
+
+    def read(self, table):
+        with open(os.path.join(self.tables, f"perfold_{table}.csv"), newline="") as f:
+            return list(csv.DictReader(f))
+
+    def test_the_tables_and_the_folds_choices(self):
+        r = self.run_tables()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(self.read("auth")), 7 * 2)
+        self.assertEqual({x["configuration"].count("·") for x in self.read("auth")}, {1})
+        for t in ("controls", "dysphonia", "extractors", "energy", "selection"):
+            self.assertTrue(self.read(t), t)
+        voice = self.allpf["pf01_dsnn_voice_dep"]["selection"]["extractor_candidates"]
+        AUTH = _load(AUTH_TABLES, "auth_tables")
+        want = AUTH.extractor_label(voice[1]["feature_extraction"])
+        row = next(x for x in self.read("selection")
+                   if x["classifier"] == "dsnn" and x["source"] == "Voz"
+                   and x["text"] == "frases vistas")
+        self.assertEqual(row["extractor"], f"{want} (10/15)")
+        self.assertEqual(row["n_extractors"], "2")
+        # grid index k per repetition: three points, five folds each -> a three-way tie, counted
+        self.assertEqual(row["grid_point"], "3 empatados (5/15 cada)")
+        cos = next(x for x in self.read("selection") if x["classifier"] == "cosine")
+        self.assertEqual((cos["grid_point"], cos["n_grid_points"]), ("—", "—"))
+
+    def test_vs_fixed_is_the_difference_of_the_two_eers(self):
+        r = self.run_tables()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        rows = self.read("vs_fixed")
+        self.assertEqual(len(rows), 3 * 7 * 2)
+        for x in rows:
+            self.assertAlmostEqual(float(x["difference"]),
+                                   float(x["perfold_eer"]) - float(x["fixed_eer"]), places=3)
+
+    def test_needs_the_fixed_grid(self):
+        r = self.run_tables(fixed=False)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("needs --fixed-profiles-dir", r.stderr)
+
+    def test_refuses_a_fixed_summary_under_the_per_fold_protocol(self):
+        prof = self.allpf["pf01_ann_voice_dep"]
+        t = rep_tags(prof)[0]
+        summary = per_fold_summary(prof, 0.2)
+        del summary["protocol"]
+        write_json(os.path.join(self.res, f"{t}_summary.json"), summary)
+        r = self.run_tables()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("the summary says protocol None", r.stderr)
+
+    def test_refuses_a_choice_outside_the_profiles_candidates(self):
+        prof = self.allpf["pf01_ann_voice_dep"]
+        n = len(prof["selection"]["extractor_candidates"])
+        write_json(os.path.join(self.res, f"{rep_tags(prof)[0]}_summary.json"),
+                   per_fold_summary(prof, 0.2, extractor_index=n))
+        r = self.run_tables()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("is not this profile's run", r.stderr)
+
+    def test_refuses_a_fixed_profile_in_the_per_fold_set(self):
+        write_json(os.path.join(self.pf, "p01_dsnn_voice_dep_flat_std.json"),
+                   generated("phase01")["p01_dsnn_voice_dep_flat_std"])
+        r = self.run_tables()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("selection.enabled is False", r.stderr)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+
+class PerFoldBiomexTables(unittest.TestCase):
+    """The BIOMEX-DB replication under the per-fold protocol: pfbx01_* beside the Coretto
+    per-fold cell (the method is repeated, so the base it is compared with is read under it)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.dirs = {}
+        for key, phase in (("bx", "pfbiomex"), ("co", "perfold")):
+            profs = per_fold_profiles(phase)
+            pdir, rdir = (os.path.join(self.tmp, f"{key}_profiles"),
+                          os.path.join(self.tmp, f"{key}_results"))
+            for i, (name, prof) in enumerate(sorted(profs.items())):
+                write_json(os.path.join(pdir, f"{name}.json"), prof)
+                for k, t in enumerate(rep_tags(prof)):
+                    write_json(os.path.join(rdir, f"{t}_summary.json"),
+                               per_fold_summary(prof, 0.25 + 0.001 * i + 0.01 * k))
+            self.dirs[key] = (pdir, rdir)
+        self.tables = os.path.join(self.tmp, "tables")
+
+    def run_tables(self, protocol="per-fold"):
+        return subprocess.run(
+            [sys.executable, BIOMEX_TABLES, "--protocol", protocol,
+             "--profiles-dir", self.dirs["bx"][0], "--results-dir", self.dirs["bx"][1],
+             "--coretto-profiles-dir", self.dirs["co"][0],
+             "--coretto-results-dir", self.dirs["co"][1], "--tables-dir", self.tables],
+            check=False, capture_output=True, text=True)
+
+    def read(self, name):
+        with open(os.path.join(self.tables, f"pfbiomex_{name}.csv"), newline="") as f:
+            return list(csv.DictReader(f))
+
+    def test_tables_sit_beside_the_coretto_per_fold_cell(self):
+        r = self.run_tables()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(self.read("auth")), 4 * 2)
+        self.assertEqual(len(self.read("dysphonia")), 3 * 2)
+        self.assertTrue(self.read("selection"))
+        for row in self.read("auth"):
+            self.assertTrue(row["coretto_dsnn_eer"] and row["dsnn_eer"])
+
+    def test_refuses_the_per_fold_set_under_the_fixed_protocol(self):
+        r = self.run_tables("fixed")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("selection.enabled is True", r.stderr)
+
+    def test_refuses_a_missing_summary(self):
+        os.remove(os.path.join(self.dirs["bx"][1], "e05_e05_pfbx01_ann_voice_dep_rep1_summary.json"))
+        r = self.run_tables()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("pfbx01_ann_voice_dep_rep1_summary.json", r.stderr)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+
 class BiomexTables(unittest.TestCase):
     """Every BIOMEX-DB cell is printed next to the same Coretto cell, and only then."""
 
@@ -613,7 +920,7 @@ class BiomexTables(unittest.TestCase):
 
     def run_tables(self):
         return subprocess.run(
-            [sys.executable, BIOMEX_TABLES, "--profiles-dir", self.bx, "--results-dir", self.bxres,
+            [sys.executable, BIOMEX_TABLES, "--protocol", "fixed", "--profiles-dir", self.bx, "--results-dir", self.bxres,
              "--coretto-profiles-dir", self.co, "--coretto-results-dir", self.cores,
              "--tables-dir", self.tables], check=False, capture_output=True, text=True)
 
@@ -680,6 +987,7 @@ def p01_profile(tag, modality, fusion_mode=None):
             "descriptors": ["energy", "zcr", "entropy", "teager", "jitter", "shimmer"],
             "dtwpt_level": 4}},
         "paraconsistent": {"enabled": False},
+        "selection": {"enabled": False},
         "classifier": {"type": "dsnn",
                        "layer_spec": ["linear:128:relu", "residual:2", "linear:N_speakers:identity"],
                        "text_mode": "independent", "enabled": True},
@@ -693,6 +1001,63 @@ def p01_profile(tag, modality, fusion_mode=None):
 
 METRICS_HEADER = ("feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,"
                   "specificity,eer,auc,train_ms,infer_ms,model_path\n")
+
+
+class TextNumbersPerFold(unittest.TestCase):
+    """The per-fold keys of thesis_build_text_numbers.py: the stability of the choices is
+    counted, a mode is named only when every cell agrees on it, and the per-fold WORLD file
+    is required with both bases."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tn = _load(os.path.join(PIPELINE_DIR, "thesis_build_text_numbers.py"), "tn_under_test")
+
+    @staticmethod
+    def run_of(extractors, grids):
+        return {"choices": [{"extractor": e, "grid": g} for e, g in zip(extractors, grids)]}
+
+    def sets(self, voice_extractors, eeg_extractor="Haar + Linear (c1)"):
+        g = ["64/0/1e-03/0e+00", "128/1/1e-03/0e+00", "256/2/3e-04/1e-04"]
+        voice = self.run_of(voice_extractors, g)
+        eeg = self.run_of([eeg_extractor] * 3, g)
+        cos = {"choices": [{"extractor": e, "grid": None} for e in voice_extractors]}
+        return {"grid": {("voice", "dep"): voice, ("eegpron", "dep"): eeg},
+                "ann": {("voice", "dep"): voice, ("eegpron", "dep"): eeg},
+                "cosine": {("voice", "dep"): cos}}
+
+    def test_stability_counts_and_mode(self):
+        n = self.tn.Numbers()
+        self.tn.selection_summary(n, "pf01", self.sets(["A (c1)", "A (c1)", "B (c1)"]))
+        val = {k: v[1] for k, v in n.values.items()}
+        self.assertEqual(val["pf01.sel.voice.extractors.max"], "2")
+        self.assertEqual(val["pf01.sel.eeg.extractors.max"], "1")
+        self.assertEqual(val["pf01.sel.voice.mode.label"], "A (c1)")
+        self.assertEqual(val["pf01.sel.voice.mode.folds.min"], "2")
+        self.assertEqual(val["pf01.sel.voice.c1only"], "1")
+        self.assertEqual(val["pf01.sel.grid.points.min"], "3")
+
+    def test_no_mode_label_when_tied(self):
+        n = self.tn.Numbers()
+        self.tn.selection_summary(n, "pf01", self.sets(["A (c1)", "B (c1)", "PCA (k = 8)"]))
+        self.assertNotIn("pf01.sel.voice.mode.label", n.values)   # a 3-way tie names no mode
+        self.assertEqual(n.values["pf01.sel.voice.c1only"][1], "0")
+
+    def test_world_perfold_requires_both_bases(self):
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(SystemExit):
+                self.tn.world_perfold(self.tn.Numbers(), pathlib.Path(d))
+            path = os.path.join(d, "world_eer_perfold.csv")
+            head = "base,source,scope,level,eer_control,eer_level,delta,p,p_holm,significant\n"
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(head + "coretto2017,voice,test,rough-j1,0.3,0.31,0.01,0.5,1.0,0\n")
+            with self.assertRaises(SystemExit):          # no biomex2021 rows: refused
+                self.tn.world_perfold(self.tn.Numbers(), pathlib.Path(d))
+            with open(path, "a", encoding="utf-8") as f:
+                f.write("biomex2021,voice,test,rough-j1,0.3,0.28,-0.02,0.04,0.9,0\n")
+            n = self.tn.Numbers()
+            self.tn.world_perfold(n, pathlib.Path(d))
+            self.assertEqual(n.values["world.pf.eer.n"][1], "2")
+            self.assertEqual(n.values["world.pf.eer.absmax"][1], "0.020")
 
 
 class CrossProfileSignificance(unittest.TestCase):
@@ -774,6 +1139,34 @@ class CrossProfileSignificance(unittest.TestCase):
         r = self.run_sig(pairing="paired")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("wilcoxon(paired)", r.stdout)
+
+    def add_per_fold(self, name, eers):
+        """A per-fold profile on the same split as a and b: no nested_cv (the selection owns
+        the inner level), outer folds = the flat CV's."""
+        self.add(name, "voice", "independent", eers)
+        path = os.path.join(self.p01, f"{name}.json")
+        with open(path) as f:
+            prof = json.load(f)
+        prof["selection"] = {"enabled": True}
+        del prof["training"]["nested_cv"]
+        write_json(path, prof)
+
+    def test_a_per_fold_profile_pairs_with_a_flat_one(self):
+        for name in ("a", "b"):
+            path = os.path.join(self.p01, f"{name}.json")
+            with open(path) as f:
+                prof = json.load(f)
+            prof["training"]["nested_cv"] = False
+            write_json(path, prof)
+        self.add_per_fold("c", [0.20, 0.22, 0.25, 0.21, 0.24, 0.26])
+        r = self.run_sig(pairing="corrected", reference="e05_a")
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_a_per_fold_profile_does_not_pair_with_a_nested_one(self):
+        self.add_per_fold("c", [0.20, 0.22, 0.25, 0.21, 0.24, 0.26])
+        r = self.run_sig(pairing="corrected", reference="e05_a")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("outer_cv: 'nested' vs 'flat'", r.stderr)
 
     def test_paired_refused_when_the_folds_differ(self):
         self.add("c", "voice", "dependent", [0.2] * 6)

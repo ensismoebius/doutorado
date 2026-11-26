@@ -1,0 +1,6 @@
+feature_set,classifier,text_mode,fold,accuracy,f1,precision,recall,specificity,eer,auc,train_ms,infer_ms,model_path
+per-fold-fused-early,dsnn,dependent,0,nan,nan,nan,nan,nan,0.270588,0.831228,22087.188,35.996,results/thesis/perfold/models/e05_pf01_dysph_earlyimag_probes_l100_rep0/per-fold-fused-early/fold_0.bin
+per-fold-fused-early,dsnn,dependent,1,nan,nan,nan,nan,nan,0.281065,0.775078,22142.580,35.669,results/thesis/perfold/models/e05_pf01_dysph_earlyimag_probes_l100_rep0/per-fold-fused-early/fold_1.bin
+per-fold-fused-early,dsnn,dependent,2,nan,nan,nan,nan,nan,0.239583,0.856757,14699.934,25.411,results/thesis/perfold/models/e05_pf01_dysph_earlyimag_probes_l100_rep0/per-fold-fused-early/fold_2.bin
+per-fold-fused-early,dsnn,dependent,3,nan,nan,nan,nan,nan,0.348837,0.681551,14866.752,25.984,results/thesis/perfold/models/e05_pf01_dysph_earlyimag_probes_l100_rep0/per-fold-fused-early/fold_3.bin
+per-fold-fused-early,dsnn,dependent,4,nan,nan,nan,nan,nan,0.354054,0.723959,3833.597,7.956,results/thesis/perfold/models/e05_pf01_dysph_earlyimag_probes_l100_rep0/per-fold-fused-early/fold_4.bin

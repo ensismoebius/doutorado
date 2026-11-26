@@ -101,6 +101,7 @@ inline void set_handcrafted(ThesisConfig& c)
 inline void set_classifier(ThesisConfig& c, const std::string& type)
 {
     c.classifier.enabled = true;
+    c.selection.enabled = false; // the profile's own extractor and hyperparameters
     c.classifier.type = type;
     c.classifier.text_mode = "dependent";
     c.training.k_folds = 3;

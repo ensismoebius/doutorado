@@ -72,10 +72,10 @@ test sets them via `set_weights()`:
 
 ```bash
 # one-time: create the venv and install CPU torch + snnTorch
-software/nn/.venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-software/nn/.venv/bin/python -m pip install snntorch
+~/.venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+~/.venv/bin/python -m pip install snntorch
 
-software/nn/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
+~/.venv/bin/python software/nn/scripts/testing/gen_pytorch_refs.py
 ```
 
 Then rebuild + run: `ctest --test-dir out/build/max-performance -R PyTorchParity`.

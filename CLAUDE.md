@@ -13,6 +13,18 @@ in ANY task, not only when a specific skill below is invoked:
 - Quality/edit: `get_violations` / `rank_symbols` / `rename_symbol` / `replace_symbol` / `insert_lines` — hash-gated, refuses on a stale target instead of guessing
 - Build/test/repo state: `run_build` / `run_tests` / `run_lint` / `run_format` / `git_status` / `git_log` / `git_blame` / `git_diff_stat` / `compare_baseline` — structured results instead of raw log/diff text
 
+## Python environment: shared `~/.venv` (PERMANENT)
+
+The machine has ONE Python env, `~/.venv`, shared by every project. Never create a
+venv/conda env (`python -m venv`, `uv venv`, `virtualenv`, conda/mamba) — not even
+the `.venv` older docs mention. `software/nn` uses `$HOME/.venv`: CMake
+(`cmake/VendorPythonEnv.cmake`, `cmake/VendorMatplotlibCpp.cmake`) installs
+`scripts/requirements.txt` + numpy/matplotlib into it at configure time and refuses
+(FATAL_ERROR) to delete or recreate a broken shared venv — keep that guard. Scripts
+run `~/.venv/bin/python` (fallback `python3`). Install extra deps with
+`~/.venv/bin/pip`; torch is the CPU build. Version conflict → ask the user. The
+GridUnesp cluster follows the same rule: one `~/.venv` there.
+
 ## Working directory
 
 Most work happens in `software/nn/`. Detailed CLAUDE.md there covers: build system, module contract, SNN invariants, tensor shapes, serialization, test conventions, wiki maintenance.
